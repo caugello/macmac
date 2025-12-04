@@ -1,0 +1,32 @@
+# macOS
+.DS_Store
+.localized
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Python
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+lib/
+lib64/
+include/
+share/
+bin/
+*.egg-info/
+.installed.dists
+.venv
+.env
+.pytest_cache
+.mypy_cache
+.dmypy.json
+.vscode/
+.idea/
+*.ipynb
+*.log

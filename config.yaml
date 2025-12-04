@@ -1,0 +1,76 @@
+---
+urlPrefix: /api/v1
+title: MacMac
+version: 0.1.0
+
+services:
+  recipes:
+    name: recipes
+    title: Recipes API
+    version: 0.1.0
+    url: "http://0.0.0.0:8001"
+    db: "postgresql+psycopg2://dbuser:dbpass@0.0.0.0:5432/recipes"
+    routes:
+      - name: create_recipe
+        method: post
+        path: /recipes
+        request_model: services.shared.schemas.recipe.RecipeCreate
+        response_model: services.shared.schemas.recipe.RecipeOut
+        handler: services.recipes.crud.create_recipe
+        description: Create a new recipe
+        tags:
+          - recipe
+
+      - name: list_recipes
+        method: get
+        path: /recipes
+        response_model: services.shared.schemas.recipe.RecipeListResponse
+        handler: services.recipes.crud.list_recipes
+        description: List recipes
+        query_params:
+          limit:
+            type: int
+            default: 20
+            ge: 1
+            le: 100
+          offset:
+            type: int
+            default: 0
+            ge: 0
+          search:
+            type: str
+            default: null
+          ingredient:
+            type: str
+            default: null
+          sort:
+            type: str
+            default: null
+            example: "title:asc"
+        tags:
+          - recipe
+
+      - name: get_recipe
+        method: get
+        path: /recipes/{recipe_id}
+        handler: services.recipes.crud.get_recipe
+        response_model: services.shared.schemas.recipe.RecipeOut
+        description: Get a single recipe
+        tags: [recipes]
+
+      - name: updateRecipe
+        description: Update a single recipe
+        method: patch
+        path: /recipes/{recipe_id}
+        handler: services.recipes.crud.update_recipe
+        request_model: services.shared.schemas.recipe.RecipeUpdate
+        response_model: services.shared.schemas.recipe.RecipeOut
+        tags: [recipes]
+
+      - name: deleteRecipe
+        description: delete a single recipe
+        method: delete
+        path: /recipes/{recipe_id}
+        handler: services.recipes.crud.delete_recipe
+        response_model: services.shared.schemas.generic.DeleteResponse
+        tags: [recipes]

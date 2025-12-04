@@ -1,0 +1,16 @@
+version: 3
+networks:
+  macmac: {}
+  macmac_recipes: {}
+services:
+  db:
+    image: quay.io/fedora/postgresql-16
+    ports:
+      - 5432:5432
+    networks:
+      - macmac_recipes
+    environment:
+      POSTGRESQL_USER: dbuser
+      POSTGRESQL_PASSWORD: dbpass
+      POSTGRESQL_DATABASE: recipes
+      POSTGRESQL_ADMIN_PASSWORD: admin
