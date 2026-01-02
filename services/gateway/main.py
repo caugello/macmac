@@ -173,47 +173,24 @@ def register_routes():
     """
     for service_name, service in config.services.items():
         for route in service.routes:
+            api_route_path = f"{config.urlPrefix}{route.path}"
             log_event(
                 "startup",
                 name=service_name,
-                route=route.path,
+                route=api_route_path,
                 action="gateway.register_routes",
                 message=f"Registering routes for service: {service_name}",
             )
 
-            # if there is a request_model, FastAPI needs a function param with that type
-            if route.request_model:
-
-                async def endpoint(body: route.request_model):  # type: ignore
-                    pass  # replaced by handler below
-
-                final_handler = make_proxy_handler(service, route)
-                endpoint = (
-                    final_handler.__func__
-                    if hasattr(final_handler, "__func__")
-                    else final_handler
-                )
-
-                app.add_api_route(
-                    path=f"{config.urlPrefix}{route.path}",
-                    endpoint=final_handler,
-                    methods=[route.method.upper()],
-                    response_model=route.response_model,
-                    name=route.description or route.path,
-                    tags=route.tags,
-                )
-
-            else:
-                # route with NO request body
-                final_handler = make_proxy_handler(service, route)
-                app.add_api_route(
-                    path=f"{config.urlPrefix}{route.path}",
-                    endpoint=final_handler,
-                    methods=[route.method.upper()],
-                    response_model=route.response_model,
-                    name=route.description or route.path,
-                    tags=route.tags,
-                )
+            endpoint = make_proxy_handler(service, route)
+            app.add_api_route(
+                path=api_route_path,
+                endpoint=endpoint,
+                methods=[route.method.upper()],
+                response_model=route.response_model,
+                name=route.description or route.path,
+                tags=route.tags,
+            )
 
 
 @app.on_event("startup")

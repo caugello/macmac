@@ -2,6 +2,13 @@
 urlPrefix: /api/v1
 title: MacMac
 version: 0.1.0
+tmpDir: /tmp
+
+vendors:
+  colruyt:
+    url: "https://www.collectandgo.be/sitemap.xml"
+    name: Colruyt Collect & Go
+    product_url_identifier: "/assortiment/"
 
 services:
   recipes:
@@ -20,7 +27,6 @@ services:
         description: Create a new recipe
         tags:
           - recipe
-
       - name: list_recipes
         method: get
         path: /recipes
@@ -49,7 +55,6 @@ services:
             example: "title:asc"
         tags:
           - recipe
-
       - name: get_recipe
         method: get
         path: /recipes/{recipe_id}
@@ -57,7 +62,6 @@ services:
         response_model: services.shared.schemas.recipe.RecipeOut
         description: Get a single recipe
         tags: [recipes]
-
       - name: updateRecipe
         description: Update a single recipe
         method: patch
@@ -66,7 +70,6 @@ services:
         request_model: services.shared.schemas.recipe.RecipeUpdate
         response_model: services.shared.schemas.recipe.RecipeOut
         tags: [recipes]
-
       - name: deleteRecipe
         description: delete a single recipe
         method: delete
@@ -74,3 +77,56 @@ services:
         handler: services.recipes.crud.delete_recipe
         response_model: services.shared.schemas.generic.DeleteResponse
         tags: [recipes]
+  catalog:
+    name: catalog
+    title: catalog API
+    version: 0.1.0
+    url: "http://0.0.0.0:8002"
+    db: "postgresql+psycopg2://dbuser:dbpass@0.0.0.0:5433/catalog"
+    routes:
+      - name: create_recipe
+        method: post
+        path: /catalog
+        request_model: services.shared.schemas.catalog.CatalogItemCreate
+        response_model: services.shared.schemas.catalog.CatalogItemOut
+        handler: services.catalog.crud.create_catalog_item
+        description: Create a new catalog item
+        tags:
+          - catalog
+      - name: list_catalog_items
+        method: get
+        path: /catalog
+        response_model: services.shared.schemas.catalog.CatalogItemListResponse
+        handler: services.catalog.crud.list_catalog_items
+        description: List Catalog Items
+        query_params:
+          limit:
+            type: int
+            default: 20
+            ge: 1
+            le: 100
+          offset:
+            type: int
+            default: 0
+            ge: 0
+          search:
+            type: str
+            default: null
+          sort:
+            type: str
+            default: null
+            example: "title:asc"
+        tags:
+          - catalog
+      - name: get_catalog_item
+        method: get
+        path: /catalog/{item_id}
+        handler: services.catalog.crud.get_catalog_item
+        response_model: services.shared.schemas.catalog.CatalogItemOut
+        description: Get a single catalog item
+        tags: [catalog]
+    dependencies:
+      - name: crawler
+        title: Crawler
+        version: 0.1.0
+        url: "amqp://guest:guest@0.0.0.0:5672/%2F"

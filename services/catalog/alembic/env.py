@@ -5,17 +5,12 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from services.catalog.db import Base, db_url
+
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
 sys.path.insert(0, BASE_DIR)
 
-from services.recipes.db import db_url
-from services.recipes.models import Recipe
-
-# from ...recipes import models  # import required, not used in code but by Base.metadata
-
-
-# add path to python path
-
+from services.catalog.models import CatalogItem
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -31,7 +26,7 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = Recipe.metadata
+target_metadata = CatalogItem.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

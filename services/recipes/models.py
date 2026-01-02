@@ -2,8 +2,9 @@ import uuid
 
 from sqlalchemy import JSON, Column, DateTime, Index, String, func
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import declarative_base
 
-from services.recipes.db import Base
+Base = declarative_base()
 
 
 class Recipe(Base):

@@ -36,6 +36,7 @@ def create_microservice(service_name: str, get_db=None) -> FastAPI:
             endpoint,
             methods=[route.method.upper()],
             response_model=route.response_model,
+            summary=route.description,
             tags=[service.name],
         )
 

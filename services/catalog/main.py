@@ -1,10 +1,10 @@
+from services.catalog.db import SessionLocal
 from services.framework.app import create_microservice
-from services.recipes.db import SessionLocal
 from services.shared.lib.db import get_db
 
 
-def recipes_db():
+def catalog_db():
     return get_db(SessionLocal)
 
 
-app = create_microservice("recipes", recipes_db)
+app = create_microservice("catalog", catalog_db)

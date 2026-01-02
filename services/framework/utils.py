@@ -31,7 +31,7 @@ def build_query_dependency(route):
     ):
         # Returned dict becomes **kwargs to the CRUD handler
         return {
-            "limit": limit,
+            "limit": limit or 100,
             "offset": offset,
             "search": search,
         }
