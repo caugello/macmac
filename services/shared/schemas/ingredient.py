@@ -1,22 +1,6 @@
-from enum import Enum
-
 from pydantic import BaseModel, Field
 
-
-class UnitEnum(str, Enum):
-    """
-    Units of measurement for ingredients
-    """
-
-    GRAM = "g"
-    KILOGRAM = "kg"
-    MILLILITER = "ml"
-    LITER = "l"
-    TEASPOON = "tsp"
-    TABLESPOON = "tbsp"
-    PIECE = "pc"
-    PINCH = "pinch"
-    DASH = "dash"
+from services.shared.schemas.generic import UnitEnum
 
 
 class Ingredient(BaseModel):

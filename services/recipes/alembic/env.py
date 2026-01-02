@@ -8,12 +8,10 @@ from sqlalchemy import engine_from_config, pool
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
 sys.path.insert(0, BASE_DIR)
 
-import services.recipes.models
-from services.recipes.db import DATABASE_URL, Base
+from services.recipes.db import db_url
+from services.recipes.models import Recipe
 
 # from ...recipes import models  # import required, not used in code but by Base.metadata
-# from ..db import DATABASE_URL, Base
-# from .recipes.db import DATABASE_URL, Base
 
 
 # add path to python path
@@ -22,7 +20,7 @@ from services.recipes.db import DATABASE_URL, Base
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-config.set_main_option("sqlalchemy.url", DATABASE_URL)
+config.set_main_option("sqlalchemy.url", str(db_url))
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -33,7 +31,7 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = Base.metadata
+target_metadata = Recipe.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

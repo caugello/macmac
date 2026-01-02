@@ -4,10 +4,10 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from services.config import get_config_for_service
 
 # Example: Change host/db/user/pass for your OpenShift Postgres service
-DATABASE_URL = get_config_for_service("recipes").db
+db_url = get_config_for_service("recipes").db
 
 engine = create_engine(
-    DATABASE_URL,
+    db_url,
     pool_pre_ping=True,
 )
 
