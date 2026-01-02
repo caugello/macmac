@@ -36,6 +36,18 @@ class Route:
 
 
 @dataclass
+class Dependency:
+    """
+    Represents a dependency with its configuration.
+    """
+
+    name: str
+    title: str
+    version: str
+    url: str
+
+
+@dataclass
 class Service:
     """
     Represents a service with its configuration, including routes and database.
@@ -45,8 +57,20 @@ class Service:
     version: str
     title: str
     url: str
-    db: str
+    db: Optional[str]
     routes: List[Route]
+    dependencies: Optional[List[Dependency]]
+
+
+@dataclass
+class Vendor:
+    """
+    Represents a vendor with its configuration.
+    """
+
+    name: str
+    url: str
+    product_url_identifier: Optional[str]
 
 
 @dataclass
@@ -56,9 +80,11 @@ class Config:
     """
 
     urlPrefix: str
+    tempDir: Optional[str]
     title: str
     version: str
     services: dict[str, Service]
+    vendors: dict[str, Vendor]
 
 
 def load_model(ref: Optional[str]):
@@ -126,6 +152,18 @@ def parse_route(route_data: dict) -> Route:
     )
 
 
+def parse_dependency(dependencies_data: dict) -> Dependency:
+    """
+    Parses a dictionary of dependency configurations into a Dependency object.
+    """
+    return Dependency(
+        name=dependencies_data["name"],
+        title=dependencies_data["title"],
+        version=dependencies_data["version"],
+        url=dependencies_data["url"],
+    )
+
+
 def parse_service(service_data: dict) -> Service:
     """
     Parses a dictionary of service configurations into a Service object.
@@ -135,8 +173,22 @@ def parse_service(service_data: dict) -> Service:
         title=service_data["title"],
         version=service_data["version"],
         url=service_data["url"],
-        db=service_data["db"],
-        routes=[parse_route(route) for route in service_data["routes"]],
+        db=service_data.get("db"),
+        dependencies=[
+            parse_dependency(dep) for dep in service_data.get("dependencies", [])
+        ],
+        routes=[parse_route(route) for route in service_data.get("routes", [])],
+    )
+
+
+def parse_vendor(vendor_data: dict) -> Vendor:
+    """
+    Parses a dictionary of vendor configurations into a Vendor object.
+    """
+    return Vendor(
+        name=vendor_data["name"],
+        url=vendor_data["url"],
+        product_url_identifier=vendor_data["product_url_identifier"],
     )
 
 
@@ -148,6 +200,31 @@ def get_config_for_service(name: str) -> Service:
     if svc:
         return svc
     raise ValueError(f"Service with name {name} not found.")
+
+
+def get_config_for_service_dependency(
+    service_name: str, dependency_name: str
+) -> Dependency:
+    """
+    Retrieves the configuration for a specific dependency of a service.
+    """
+    svc = get_config_for_service(service_name)
+    for dep in svc.dependencies or []:
+        if dep.name == dependency_name:
+            return dep
+    raise ValueError(
+        f"Dependency with name {dependency_name} not found for service {service_name}."
+    )
+
+
+def get_config_for_vendor(vendor_name: str) -> Vendor:
+    """
+    Retrieves the configuration for a specific vendor by its name.
+    """
+    vendor = get_config().vendors.get(vendor_name)
+    if vendor:
+        return vendor
+    raise ValueError(f"Vendor with name {vendor_name} not found.")
 
 
 def get_config() -> Config:
@@ -165,10 +242,17 @@ def get_config() -> Config:
         for name, data in raw_config["services"].items()
     }
 
+    vendors = {
+        name: parse_vendor({"name": name, **data})
+        for name, data in raw_config["vendors"].items()
+    }
+
     config = Config(
         urlPrefix=raw_config["urlPrefix"],
         title=raw_config["title"],
         version=raw_config["version"],
+        tempDir=raw_config.get("tempDir"),
         services=services,
+        vendors=vendors,
     )
     return config
