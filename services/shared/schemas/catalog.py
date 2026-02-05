@@ -19,6 +19,7 @@ class CatalogItemCreate(BaseModel):
     brand: Optional[str] = None
     net_quantity_value: Optional[float] = None
     net_quantity_unit: Optional[UnitEnum] = None
+    is_food: bool
 
 
 class CatalogItemOut(CatalogItemCreate):

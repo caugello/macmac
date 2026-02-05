@@ -2,15 +2,12 @@ import json
 import re
 
 import httpx
-from llama_cpp import Llama
-from llama_cpp.llama_grammar import json_schema_to_gbnf  # if available
-from llama_cpp.llama_grammar import LlamaGrammar
 from pydantic import ValidationError
 
-from services.catalog.crud import create_catalog_item
-from services.catalog.db import SessionLocal
+from services.catalog.enricher.db import create_catalog_item
 from services.catalog.main import catalog_db
 from services.config import get_config_for_service_dependency
+from services.shared.constant import CATALOG_PROCESS_ENTITY_QUEUE
 from services.shared.lib.db import get_db
 from services.shared.lib.messaging_bus import MessagingBus
 from services.shared.schemas.catalog import CatalogItemCreate
@@ -18,45 +15,16 @@ from services.shared.schemas.catalog import CatalogItemCreate
 _QTY_RE = re.compile(
     r"(?P<qty>\d+(?:[.,]\d+)?)\s*(?P<unit>kg|g|gr|l|ml)\b", re.IGNORECASE
 )
-JSON_SCHEMA = {
-    "type": "object",
-    "additionalProperties": False,
-    "properties": {
-        "canonical_name": {"type": ["string", "null"]},
-        "normalized_name": {"type": ["string", "null"]},
-        "brand": {"type": ["string", "null"]},
-        "net_quantity_value": {"type": ["number", "null"]},
-        "net_quantity_unit": {
-            "type": ["string", "null"],
-            "enum": ["g", "kg", "ml", "l"],
-        },
-        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
-    },
-    "required": [
-        "canonical_name",
-        "normalized_name",
-        "brand",
-        "net_quantity_value",
-        "net_quantity_unit",
-        "confidence",
-    ],
-}
 
-
-gbnf = json_schema_to_gbnf(json.dumps(JSON_SCHEMA))
-grammar = LlamaGrammar.from_string(gbnf)
+llm_config = get_config_for_service_dependency("catalog", "llm")
 
 
 def normalize_unit(unit: str) -> str | None:
     unit = unit.lower()
     if unit in ("g", "gr", "gram", "grams"):
         return "g"
-    if unit == "kg":
-        return "kg"
-    if unit == "ml":
-        return "ml"
-    if unit == "l":
-        return "l"
+    if unit in ("kg", "ml", "l"):
+        return unit
     return None
 
 
@@ -70,20 +38,18 @@ def parse_net_quantity(raw_name: str):
     return qty, unit
 
 
-llm = Llama(
-    model_path="/Users/caugello/Dev/macmac/tmp/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf",
-    n_ctx=2048,
-    n_threads=6,
-    n_batch=256,
-)
-
 PROMPT = """
 You are a strict extractor for grocery product titles in French.
+Do not reveal your chain-of-thought, reasoning, or internal analysis.
+Provide only the final answer.
+If an explanation is not explicitly requested, do not include one.
+Never output <think> or </think>.
 
 
 Goal:
 Fill canonical_name, normalized_name, brand from raw_name.
 For net_quantity_value/unit: NEVER invent. If preparsed values are provided, copy them exactly.
+Determine if it food / edible goods.
 
 Normalization rules:
 - canonical_name: clean product name without brand and without quantity/count/SKU noise.
@@ -95,14 +61,14 @@ Input raw_name: boni selection magret de canard fumé 80gr
 preparsed_net_quantity_value: 80
 preparsed_net_quantity_unit: g
 Output:
-{{"canonical_name":"Magret de canard fumé","normalized_name":"magret_de_canard_fume","brand":"Boni Selection","net_quantity_value":80,"net_quantity_unit":"g","confidence":0.92}}
+{{"canonical_name":"Magret de canard fumé","normalized_name":"magret_de_canard_fume","brand":"Boni Selection","net_quantity_value":80,"net_quantity_unit":"g","confidence":0.92, "is_food": true}}
 
 EXAMPLE 2
 Input raw_name: boni selection mini pizza 8st 200g 18628 p 2
 preparsed_net_quantity_value: 200
 preparsed_net_quantity_unit: g
 Output:
-{{"canonical_name":"Mini pizza","normalized_name":"mini_pizza","brand":"Boni Selection","net_quantity_value":200,"net_quantity_unit":"g","confidence":0.85}}
+{{"canonical_name":"Mini pizza","normalized_name":"mini_pizza","brand":"Boni Selection","net_quantity_value":200,"net_quantity_unit":"g","confidence":0.85, "is_food": true}}
 
 NOW DO THIS ONE
 vendor_name: {vendor_name}
@@ -110,6 +76,7 @@ raw_name: {raw_name}
 product_url: {product_url}
 preparsed_net_quantity_value: {pre_qty}
 preparsed_net_quantity_unit: {pre_unit}
+is_food: true/false
 
 Return ONLY the JSON object.
 """
@@ -131,16 +98,29 @@ def enrich_catalog_item(
         vendor_name=vendor_name,
         raw_name=raw_name,
         product_url=product_url,
-        pre_qty=pre_qty if pre_qty is not None else "null",
-        pre_unit=pre_unit if pre_unit is not None else "null",
+        pre_qty=pre_qty,
+        pre_unit=pre_unit,
     )
 
     try:
-        result = llm(
-            prompt, max_tokens=220, temperature=0.0, top_p=1.0, grammar=grammar
+        result = httpx.post(
+            llm_config.url,
+            headers={"Content-Type": "application/json"},
+            timeout=180,
+            json={
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You output ONLY valid JSON. No markdown. No extra text.",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                "model": "qwen",
+                "temperature": 0.0,
+            },
         )
-
-        text = result["choices"][0]["text"].strip()
+        resp = result.json()
+        text = resp["choices"][0]["message"]["content"].strip()
         data = json.loads(text)
 
         return CatalogItemCreate(
@@ -152,6 +132,7 @@ def enrich_catalog_item(
             brand=data.get("brand"),
             net_quantity_value=data.get("net_quantity_value", pre_qty),
             net_quantity_unit=data.get("net_quantity_unit", pre_unit),
+            is_food=data.get("is_food", False),
         )
 
     except (ValueError, json.JSONDecodeError, ValidationError, KeyError):
@@ -164,6 +145,7 @@ def enrich_catalog_item(
             brand=None,
             net_quantity_value=pre_qty,
             net_quantity_unit=pre_unit,
+            is_food=False,
         )
 
 
@@ -173,16 +155,14 @@ def write_to_db(payload: dict, ch):
         vendor_name=payload["vendor_name"],
         product_url=payload["product_url"],
     )
-    res = httpx.post(
-        "http://0.0.0.0:8002/catalog",
-        data=enriched_item.model_dump_json(),
-        timeout=httpx.Timeout(10),
-    )
-    print(res.text)
+    with get_db(catalog_db) as db:
+        if enriched_item:
+            item = create_catalog_item(enriched_item, db)
+            print(item)
 
 
 config = get_config_for_service_dependency("catalog", "crawler")
 bus = MessagingBus(config.url)
-bus.declare_queue("foo")
-bus.consume("foo", write_to_db)
+bus.declare_queue(CATALOG_PROCESS_ENTITY_QUEUE)
+bus.consume(CATALOG_PROCESS_ENTITY_QUEUE, write_to_db)
 bus.start()

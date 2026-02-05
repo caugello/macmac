@@ -1,19 +1,39 @@
 version: 3
 networks:
+  macmac_gateway: {}
   macmac_catalog: {}
   macmac_recipes: {}
 services:
+  gateway:
+    hostname: gateway
+    image: quay.io/caugello/macmac-base
+    ports:
+      - 8000:8000
+    networks:
+      - macmac_recipes
+      - macmac_catalog
+      - macmac_gateway
+    command:
+      - gunicorn
+      - services.gateway.main:app
+      - --workers=4
+      - --worker-class=uvicorn.workers.UvicornWorker
+      - --bind=0.0.0.0:8000
+      - --access-logfile=-
+      - --error-logfile=-
+    volumes:
+      - ./config.yaml:/app/config.yaml
   rabbitmq:
+    hostname: rabbitmq
     image: docker.io/library/rabbitmq:4.1.6-management
     networks:
       - macmac_catalog
-    ports:
-      - 5672:5672
-      - 15672:15672
+    # ports:
+    #   - 5672:5672
+    #   - 15672:15672
   recipes_db:
+    hostname: recipes-db
     image: quay.io/fedora/postgresql-16
-    ports:
-      - 5432:5432
     networks:
       - macmac_recipes
     environment:
@@ -21,10 +41,37 @@ services:
       POSTGRESQL_PASSWORD: dbpass
       POSTGRESQL_DATABASE: recipes
       POSTGRESQL_ADMIN_PASSWORD: admin
+
+  recipes_migrate:
+    image: quay.io/caugello/macmac-base
+    depends_on:
+      - recipes_db
+    networks:
+      - macmac_recipes
+    command:
+      - sh
+      - -lc
+      - |
+        sleep 30 && alembic -c services/recipes/alembic.ini upgrade head
+  recipes_api:
+    hostname: recipes-api
+    image: quay.io/caugello/macmac-base
+    # ports:
+    #   - 8001:8001
+    networks:
+      - macmac_recipes
+      - macmac_gateway
+    command:
+      - gunicorn
+      - services.recipes.main:app
+      - --workers=4
+      - --worker-class=uvicorn.workers.UvicornWorker
+      - --bind=0.0.0.0:8001
+      - --access-logfile=-
+      - --error-logfile=-
   catalog_db:
+    hostname: catalog-db
     image: quay.io/fedora/postgresql-16
-    ports:
-      - 5433:5432
     networks:
       - macmac_catalog
     environment:
@@ -32,3 +79,31 @@ services:
       POSTGRESQL_PASSWORD: dbpass
       POSTGRESQL_DATABASE: catalog
       POSTGRESQL_ADMIN_PASSWORD: admin
+
+  catalog_migrate:
+    image: quay.io/caugello/macmac-base
+    depends_on:
+      - catalog_db
+    networks:
+      - macmac_catalog
+    command:
+      - sh
+      - -lc
+      - |
+        sleep 30 && alembic -c services/catalog/alembic.ini upgrade head
+  catalog_api:
+    hostname: catalog-api
+    image: quay.io/caugello/macmac-base
+    # ports:
+    #   - 8002:8002
+    networks:
+      - macmac_catalog
+      - macmac_gateway
+    command:
+      - gunicorn
+      - services.catalog.main:app
+      - --workers=4
+      - --worker-class=uvicorn.workers.UvicornWorker
+      - --bind=0.0.0.0:8002
+      - --access-logfile=-
+      - --error-logfile=-

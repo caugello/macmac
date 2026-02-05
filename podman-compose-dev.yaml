@@ -1,0 +1,37 @@
+version: 3
+networks:
+  macmac_catalog: {}
+  macmac_recipes: {}
+services:
+  rabbitmq:
+    hostname: rabbitmq
+    image: docker.io/library/rabbitmq:4.1.6-management
+    networks:
+      - macmac_catalog
+    ports:
+      - 5672:5672
+      - 15672:15672
+  recipes_db:
+    hostname: recipes-db
+    image: quay.io/fedora/postgresql-16
+    networks:
+      - macmac_recipes
+    environment:
+      POSTGRESQL_USER: dbuser
+      POSTGRESQL_PASSWORD: dbpass
+      POSTGRESQL_DATABASE: recipes
+      POSTGRESQL_ADMIN_PASSWORD: admin
+    ports:
+      - 5432:5432
+  catalog_db:
+    hostname: catalog-db
+    image: quay.io/fedora/postgresql-16
+    networks:
+      - macmac_catalog
+    environment:
+      POSTGRESQL_USER: dbuser
+      POSTGRESQL_PASSWORD: dbpass
+      POSTGRESQL_DATABASE: catalog
+      POSTGRESQL_ADMIN_PASSWORD: admin
+    ports:
+      - 5433:5432
