@@ -4,7 +4,7 @@ EXPOSE 8000
 
 ARG USER="macmac"
 
-RUN dnf install -y python3-pip python3-devel libpq-devel gcc gcc-c++ cmake make ninja-build && \
+RUN dnf install -y python3-pip python3-devel libpq-devel gcc gcc-c++ cmake make ninja-build netcat && \
     dnf clean all && rm -rf /var/cache/dnf
 RUN adduser $USER && mkdir /app
 WORKDIR /app
