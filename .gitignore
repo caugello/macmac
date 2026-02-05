@@ -14,11 +14,6 @@ Thumbs.db
 .Python
 env/
 venv/
-lib/
-lib64/
-include/
-share/
-bin/
 *.egg-info/
 .installed.dists
 .venv
