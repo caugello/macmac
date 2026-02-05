@@ -130,3 +130,7 @@ services:
         title: Crawler
         version: 0.1.0
         url: "amqp://guest:guest@0.0.0.0:5672/%2F"
+      - name: llm
+        title: Llamacpp
+        version: 0.1.0
+        url: "http://vllm.caugello.lan:8080/v1/chat/completions"

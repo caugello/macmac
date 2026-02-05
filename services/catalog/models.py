@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import JSON, Column, DateTime, Float, Index, String, func
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, Index, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import declarative_base
 
@@ -25,6 +25,7 @@ class CatalogItem(Base):
     net_quantity_value = Column(Float)
     net_quantity_unit = Column(String)
     product_url = Column(String, nullable=False)
+    is_food = Column(Boolean, nullable=False)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

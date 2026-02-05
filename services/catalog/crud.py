@@ -27,6 +27,7 @@ async def create_catalog_item(data: rs.CatalogItemCreate, db: Session):
             net_quantity_value=data.net_quantity_value,
             net_quantity_unit=data.net_quantity_unit,
             product_url=data.product_url,
+            is_food=data.is_food,
         )
 
         db.add(item)
