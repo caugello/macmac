@@ -10,7 +10,6 @@ These helpers eliminate 15-20 lines of duplicate code per CRUD file.
 """
 
 from contextlib import contextmanager
-from typing import Tuple
 
 from fastapi import HTTPException
 from sqlalchemy import asc, desc
@@ -79,7 +78,7 @@ def apply_sorting(query: Query, model_class: type, sort_param: str | None) -> Qu
         raise HTTPException(status_code=400, detail=f"Sort error: {str(e)}") from e
 
 
-def apply_pagination(query: Query, limit: int, offset: int) -> Tuple[int, list]:
+def apply_pagination(query: Query, limit: int, offset: int) -> tuple[int, list]:
     """
     Apply pagination to a query and return total count + paginated results.
 

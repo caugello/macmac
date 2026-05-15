@@ -1,12 +1,14 @@
-from fastapi import HTTPException
-from sqlalchemy.orm import Session
-from pydantic import UUID4
-from services.framework.tracing import traced
-from services.shared.schemas import auth as auth_schemas
-from services.framework.user_context import require_user_context
-from .models import User, Group
-from .security import verify_password, get_password_hash, create_access_token, keycloak_openid
 import bcrypt
+from fastapi import HTTPException
+from pydantic import UUID4
+from sqlalchemy.orm import Session
+
+from services.framework.tracing import traced
+from services.framework.user_context import require_user_context
+from services.shared.schemas import auth as auth_schemas
+
+from .models import Group, User
+from .security import create_access_token, keycloak_openid, verify_password
 
 # Pre-computed valid bcrypt hash for constant-time comparison on unknown usernames
 _DUMMY_HASH = bcrypt.hashpw(b"dummy", bcrypt.gensalt()).decode("utf-8")
@@ -97,17 +99,15 @@ async def login(data: auth_schemas.LoginRequest, db: Session) -> auth_schemas.Lo
         # Always hash password to prevent timing attacks (even if user doesn't exist)
         if not user:
             verify_password(data.password, _DUMMY_HASH)
-            raise HTTPException(status_code=401, detail="Invalid username or password")
+            raise HTTPException(status_code=401, detail="Invalid username or password") from None
 
         if not user.hashed_password or not verify_password(data.password, user.hashed_password):
             logger.warning(f"Failed login attempt for user '{data.username}'")
-            raise HTTPException(status_code=401, detail="Invalid username or password")
+            raise HTTPException(status_code=401, detail="Invalid username or password") from None
 
         if not user.is_active:
             logger.warning(f"Login attempt for inactive user '{data.username}'")
-            raise HTTPException(
-                status_code=401, detail="Invalid username or password"
-            )  # Don't reveal account is inactive
+            raise HTTPException(status_code=401, detail="Invalid username or password") from None
 
         # Create self-signed token for local auth
         group_ids = [group.id for group in user.groups]

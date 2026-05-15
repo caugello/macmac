@@ -1,10 +1,10 @@
 from fastapi import APIRouter, FastAPI
 
 from services.config import get_config, get_config_for_service
+from services.framework.auth_tracing import auth_tracing_middleware
 from services.framework.helpers import make_endpoint, resolve_handler
 from services.framework.logging import log_event
 from services.framework.tracing import tracing_middleware
-from services.framework.auth_tracing import auth_tracing_middleware
 
 app_config = get_config()
 

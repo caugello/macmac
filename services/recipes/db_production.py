@@ -6,6 +6,7 @@ To use this in production, rename to db.py or import in your existing db.py.
 """
 
 import os
+
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from services.config import get_config_for_service

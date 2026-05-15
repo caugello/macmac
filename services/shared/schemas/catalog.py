@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import UUID4, BaseModel, ConfigDict
 
@@ -25,6 +25,9 @@ class CatalogItemCreate(BaseModel):
     currency: str | None = "EUR"
     category: str | None = None
     nutrition: dict | None = None  # Nutritional values per 100g
+    nutriscore: str | None = None
+    nutriscore_svg: str | None = None
+    promotion_until_date: date | None = None
 
 
 class CatalogItemOut(CatalogItemCreate):

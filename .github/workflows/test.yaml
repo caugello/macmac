@@ -29,7 +29,6 @@ jobs:
       - name: Run ruff
         run: |
           ruff check services/ tests/
-        continue-on-error: true
 
       - name: Run black (check only)
         run: |

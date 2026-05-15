@@ -3,12 +3,13 @@ Simple in-memory rate limiting middleware.
 For production, use Redis-based rate limiting.
 """
 
+import logging
 import time
 from collections import defaultdict
-from typing import Callable
-from fastapi import Request, HTTPException
+from collections.abc import Callable
+
+from fastapi import HTTPException, Request
 from starlette.middleware.base import BaseHTTPMiddleware
-import logging
 
 from services.config import get_config
 

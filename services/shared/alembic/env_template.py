@@ -18,7 +18,6 @@ Usage in services/{service}/alembic/env.py:
     configure_alembic_env("recipes", Recipe.metadata)
 """
 
-import os
 from logging.config import fileConfig
 
 from alembic import context

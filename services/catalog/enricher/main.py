@@ -3,6 +3,7 @@ import json
 import os
 import re
 import time
+from datetime import date, datetime
 from typing import Any
 
 from openai import AsyncOpenAI
@@ -39,6 +40,9 @@ batch_start_time = time.time()
 # Regex for extracting quantity from URL
 # Matches patterns like: 280g, 1kg, 500ml, 1.5l, 375g
 URL_QTY_PATTERN = re.compile(r"-(\d+(?:[.,]\d+)?)(g|kg|ml|l|cl)(?:-|$)", re.IGNORECASE)
+
+# Regex for extracting promotion end date from text like "1+1 GRATUIT du 06/05/2026 au inclus 19/05/2026"
+PROMOTION_END_DATE_PATTERN = re.compile(r"au\s+inclus\s+(\d{2}/\d{2}/\d{4})")
 
 
 def normalize_unit(unit: str | None) -> str | None:
@@ -123,11 +127,14 @@ def extract_quantity_from_url(url: str) -> tuple[float | None, str | None]:
     return None, None
 
 
-async def crawl_product_page(url: str) -> tuple[str | None, str | None, float | None, str | None]:
+async def crawl_product_page(
+    url: str,
+) -> tuple[str | None, str | None, float | None, str | None, str | None, str | None, date | None]:
     """
     Crawl product page using Playwright with anti-detection measures.
     Mimics real browser behavior to bypass WAF/bot detection.
-    Returns (html_content, final_url, extracted_price, info_link_url) or (None, None, None, None) if failed.
+    Returns (html_content, final_url, extracted_price, info_link_url, nutriscore, nutriscore_svg, promotion_until_date)
+    or (None, None, None, None, None, None, None) if failed.
     """
     from urllib.parse import unquote
 
@@ -137,12 +144,12 @@ async def crawl_product_page(url: str) -> tuple[str | None, str | None, float | 
     try:
         async with async_playwright() as p:
             # Try webkit (Safari) - often less detected than Chromium
-            browser = await p.webkit.launch(headless=True)
+            browser = await p.chromium.launch(headless=True)
 
             # Create context with realistic Safari fingerprint
             context = await browser.new_context(
                 viewport={"width": 1440, "height": 900},
-                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
                 locale="fr-BE",
                 timezone_id="Europe/Brussels",
                 color_scheme="light",
@@ -165,12 +172,12 @@ async def crawl_product_page(url: str) -> tuple[str | None, str | None, float | 
 
             # Step 1: Visit homepage first to establish session and get cookies
             base_url = "https://www.collectandgo.be/fr"
-            print(f"  → Visiting homepage first")
+            print("  → Visiting homepage first")
 
             try:
                 home_response = await page.goto(base_url, timeout=15000, wait_until="networkidle")
                 if home_response and home_response.status == 200:
-                    print(f"  → Homepage loaded successfully")
+                    print("  → Homepage loaded successfully")
                     # Wait longer like a real user browsing
                     await asyncio.sleep(2.0)
 
@@ -191,7 +198,7 @@ async def crawl_product_page(url: str) -> tuple[str | None, str | None, float | 
             # Wait a bit more before navigating
             await asyncio.sleep(1.5)
 
-            print(f"  → Navigating to product page")
+            print("  → Navigating to product page")
             try:
                 response = await page.goto(
                     url, timeout=15000, wait_until="domcontentloaded", referer=base_url
@@ -199,19 +206,19 @@ async def crawl_product_page(url: str) -> tuple[str | None, str | None, float | 
             except Exception as e:
                 print(f"  → Navigation error: {e}")
                 await browser.close()
-                return None, None, None, None
+                return None, None, None, None, None, None, None
 
             if not response:
                 print(f"  → No response from {url}")
                 await browser.close()
-                return None, None, None, None
+                return None, None, None, None, None, None, None
 
             # Check response status
             if response.status >= 400:
                 print(f"  → HTTP {response.status} from {url}")
                 print(f"  → Response headers: {response.headers}")
                 await browser.close()
-                return None, None, None, None
+                return None, None, None, None, None, None, None
 
             # Get final URL after redirects
             final_url = page.url
@@ -275,6 +282,49 @@ async def crawl_product_page(url: str) -> tuple[str | None, str | None, float | 
             await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
             await asyncio.sleep(0.5)
 
+            # Extract Nutri-Score value and SVG
+            nutriscore = None
+            nutriscore_svg = None
+            try:
+                nutriscore_el = await page.query_selector("dsce-product-score")
+                if nutriscore_el:
+                    nutriscore = await nutriscore_el.get_attribute("nutri-score")
+                    if nutriscore:
+                        nutriscore = nutriscore.strip().upper()
+                        print(f"  → Nutri-Score: {nutriscore}")
+
+                    # SVG is inside the web component's shadow DOM
+                    nutriscore_svg = await page.evaluate("""() => {
+                        const el = document.querySelector('dsce-product-score');
+                        if (!el) return null;
+                        const root = el.shadowRoot || el;
+                        const container = root.querySelector('div > div.nutri-score > div');
+                        if (!container) return null;
+                        const svg = container.querySelector('svg');
+                        return svg ? svg.outerHTML : container.innerHTML;
+                    }""")
+                    if nutriscore_svg:
+                        print(f"  → Nutri-Score SVG extracted ({len(nutriscore_svg)} chars)")
+            except Exception as e:
+                print(f"  → Could not extract Nutri-Score: {e}")
+
+            # Extract promotion end date
+            promotion_until_date = None
+            try:
+                promo_el = await page.query_selector("div.promotion")
+                if promo_el:
+                    promo_text = await promo_el.inner_text()
+                    if promo_text:
+                        print(f"  → Promotion text: {promo_text.strip()}")
+                        match = PROMOTION_END_DATE_PATTERN.search(promo_text)
+                        if match:
+                            promotion_until_date = datetime.strptime(
+                                match.group(1), "%d/%m/%Y"
+                            ).date()
+                            print(f"  → Promotion until: {promotion_until_date}")
+            except Exception as e:
+                print(f"  → Could not extract promotion: {e}")
+
             # Get main product page HTML
             html = await page.content()
 
@@ -300,11 +350,19 @@ async def crawl_product_page(url: str) -> tuple[str | None, str | None, float | 
                 print(f"  → Could not find product info link: {e}")
 
             await browser.close()
-            return html, final_url, extracted_price, info_link_url
+            return (
+                html,
+                final_url,
+                extracted_price,
+                info_link_url,
+                nutriscore,
+                nutriscore_svg,
+                promotion_until_date,
+            )
 
     except Exception as e:
         print(f"  → Error crawling {url}: {e}")
-        return None, None, None
+        return None, None, None, None, None, None, None
 
 
 async def crawl_nutrition_page(info_url: str, main_page_url: str) -> tuple[str | None, str | None]:
@@ -315,7 +373,7 @@ async def crawl_nutrition_page(info_url: str, main_page_url: str) -> tuple[str |
     from urllib.parse import unquote
 
     if not info_url:
-        print(f"  → No product info link provided")
+        print("  → No product info link provided")
         return None, None
 
     info_url = unquote(info_url)
@@ -324,10 +382,10 @@ async def crawl_nutrition_page(info_url: str, main_page_url: str) -> tuple[str |
 
     try:
         async with async_playwright() as p:
-            browser = await p.webkit.launch(headless=True)
+            browser = await p.chromium.launch(headless=True)
             context = await browser.new_context(
                 viewport={"width": 1440, "height": 900},
-                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
                 locale="fr-BE",
                 timezone_id="Europe/Brussels",
             )
@@ -458,7 +516,9 @@ def preprocess_html(html_content: str) -> str:
 
         # Also look for text containing nutrition keywords
         for keyword in ["valeurs nutritionnelles", "voedingswaarde", "per 100", "par 100"]:
-            for elem in soup.find_all(string=lambda text: text and keyword.lower() in text.lower()):
+            for elem in soup.find_all(
+                string=lambda text, kw=keyword: text and kw.lower() in text.lower()
+            ):
                 parent = elem.find_parent(["div", "section", "table", "article"])
                 if parent:
                     text = parent.get_text(separator=" ", strip=True)
@@ -635,15 +695,18 @@ Page Content:
 Extract product data as JSON following the rules and examples above."""
 
     try:
-        response = await client.chat.completions.create(
-            model=OPENAI_MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.2,  # Slightly higher for better context understanding
-            response_format={"type": "json_object"},
-        )
+        try:
+            response = await client.chat.completions.create(
+                model=OPENAI_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.2,
+                response_format={"type": "json_object"},
+            )
+        finally:
+            await client.close()
 
         extracted_data = json.loads(response.choices[0].message.content)
 
@@ -691,12 +754,12 @@ Extract product data as JSON following the rules and examples above."""
                         nutrition[key] = None
 
             # Log extracted nutrition values
-            print(f"  → LLM extracted nutrition:")
+            print("  → LLM extracted nutrition:")
             for key, value in nutrition.items():
                 if value is not None:
                     print(f"     • {key}: {value}")
         else:
-            print(f"  → No nutrition data extracted by LLM")
+            print("  → No nutrition data extracted by LLM")
 
         return extracted_data
 
@@ -742,10 +805,18 @@ async def enrich_catalog_item(
         print(f"  → URL extraction: {url_qty}{url_unit}")
 
     # Step 2: Crawl main product page with Playwright
-    html_content, final_url, extracted_price, info_link_url = await crawl_product_page(product_url)
+    (
+        html_content,
+        final_url,
+        extracted_price,
+        info_link_url,
+        nutriscore,
+        nutriscore_svg,
+        promotion_until_date,
+    ) = await crawl_product_page(product_url)
 
     if not html_content:
-        print(f"  → Failed to crawl, using URL extraction only")
+        print("  → Failed to crawl, using URL extraction only")
         # Return minimal data
         return CatalogItemCreate(
             vendor_name=vendor_name,
@@ -756,6 +827,9 @@ async def enrich_catalog_item(
             net_quantity_unit=url_unit,
             price=extracted_price,
             currency="EUR",
+            nutriscore=nutriscore,
+            nutriscore_svg=nutriscore_svg,
+            promotion_until_date=promotion_until_date,
         )
 
     # If redirected, try extracting quantity from final URL too
@@ -766,7 +840,7 @@ async def enrich_catalog_item(
             print(f"  → Final URL extraction: {url_qty}{url_unit}")
 
     # Step 3: Initial LLM extraction to determine if it's food
-    print(f"  → Determining if product is food...")
+    print("  → Determining if product is food...")
     extracted_data = await extract_with_llm(
         raw_name, final_url or product_url, html_content, url_qty, url_unit, extracted_price
     )
@@ -774,7 +848,7 @@ async def enrich_catalog_item(
 
     # Step 4: If it's food, crawl the nutrition info page
     if is_food:
-        print(f"  → Product is food, crawling nutrition page...")
+        print("  → Product is food, crawling nutrition page...")
         detailed_html, nutrition_table_text = await crawl_nutrition_page(
             info_link_url, final_url or product_url
         )
@@ -791,10 +865,10 @@ async def enrich_catalog_item(
                     f"<!-- EXTRACTED NUTRITION TABLE -->\n{nutrition_table_text}\n\n"
                     + combined_html
                 )
-                print(f"  → Added nutrition table to HTML")
+                print("  → Added nutrition table to HTML")
 
             # Re-extract with combined HTML for nutrition data
-            print(f"  → Extracting nutrition data with LLM...")
+            print("  → Extracting nutrition data with LLM...")
             extracted_data = await extract_with_llm(
                 raw_name,
                 final_url or product_url,
@@ -804,9 +878,9 @@ async def enrich_catalog_item(
                 extracted_price,
             )
         else:
-            print(f"  → Could not fetch nutrition page, using main page data")
+            print("  → Could not fetch nutrition page, using main page data")
     else:
-        print(f"  → Product is not food, skipping nutrition crawl")
+        print("  → Product is not food, skipping nutrition crawl")
 
     # Step 5: Normalize extracted data (LLM data takes priority, URL data as fallback)
     canonical_name = extracted_data.get("canonical_name") or raw_name
@@ -824,16 +898,18 @@ async def enrich_catalog_item(
     # is_food already determined above in step 3
 
     # Log what we're about to save
-    print(f"  → Preparing to save:")
+    print("  → Preparing to save:")
     print(f"     • Brand: {brand}")
     print(f"     • Category: {category}")
     print(f"     • Is food: {is_food}")
     print(f"     • Price: {price}")
+    print(f"     • Nutri-Score: {nutriscore or 'N/A'}")
+    print(f"     • Promotion until: {promotion_until_date or 'N/A'}")
     if nutrition:
         print(f"     • Nutrition data: {len(nutrition)} fields")
         print(f"     • Nutrition JSON: {json.dumps(nutrition, indent=2)}")
     else:
-        print(f"     • Nutrition data: None")
+        print("     • Nutrition data: None")
 
     # Normalize the canonical name for search
     normalized_name = None
@@ -859,6 +935,9 @@ async def enrich_catalog_item(
         currency=currency,
         category=category,
         nutrition=nutrition,
+        nutriscore=nutriscore,
+        nutriscore_svg=nutriscore_svg,
+        promotion_until_date=promotion_until_date,
     )
 
 
@@ -935,7 +1014,7 @@ def write_to_db(payload: dict, ch):
 
                 # Detailed nutrition logging
                 if item.nutrition:
-                    print(f"  → Nutrition values saved to DB:")
+                    print("  → Nutrition values saved to DB:")
                     nutrition_json = (
                         item.nutrition
                         if isinstance(item.nutrition, dict)
@@ -945,7 +1024,7 @@ def write_to_db(payload: dict, ch):
                         if value is not None:
                             print(f"     • {key}: {value}")
                 else:
-                    print(f"  → WARNING: No nutrition data was saved to database!")
+                    print("  → WARNING: No nutrition data was saved to database!")
 
     except json.JSONDecodeError as e:
         print(f"✗ JSON error for {payload.get('raw_name', 'unknown')}: {e}")
@@ -970,7 +1049,19 @@ if __name__ == "__main__":
     )
 
     config = get_config_for_service_dependency("catalog", "crawler")
-    bus = MessagingBus(config.url)
+
+    max_retries = 10
+    for attempt in range(1, max_retries + 1):
+        try:
+            bus = MessagingBus(config.url)
+            break
+        except Exception as e:
+            if attempt == max_retries:
+                print(f"Failed to connect to RabbitMQ after {max_retries} attempts: {e}")
+                exit(1)
+            print(f"RabbitMQ not ready (attempt {attempt}/{max_retries}), retrying in 5s...")
+            time.sleep(5)
+
     bus.declare_queue(CATALOG_PROCESS_ENTITY_QUEUE)
     bus.consume(CATALOG_PROCESS_ENTITY_QUEUE, write_to_db)
     bus.start()

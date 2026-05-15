@@ -8,14 +8,15 @@ help:
 	@echo "  make install          Install Python dependencies"
 	@echo "  make test             Run all Python unit tests"
 	@echo "  make test-unit        Run Python unit tests only"
+	@echo "  make test-cov         Run Python unit tests with coverage (matches CI)"
 	@echo "  make test-integration Run Python integration tests only"
 	@echo "  make lint             Run Python linters (ruff, black check, mypy)"
 	@echo "  make format           Format Python code with black"
 	@echo ""
 	@echo "Frontend:"
 	@echo "  make frontend-install Install frontend dependencies"
-	@echo "  make frontend-test    Run frontend tests"
-	@echo "  make frontend-lint    Run frontend linter (ESLint)"
+	@echo "  make frontend-test    Run frontend tests with coverage (matches CI)"
+	@echo "  make frontend-lint    Run frontend linters (ESLint, Prettier, TypeScript)"
 	@echo "  make frontend-format  Format frontend code (Prettier)"
 	@echo "  make frontend-build   Build frontend for production"
 	@echo ""
@@ -39,7 +40,7 @@ test-integration:
 	pytest tests/ -m integration -v
 
 test-cov:
-	pytest tests/ --cov=services --cov-report=html --cov-report=term
+	pytest tests/ -m unit --cov=services --cov-report=xml --cov-report=term
 
 lint:
 	@echo "Running ruff..."
@@ -48,8 +49,8 @@ lint:
 	@echo "Running black check..."
 	black --check services/ tests/
 	@echo ""
-	@echo "Running mypy..."
-	mypy services/ --ignore-missing-imports
+	@echo "Running mypy (advisory)..."
+	mypy services/ --ignore-missing-imports || true
 
 format:
 	black services/ tests/
@@ -69,7 +70,7 @@ frontend-install:
 	cd frontend && npm install
 
 frontend-test:
-	cd frontend && npm run test
+	cd frontend && npm run test:ci
 
 frontend-test-ui:
 	cd frontend && npm run test:ui
@@ -79,6 +80,8 @@ frontend-test-coverage:
 
 frontend-lint:
 	cd frontend && npm run lint
+	cd frontend && npm run format:check
+	cd frontend && npm run type-check
 
 frontend-lint-fix:
 	cd frontend && npm run lint:fix

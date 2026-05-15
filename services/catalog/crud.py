@@ -1,15 +1,13 @@
 from fastapi import HTTPException
 from pydantic import UUID4
-from sqlalchemy import asc, desc
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from services.config import get_config
 from services.framework.logging import Span
 from services.framework.tracing import traced
-from services.shared.schemas import catalog as rs
 from services.shared.lib.cache import initialize_service_cache
 from services.shared.lib.crud_helpers import apply_pagination, apply_sorting, safe_commit
+from services.shared.schemas import catalog as rs
 
 from .models import CatalogItem
 

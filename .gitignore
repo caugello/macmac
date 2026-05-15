@@ -43,6 +43,7 @@ htmlcov/
 
 # Node / Frontend
 node_modules/
+.vite/
 
 # Linting and Type Checking
 .mypy_cache/

@@ -1,7 +1,6 @@
 import httpx
 from fastapi import HTTPException
 from pydantic import UUID4
-from sqlalchemy import asc, desc, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -9,15 +8,15 @@ from services.config import get_config, get_config_for_service
 from services.framework.logging import Span
 from services.framework.tracing import traced
 from services.framework.user_context import require_user_context
-from services.shared.schemas import recipe as rs
-from services.shared.schemas.ingredient import IngredientOut
-from services.shared.lib.cache import initialize_service_cache
-from services.shared.lib.crud_helpers import apply_pagination, apply_sorting, safe_commit
 from services.shared.lib.authorization import (
     apply_ownership_filter,
     check_owner_only,
     check_owner_or_group,
 )
+from services.shared.lib.cache import initialize_service_cache
+from services.shared.lib.crud_helpers import apply_pagination, apply_sorting
+from services.shared.schemas import recipe as rs
+from services.shared.schemas.ingredient import IngredientOut
 
 from .models import Recipe, RecipeIngredient
 
@@ -52,14 +51,14 @@ async def validate_catalog_items(catalog_item_ids: list[UUID4]) -> dict[UUID4, s
                     raise HTTPException(
                         status_code=400,
                         detail=f"Catalog item {item_id} not found. All ingredients must exist in catalog.",
-                    )
+                    ) from e
                 raise HTTPException(
                     status_code=500, detail=f"Failed to validate catalog item {item_id}"
-                )
+                ) from e
             except Exception as e:
                 raise HTTPException(
                     status_code=500, detail=f"Error validating catalog items: {str(e)}"
-                )
+                ) from e
 
     return item_names
 
@@ -244,7 +243,7 @@ async def get_recipe(recipe_id: UUID4, db: Session) -> rs.RecipeOut:
     Retrieves a single recipe by its ID with caching.
     Verifies user has access (owner or group member).
     """
-    user_ctx = require_user_context()
+    require_user_context()
 
     # Try cache first (cache key includes user context check later)
     cache_key = f"recipe:{recipe_id}"
@@ -311,7 +310,7 @@ async def update_recipe(recipe_id: UUID4, data: rs.RecipeUpdate, db: Session):
     Updates an existing recipe.
     Only the recipe owner can update.
     """
-    user_ctx = require_user_context()
+    require_user_context()
 
     with Span("db_update_recipe"):
         recipe = db.query(Recipe).filter(Recipe.id == recipe_id).first()
@@ -334,7 +333,7 @@ async def update_recipe(recipe_id: UUID4, data: rs.RecipeUpdate, db: Session):
         if data.ingredients is not None:
             # Validate catalog items
             catalog_item_ids = [ing.catalog_item_id for ing in data.ingredients]
-            item_names = await validate_catalog_items(catalog_item_ids)
+            await validate_catalog_items(catalog_item_ids)
 
             # Delete old ingredients
             db.query(RecipeIngredient).filter(RecipeIngredient.recipe_id == recipe_id).delete()
@@ -373,7 +372,7 @@ async def delete_recipe(recipe_id: UUID4, db: Session):
     Deletes a recipe from the database.
     Only the recipe owner can delete.
     """
-    user_ctx = require_user_context()
+    require_user_context()
 
     with Span("db_delete_recipe"):
         recipe = db.query(Recipe).filter(Recipe.id == recipe_id).first()

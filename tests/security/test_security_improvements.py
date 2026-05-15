@@ -3,23 +3,25 @@ Security improvements test suite.
 Tests all security enhancements implemented in the refactor branch.
 """
 
-import pytest
 import os
 import time
-from unittest.mock import Mock, patch
+
+import pytest
 from pydantic import ValidationError
 
 # Set required environment variables before importing auth modules
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-testing-min-32-chars")
 os.environ.setdefault("ENVIRONMENT", "development")
 
-from services.auth.security import (
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from services.auth.security import (  # noqa: E402
     create_access_token,
     decode_access_token,
-    verify_password,
     get_password_hash,
+    verify_password,
 )
-from services.shared.schemas.auth import LoginRequest, GroupCreate, AddMemberRequest
+from services.shared.schemas.auth import AddMemberRequest, GroupCreate, LoginRequest  # noqa: E402
 
 
 class TestJWTSecurity:
@@ -60,10 +62,12 @@ class TestJWTSecurity:
 
     def test_expired_token_rejected(self):
         """Test that expired tokens are rejected"""
-        from uuid import uuid4
-        import jwt
         from datetime import datetime, timedelta
-        from services.auth.security import SECRET_KEY, ALGORITHM
+        from uuid import uuid4
+
+        import jwt
+
+        from services.auth.security import ALGORITHM, SECRET_KEY
 
         # Create an already-expired token
         payload = {
@@ -197,7 +201,7 @@ class TestRateLimiting:
     @pytest.mark.asyncio
     async def test_rate_limit_middleware_exists(self):
         """Test that rate limiting middleware is properly configured"""
-        from services.framework.rate_limit import RateLimitMiddleware, get_rate_limit_for_path
+        from services.framework.rate_limit import get_rate_limit_for_path
 
         # Test path-specific limits
         login_calls, login_period = get_rate_limit_for_path("/api/v1/auth/login")
@@ -250,12 +254,12 @@ class TestEnvironmentTemplate:
 
     def test_env_example_exists(self):
         """Test that .env.example exists"""
-        env_example_path = "/Users/caugello/Dev/macmac/.env.example"
+        env_example_path = os.path.join(PROJECT_ROOT, ".env.example")
         assert os.path.exists(env_example_path), ".env.example should exist for documentation"
 
     def test_env_example_has_required_variables(self):
         """Test that .env.example documents all required variables"""
-        with open("/Users/caugello/Dev/macmac/.env.example", "r") as f:
+        with open(os.path.join(PROJECT_ROOT, ".env.example")) as f:
             content = f.read()
 
         required_vars = [
@@ -278,7 +282,7 @@ class TestGitignoreSecurity:
 
     def test_gitignore_security_patterns(self):
         """Test that .gitignore has security-related patterns"""
-        with open("/Users/caugello/Dev/macmac/.gitignore", "r") as f:
+        with open(os.path.join(PROJECT_ROOT, ".gitignore")) as f:
             content = f.read()
 
         security_patterns = [
