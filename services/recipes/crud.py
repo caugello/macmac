@@ -1,46 +1,135 @@
+import httpx
 from fastapi import HTTPException
 from pydantic import UUID4
-from sqlalchemy import asc, desc
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import asc, desc, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from services.config import get_config, get_config_for_service
 from services.framework.logging import Span
 from services.framework.tracing import traced
+from services.framework.user_context import require_user_context
 from services.shared.schemas import recipe as rs
+from services.shared.schemas.ingredient import IngredientOut
+from services.shared.lib.cache import initialize_service_cache
+from services.shared.lib.crud_helpers import apply_pagination, apply_sorting, safe_commit
+from services.shared.lib.authorization import apply_ownership_filter, check_owner_only, check_owner_or_group
 
-from .models import Recipe
+from .models import Recipe, RecipeIngredient
+
+# Load configuration
+config = get_config()
+
+# Initialize cache
+cache = initialize_service_cache("recipes")
+
+
+async def validate_catalog_items(catalog_item_ids: list[UUID4]) -> dict[UUID4, str]:
+    """
+    Validate that catalog items exist and return their names.
+    Returns dict mapping catalog_item_id -> canonical_name
+    Raises HTTPException if any item doesn't exist.
+    """
+    # Get catalog service URL from config
+    catalog_config = get_config_for_service("catalog")
+    catalog_url = catalog_config.url
+
+    # Fetch catalog items
+    item_names = {}
+    async with httpx.AsyncClient() as client:
+        for item_id in catalog_item_ids:
+            try:
+                response = await client.get(f"{catalog_url}/catalog/{item_id}")
+                response.raise_for_status()
+                item = response.json()
+                item_names[item_id] = item.get("canonical_name") or item.get("raw_name")
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Catalog item {item_id} not found. All ingredients must exist in catalog."
+                    )
+                raise HTTPException(status_code=500, detail=f"Failed to validate catalog item {item_id}")
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Error validating catalog items: {str(e)}")
+
+    return item_names
 
 
 @traced
 async def create_recipe(data: rs.RecipeCreate, db: Session):
     """
-    Creates a new recipe in the database.
+    Creates a new recipe in the database with catalog-linked ingredients.
     """
+    user_ctx = require_user_context()
 
     with Span("db_create_recipe"):
+        # Step 1: Validate all catalog items exist
+        catalog_item_ids = [ing.catalog_item_id for ing in data.ingredients]
+        item_names = await validate_catalog_items(catalog_item_ids)
+
+        # Step 2: Create recipe
         normalized_title = data.title.strip().lower()
+
+        # Automatic sharing: if user has groups, share with first group
+        group_id = user_ctx.group_ids[0] if user_ctx.group_ids else None
 
         recipe = Recipe(
             title=data.title,
             normalized_title=normalized_title,
             description=data.description,
-            ingredients=[i.dict() for i in data.ingredients],
             steps=data.steps,
+            user_id=user_ctx.user_id,
+            group_id=group_id,
         )
 
         db.add(recipe)
         try:
-            db.commit()
-            db.refresh(recipe)
+            db.flush()  # Get recipe.id before creating ingredients
         except IntegrityError as exc:
             db.rollback()
             raise HTTPException(
                 status_code=400,
                 detail=f"Recipe '{data.title}' already exists. {exc.detail}",
-            )
+            ) from exc
 
-        return rs.RecipeOut.model_validate(recipe)
+        # Step 3: Create recipe ingredients
+        for ing in data.ingredients:
+            recipe_ing = RecipeIngredient(
+                recipe_id=recipe.id,
+                catalog_item_id=ing.catalog_item_id,
+                qty=ing.qty,
+                unit=ing.unit.value,
+            )
+            db.add(recipe_ing)
+
+        db.commit()
+        db.refresh(recipe)
+
+        # Invalidate list caches
+        cache.delete_pattern("recipes:list:*")
+
+        # Step 4: Build response with ingredient details
+        ingredients_out = [
+            IngredientOut(
+                catalog_item_id=ing.catalog_item_id,
+                catalog_item_name=item_names[ing.catalog_item_id],
+                qty=ing.qty,
+                unit=ing.unit,
+            )
+            for ing in data.ingredients
+        ]
+
+        return rs.RecipeOut(
+            id=recipe.id,
+            title=recipe.title,
+            normalized_title=recipe.normalized_title,
+            description=recipe.description,
+            ingredients=ingredients_out,
+            steps=recipe.steps,
+            created_at=recipe.created_at,
+            updated_at=recipe.updated_at,
+        )
 
 
 @traced
@@ -54,113 +143,243 @@ async def list_recipes(
 ):
     """
     Lists recipes with optional filtering, searching, and sorting.
+    Filters by user_id OR group_id for data isolation.
+    Caches list results for 2 minutes per user.
     """
+    user_ctx = require_user_context()
+
+    # Build cache key from query params + user_id (user-specific cache)
+    cache_key = f"recipes:list:u={user_ctx.user_id}:l={limit}:o={offset}:s={search or ''}:i={ingredient or ''}:sort={sort or ''}"
+    cached = cache.get_json(cache_key)
+    if cached:
+        return cached
+
     with Span("db_list_recipes"):
         query = db.query(Recipe)
+
+        # AUTHORIZATION FILTER: user's own recipes OR group-shared recipes
+        query = apply_ownership_filter(query, Recipe)
 
         # ---- TEXT SEARCH (case-insensitive)
         if search:
             s = f"%{search.lower()}%"
             query = query.filter(Recipe.normalized_title.ilike(s))
 
-        # ---- INGREDIENT FILTER
+        # ---- INGREDIENT FILTER (by catalog_item_id)
         if ingredient:
-            i = ingredient.lower().strip()
-            query = query.filter(Recipe.ingredients.cast(JSONB).contains([{"name": i}]))
+            # Filter recipes that have this catalog_item_id
+            query = query.join(RecipeIngredient).filter(
+                RecipeIngredient.catalog_item_id == ingredient
+            )
 
         # ---- SORTING
-        if sort:
-            try:
-                field, direction = sort.split(":")
-                direction = direction.lower()
-                field_obj = getattr(Recipe, field)
-                if direction == "asc":
-                    query = query.order_by(asc(field_obj))
-                elif direction == "desc":
-                    query = query.order_by(desc(field_obj))
-                else:
-                    raise ValueError()
-            except Exception:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Invalid sort value. Use field:asc or field:desc",
-                )
-
-        # ---- TOTAL COUNT (before applying limit/offset)
-        total = query.count()
+        query = apply_sorting(query, Recipe, sort)
 
         # ---- PAGINATION
-        items = query.offset(offset).limit(limit).all()
+        total, recipes = apply_pagination(query, limit, offset)
+
+        # Fetch catalog item names for all ingredients
+        recipe_outs = []
+        async with httpx.AsyncClient() as client:
+            catalog_config = get_config_for_service("catalog")
+            catalog_url = catalog_config.url
+
+            for recipe in recipes:
+                ingredients_out = []
+                for ing in recipe.recipe_ingredients:
+                    try:
+                        response = await client.get(f"{catalog_url}/catalog/{ing.catalog_item_id}")
+                        item = response.json()
+                        item_name = item.get("canonical_name") or item.get("raw_name")
+                    except Exception:
+                        item_name = f"Unknown ({ing.catalog_item_id})"
+
+                    ingredients_out.append(
+                        IngredientOut(
+                            catalog_item_id=ing.catalog_item_id,
+                            catalog_item_name=item_name,
+                            qty=ing.qty,
+                            unit=ing.unit,
+                        )
+                    )
+
+                recipe_outs.append(
+                    rs.RecipeOut(
+                        id=recipe.id,
+                        title=recipe.title,
+                        normalized_title=recipe.normalized_title,
+                        description=recipe.description,
+                        ingredients=ingredients_out,
+                        steps=recipe.steps,
+                        created_at=recipe.created_at,
+                        updated_at=recipe.updated_at,
+                    )
+                )
 
         # Return with metadata
-        return {
+        result = {
             "total": total,
             "limit": limit,
             "offset": offset,
-            "data": [rs.RecipeOut.model_validate(r) for r in items],
+            "data": recipe_outs,
         }
+
+        # Cache for configured TTL
+        cache.set_json(cache_key, result, ttl=config.cache.ttl.recipes_list)
+
+        return result
 
 
 @traced
 async def get_recipe(recipe_id: UUID4, db: Session) -> rs.RecipeOut:
     """
-    Retrieves a single recipe by its ID.
+    Retrieves a single recipe by its ID with caching.
+    Verifies user has access (owner or group member).
     """
+    user_ctx = require_user_context()
+
+    # Try cache first (cache key includes user context check later)
+    cache_key = f"recipe:{recipe_id}"
+    cached = cache.get_json(cache_key)
+    if cached:
+        # Still need to verify access even if cached
+        recipe = db.query(Recipe).filter(Recipe.id == recipe_id).first()
+        if recipe:
+            # AUTHORIZATION CHECK
+            check_owner_or_group(recipe.user_id, recipe.group_id, "recipe")
+        return rs.RecipeOut(**cached)
+
     with Span("db_query_recipe"):
         recipe = db.query(Recipe).filter(Recipe.id == recipe_id).first()
         if not recipe:
             raise HTTPException(404, "Recipe not found")
-        return rs.RecipeOut.model_validate(recipe)
+
+        # AUTHORIZATION CHECK
+        check_owner_or_group(recipe.user_id, recipe.group_id, "recipe")
+
+        # Fetch catalog item names
+        ingredients_out = []
+        async with httpx.AsyncClient() as client:
+            catalog_config = get_config_for_service("catalog")
+            catalog_url = catalog_config.url
+
+            for ing in recipe.recipe_ingredients:
+                try:
+                    response = await client.get(f"{catalog_url}/catalog/{ing.catalog_item_id}")
+                    item = response.json()
+                    item_name = item.get("canonical_name") or item.get("raw_name")
+                except Exception:
+                    item_name = f"Unknown ({ing.catalog_item_id})"
+
+                ingredients_out.append(
+                    IngredientOut(
+                        catalog_item_id=ing.catalog_item_id,
+                        catalog_item_name=item_name,
+                        qty=ing.qty,
+                        unit=ing.unit,
+                    )
+                )
+
+        result = rs.RecipeOut(
+            id=recipe.id,
+            title=recipe.title,
+            normalized_title=recipe.normalized_title,
+            description=recipe.description,
+            ingredients=ingredients_out,
+            steps=recipe.steps,
+            created_at=recipe.created_at,
+            updated_at=recipe.updated_at,
+        )
+
+        # Cache for configured TTL
+        cache.set_json(cache_key, result, ttl=config.cache.ttl.recipes_detail)
+
+        return result
 
 
 @traced
-async def update_recipe(id: UUID4, data: rs.RecipeUpdate, db: Session):
+async def update_recipe(recipe_id: UUID4, data: rs.RecipeUpdate, db: Session):
     """
-    Updates an existing recipe in the database.
+    Updates an existing recipe.
+    Only the recipe owner can update.
     """
+    user_ctx = require_user_context()
+
     with Span("db_update_recipe"):
-        recipe = db.query(Recipe).filter(Recipe.id == id).first()
+        recipe = db.query(Recipe).filter(Recipe.id == recipe_id).first()
         if not recipe:
             raise HTTPException(404, "Recipe not found")
 
-        # title + normalized_title
+        # AUTHORIZATION CHECK: only owner can update
+        check_owner_only(recipe.user_id, "update")
+
+        # Update basic fields
         if data.title is not None:
             recipe.title = data.title
             recipe.normalized_title = data.title.strip().lower()
-
-        # simple scalars
         if data.description is not None:
             recipe.description = data.description
-
-        # ingredients: list[Ingredient]
-        if data.ingredients is not None:
-            recipe.ingredients = [ing.model_dump() for ing in data.ingredients]
-
-        # steps: list[str]
         if data.steps is not None:
             recipe.steps = data.steps
+
+        # Update ingredients if provided
+        if data.ingredients is not None:
+            # Validate catalog items
+            catalog_item_ids = [ing.catalog_item_id for ing in data.ingredients]
+            item_names = await validate_catalog_items(catalog_item_ids)
+
+            # Delete old ingredients
+            db.query(RecipeIngredient).filter(RecipeIngredient.recipe_id == recipe_id).delete()
+
+            # Create new ingredients
+            for ing in data.ingredients:
+                recipe_ing = RecipeIngredient(
+                    recipe_id=recipe.id,
+                    catalog_item_id=ing.catalog_item_id,
+                    qty=ing.qty,
+                    unit=ing.unit.value,
+                )
+                db.add(recipe_ing)
 
         try:
             db.commit()
             db.refresh(recipe)
-        except IntegrityError:
+        except IntegrityError as exc:
             db.rollback()
-            raise HTTPException(400, "Recipe title already exists")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to update recipe. {exc.detail}",
+            ) from exc
 
-        return rs.RecipeOut.model_validate(recipe)
+        # Invalidate caches
+        cache.delete(f"recipe:{recipe_id}")
+        cache.delete_pattern("recipes:list:*")
+
+        # Return updated recipe
+        return await get_recipe(recipe_id, db)
 
 
 @traced
 async def delete_recipe(recipe_id: UUID4, db: Session):
     """
-    Deletes a recipe by its ID.
+    Deletes a recipe from the database.
+    Only the recipe owner can delete.
     """
+    user_ctx = require_user_context()
+
     with Span("db_delete_recipe"):
         recipe = db.query(Recipe).filter(Recipe.id == recipe_id).first()
         if not recipe:
             raise HTTPException(404, "Recipe not found")
 
+        # AUTHORIZATION CHECK: only owner can delete
+        check_owner_only(recipe.user_id, "delete")
+
         db.delete(recipe)
         db.commit()
 
-        return {"success": True}
+        # Invalidate caches
+        cache.delete(f"recipe:{recipe_id}")
+        cache.delete_pattern("recipes:list:*")
+
+        return {"message": "Recipe deleted successfully"}

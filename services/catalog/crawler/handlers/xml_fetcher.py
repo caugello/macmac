@@ -1,12 +1,12 @@
 import gzip
 import io
 import xml.etree.ElementTree as ET
-from typing import Iterable
+from collections.abc import Iterable
 from urllib.parse import unquote
 
 import httpx
 
-from services.config import Vendor, get_config, get_config_for_vendor
+from services.config import Vendor, get_config
 from services.shared.schemas.vendor import VendorCatalogItem, VendorXMLSource
 
 config = get_config()
@@ -20,9 +20,7 @@ headers = {
 }
 
 
-def parse_vendor_catalog_item_xml(
-    xml_content: str, vendor: Vendor
-) -> Iterable[VendorCatalogItem]:
+def parse_vendor_catalog_item_xml(xml_content: str, vendor: Vendor) -> Iterable[VendorCatalogItem]:
     """
     Parses XML content from a vendor's catalog sitemap and yields VendorCatalogItem objects.
     """
@@ -43,9 +41,7 @@ def parse_vendor_catalog_item_xml(
                 raw_name=unquote(slug.replace("-", " ")),
             )
         except ValueError as e:
-            print(
-                f"Error parsing product_id or raw_name from slug '{slug or None}': {e}"
-            )
+            print(f"Error parsing product_id or raw_name from slug '{slug or None}': {e}")
             continue
 
 

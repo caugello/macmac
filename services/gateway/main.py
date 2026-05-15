@@ -2,19 +2,35 @@ import uuid
 
 import httpx
 from fastapi import Body, Depends, FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
 from services.config import get_config
 from services.framework.logging import log_event
 from services.framework.tracing import TRACE_ID_HEADER
+from services.framework.rate_limit import RateLimitMiddleware, get_rate_limit_for_path
 from services.gateway.middleware import GatewayLoggingMiddleware
+from services.gateway.auth_middleware import AuthenticationMiddleware
 
 config = get_config()
 
-app = FastAPI(
-    title=f"{config.title} Gateway", version=config.version, redirect_slashes=False
+app = FastAPI(title=f"{config.title} Gateway", version=config.version, redirect_slashes=False)
+
+# Add CORS middleware for frontend - configuration from config.yaml
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=config.gateway.cors.allowed_origins,
+    allow_credentials=config.gateway.cors.allow_credentials,
+    allow_methods=config.gateway.cors.allow_methods,
+    allow_headers=config.gateway.cors.allow_headers,
+    max_age=config.gateway.cors.max_age,
 )
+
+# Add rate limiting middleware (before auth to prevent brute force attacks)
+app.add_middleware(RateLimitMiddleware, calls=100, period=60)
+
 app.add_middleware(GatewayLoggingMiddleware)
+app.add_middleware(AuthenticationMiddleware)
 
 
 def build_url(service, route, request: Request) -> str:
@@ -46,8 +62,7 @@ async def forward_request(route, url, request: Request, qp, json_body=None):
             headers={
                 k: v
                 for k, v in request.headers.items()
-                if k.lower()
-                not in ("host", "connection", "content-length", "transfer-encoding")
+                if k.lower() not in ("host", "connection", "content-length", "transfer-encoding")
             },
         )
 
@@ -74,9 +89,7 @@ def create_body_handler(service, route, RequestModel, qp_dep):
         data = RequestModel(**raw_body)
 
         url = build_url(service, route, request)
-        return await forward_request(
-            route, url, request, qp, json_body=data.model_dump()
-        )
+        return await forward_request(route, url, request, qp, json_body=data.model_dump())
 
     return handler
 
@@ -107,7 +120,7 @@ def make_proxy_handler(service, route):
     Finally, it streams back the response from the upstream service.
     """
 
-    async def handler(request: Request, body: dict | None = None):
+    async def handler(request: Request):
 
         upstream_url = service.url + request.url.path.replace("/api/v1", "")
         method = route.method.upper()
@@ -118,9 +131,14 @@ def make_proxy_handler(service, route):
         params = request.query_params if (method == "GET" and not is_detail) else None
 
         # --- JSON body only for methods that accept payload ---
-        json_body = body if method in ("POST", "PUT", "PATCH") else None
+        json_body = None
+        if method in ("POST", "PUT", "PATCH"):
+            json_body = await request.json()
 
-        # --- Forward headers, but strip body-sensitive ones ---
+        # --- Forward headers, strip body-sensitive and user-context ones ---
+        # User-context headers (X-User-ID, X-Username, X-User-Groups) are
+        # stripped to prevent clients from injecting spoofed identity.
+        # They are re-added below only from the authenticated request.state.
         headers = {
             k: v
             for k, v in request.headers.items()
@@ -130,11 +148,20 @@ def make_proxy_handler(service, route):
                 "content-length",
                 "transfer-encoding",
                 "connection",
+                "x-user-id",
+                "x-username",
+                "x-user-groups",
             )
         }
 
         trace_id = request.headers.get(TRACE_ID_HEADER) or str(uuid.uuid4())
         headers[TRACE_ID_HEADER] = trace_id
+
+        # Add user context headers if available (set by auth middleware)
+        if hasattr(request.state, 'user_id'):
+            headers['X-User-ID'] = request.state.user_id
+            headers['X-Username'] = request.state.username
+            headers['X-User-Groups'] = ','.join(request.state.group_ids)
 
         async with httpx.AsyncClient() as client:
             response = await client.request(
@@ -153,8 +180,7 @@ def make_proxy_handler(service, route):
             headers={
                 k: v
                 for k, v in response.headers.items()
-                if k.lower()
-                not in ("content-length", "transfer-encoding", "connection")
+                if k.lower() not in ("content-length", "transfer-encoding", "connection")
             },
         )
 
