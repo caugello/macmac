@@ -197,12 +197,17 @@ class RedisCache:
         """
         try:
             full_pattern = self._make_key(pattern)
-            keys = self.client.keys(full_pattern)
-            if keys:
-                deleted = self.client.delete(*keys)
-                logger.debug(f"Cache DELETE pattern: {full_pattern} ({deleted} deleted)")
-                return deleted
-            return 0
+            deleted = 0
+            batch = []
+            for key in self.client.scan_iter(match=full_pattern, count=100):
+                batch.append(key)
+                if len(batch) >= 100:
+                    deleted += self.client.delete(*batch)
+                    batch = []
+            if batch:
+                deleted += self.client.delete(*batch)
+            logger.debug(f"Cache DELETE pattern: {full_pattern} ({deleted} deleted)")
+            return deleted
         except redis.RedisError as e:
             logger.warning(f"Redis DELETE pattern error: {e}")
             return 0
