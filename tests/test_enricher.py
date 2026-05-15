@@ -7,7 +7,6 @@ from services.catalog.enricher.main import (
     normalize_unit,
 )
 
-
 # ===== UNIT TESTS - normalize_unit =====
 
 

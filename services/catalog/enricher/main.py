@@ -157,13 +157,11 @@ async def crawl_product_page(url: str) -> tuple[str | None, str | None, float | 
             page = await context.new_page()
 
             # Simple stealth script for Safari/webkit
-            await page.add_init_script(
-                """
+            await page.add_init_script("""
                 Object.defineProperty(navigator, 'webdriver', {
                     get: () => undefined
                 });
-            """
-            )
+            """)
 
             # Step 1: Visit homepage first to establish session and get cookies
             base_url = "https://www.collectandgo.be/fr"
@@ -226,14 +224,12 @@ async def crawl_product_page(url: str) -> tuple[str | None, str | None, float | 
             )  # Random delay 0.5-1.5s
 
             # Scroll down slowly like a human
-            await page.evaluate(
-                """
+            await page.evaluate("""
                 window.scrollTo({
                     top: document.body.scrollHeight / 3,
                     behavior: 'smooth'
                 });
-            """
-            )
+            """)
             await asyncio.sleep(0.3)
 
             # Wait for content to load

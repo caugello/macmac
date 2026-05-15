@@ -14,7 +14,6 @@ from datetime import timedelta
 import redis
 from pydantic import BaseModel
 
-
 logger = logging.getLogger(__name__)
 
 
