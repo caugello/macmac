@@ -1,7 +1,7 @@
 import importlib
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 
@@ -14,8 +14,8 @@ class QueryParam:
 
     type: str  # "int", "str", etc. (string name, we’ll eval it later)
     default: Any = None
-    ge: Optional[float] = None
-    le: Optional[float] = None
+    ge: float | None = None
+    le: float | None = None
     example: Any = None
 
 
@@ -27,12 +27,12 @@ class Route:
 
     method: str
     path: str
-    request_model: Optional[Any]
-    response_model: Optional[Any]
+    request_model: Any | None
+    response_model: Any | None
     handler: str
-    query_params: Dict[str, QueryParam]
-    description: Optional[str]
-    tags: List[str]
+    query_params: dict[str, QueryParam]
+    description: str | None
+    tags: list[str]
 
 
 @dataclass
@@ -48,6 +48,121 @@ class Dependency:
 
 
 @dataclass
+class EnricherConfig:
+    """
+    Represents enricher configuration for catalog service.
+    """
+
+    batch_size: int
+    delay_between_requests: int
+    page_timeout: int
+    batch_pause: int
+    openai_model: str
+
+
+@dataclass
+class JwtConfig:
+    """
+    Represents JWT configuration.
+    """
+
+    algorithm: str
+    access_token_expire_minutes: int
+
+
+@dataclass
+class KeycloakConfig:
+    """
+    Represents Keycloak configuration.
+    """
+
+    url: str
+    realm: str
+    client_id: str
+
+
+@dataclass
+class AuthConfig:
+    """
+    Represents authentication configuration.
+    """
+
+    jwt: JwtConfig
+    keycloak: KeycloakConfig
+
+
+@dataclass
+class CacheTTL:
+    """
+    Represents cache TTL configuration for different data types.
+    """
+
+    recipes_list: int
+    recipes_detail: int
+    catalog_list: int
+    catalog_detail: int
+    meal_plans_list: int
+    meal_plans_detail: int
+
+
+@dataclass
+class CacheConfig:
+    """
+    Represents Redis cache configuration.
+    """
+
+    host: str
+    port: int
+    db: int
+    socket_timeout: int
+    socket_connect_timeout: int
+    ttl: CacheTTL
+
+
+@dataclass
+class RateLimitEndpoint:
+    """
+    Represents rate limit configuration for a specific endpoint.
+    """
+
+    calls: int
+    period: int
+
+
+@dataclass
+class RateLimitConfig:
+    """
+    Represents rate limiting configuration.
+    """
+
+    enabled: bool
+    default: RateLimitEndpoint
+    endpoints: dict[str, RateLimitEndpoint]
+
+
+@dataclass
+class CorsConfig:
+    """
+    Represents CORS configuration.
+    """
+
+    allowed_origins: list[str]
+    allow_credentials: bool
+    allow_methods: list[str]
+    allow_headers: list[str]
+    max_age: int
+
+
+@dataclass
+class GatewayConfig:
+    """
+    Represents gateway configuration.
+    """
+
+    cors: CorsConfig
+
+
+@dataclass
 class Service:
     """
     Represents a service with its configuration, including routes and database.
@@ -57,9 +172,10 @@ class Service:
     version: str
     title: str
     url: str
-    db: Optional[str]
-    routes: List[Route]
-    dependencies: Optional[List[Dependency]]
+    db: str | None
+    routes: list[Route]
+    dependencies: list[Dependency] | None
+    enricher: EnricherConfig | None = None
 
 
 @dataclass
@@ -70,7 +186,7 @@ class Vendor:
 
     name: str
     url: str
-    product_url_identifier: Optional[str]
+    product_url_identifier: str | None
 
 
 @dataclass
@@ -80,14 +196,18 @@ class Config:
     """
 
     urlPrefix: str
-    tempDir: Optional[str]
+    tempDir: str | None
     title: str
     version: str
     services: dict[str, Service]
     vendors: dict[str, Vendor]
+    auth: AuthConfig
+    cache: CacheConfig
+    rate_limiting: RateLimitConfig
+    gateway: GatewayConfig
 
 
-def load_model(ref: Optional[str]):
+def load_model(ref: str | None):
     """
     Loads a model class from a string reference.
     Handles optional `List` types by checking for `[]` suffix.
@@ -104,7 +224,7 @@ def load_model(ref: Optional[str]):
     cls = getattr(module, class_name)
 
     if is_list:
-        return List[cls]
+        return list[cls]
 
     return cls
 
@@ -118,13 +238,13 @@ def load_handler(ref: str):
     return getattr(module, func_name)
 
 
-def parse_query_params(data: Optional[dict]) -> Dict[str, QueryParam]:
+def parse_query_params(data: dict | None) -> dict[str, QueryParam]:
     """
     Parses a dictionary of query parameter configurations into a dictionary of QueryParam objects.
     """
     if not data:
         return {}
-    params: Dict[str, QueryParam] = {}
+    params: dict[str, QueryParam] = {}
     for name, cfg in data.items():
         params[name] = QueryParam(
             type=cfg.get("type", "str"),
@@ -164,6 +284,21 @@ def parse_dependency(dependencies_data: dict) -> Dependency:
     )
 
 
+def parse_enricher(enricher_data: dict | None) -> EnricherConfig | None:
+    """
+    Parses enricher configuration into an EnricherConfig object.
+    """
+    if not enricher_data:
+        return None
+    return EnricherConfig(
+        batch_size=enricher_data["batch_size"],
+        delay_between_requests=enricher_data["delay_between_requests"],
+        page_timeout=enricher_data["page_timeout"],
+        batch_pause=enricher_data["batch_pause"],
+        openai_model=enricher_data["openai_model"],
+    )
+
+
 def parse_service(service_data: dict) -> Service:
     """
     Parses a dictionary of service configurations into a Service object.
@@ -174,10 +309,9 @@ def parse_service(service_data: dict) -> Service:
         version=service_data["version"],
         url=service_data["url"],
         db=service_data.get("db"),
-        dependencies=[
-            parse_dependency(dep) for dep in service_data.get("dependencies", [])
-        ],
+        dependencies=[parse_dependency(dep) for dep in service_data.get("dependencies", [])],
         routes=[parse_route(route) for route in service_data.get("routes", [])],
+        enricher=parse_enricher(service_data.get("enricher")),
     )
 
 
@@ -192,6 +326,80 @@ def parse_vendor(vendor_data: dict) -> Vendor:
     )
 
 
+def parse_auth_config(auth_data: dict) -> AuthConfig:
+    """
+    Parses authentication configuration.
+    """
+    return AuthConfig(
+        jwt=JwtConfig(
+            algorithm=auth_data["jwt"]["algorithm"],
+            access_token_expire_minutes=auth_data["jwt"]["access_token_expire_minutes"],
+        ),
+        keycloak=KeycloakConfig(
+            url=auth_data["keycloak"]["url"],
+            realm=auth_data["keycloak"]["realm"],
+            client_id=auth_data["keycloak"]["client_id"],
+        ),
+    )
+
+
+def parse_cache_config(cache_data: dict) -> CacheConfig:
+    """
+    Parses cache configuration.
+    """
+    return CacheConfig(
+        host=cache_data["host"],
+        port=cache_data["port"],
+        db=cache_data["db"],
+        socket_timeout=cache_data["socket_timeout"],
+        socket_connect_timeout=cache_data["socket_connect_timeout"],
+        ttl=CacheTTL(
+            recipes_list=cache_data["ttl"]["recipes_list"],
+            recipes_detail=cache_data["ttl"]["recipes_detail"],
+            catalog_list=cache_data["ttl"]["catalog_list"],
+            catalog_detail=cache_data["ttl"]["catalog_detail"],
+            meal_plans_list=cache_data["ttl"]["meal_plans_list"],
+            meal_plans_detail=cache_data["ttl"]["meal_plans_detail"],
+        ),
+    )
+
+
+def parse_rate_limit_config(rate_limit_data: dict) -> RateLimitConfig:
+    """
+    Parses rate limiting configuration.
+    """
+    endpoints = {}
+    for path, config in rate_limit_data.get("endpoints", {}).items():
+        endpoints[path] = RateLimitEndpoint(
+            calls=config["calls"],
+            period=config["period"],
+        )
+
+    return RateLimitConfig(
+        enabled=rate_limit_data["enabled"],
+        default=RateLimitEndpoint(
+            calls=rate_limit_data["default"]["calls"],
+            period=rate_limit_data["default"]["period"],
+        ),
+        endpoints=endpoints,
+    )
+
+
+def parse_gateway_config(gateway_data: dict) -> GatewayConfig:
+    """
+    Parses gateway configuration.
+    """
+    return GatewayConfig(
+        cors=CorsConfig(
+            allowed_origins=gateway_data["cors"]["allowed_origins"],
+            allow_credentials=gateway_data["cors"]["allow_credentials"],
+            allow_methods=gateway_data["cors"]["allow_methods"],
+            allow_headers=gateway_data["cors"]["allow_headers"],
+            max_age=gateway_data["cors"]["max_age"],
+        ),
+    )
+
+
 def get_config_for_service(name: str) -> Service:
     """
     Retrieves the configuration for a specific service by its name.
@@ -202,9 +410,7 @@ def get_config_for_service(name: str) -> Service:
     raise ValueError(f"Service with name {name} not found.")
 
 
-def get_config_for_service_dependency(
-    service_name: str, dependency_name: str
-) -> Dependency:
+def get_config_for_service_dependency(service_name: str, dependency_name: str) -> Dependency:
     """
     Retrieves the configuration for a specific dependency of a service.
     """
@@ -234,17 +440,15 @@ def get_config() -> Config:
     BASE_DIR = os.path.dirname(os.path.dirname(__file__))
     # TODO: make config yaml path customizable
     config_file = os.path.join(BASE_DIR, "config.yaml")
-    with open(config_file, "r") as f:
+    with open(config_file) as f:
         raw_config = yaml.safe_load(f)
 
     services = {
-        name: parse_service({"name": name, **data})
-        for name, data in raw_config["services"].items()
+        name: parse_service({"name": name, **data}) for name, data in raw_config["services"].items()
     }
 
     vendors = {
-        name: parse_vendor({"name": name, **data})
-        for name, data in raw_config["vendors"].items()
+        name: parse_vendor({"name": name, **data}) for name, data in raw_config["vendors"].items()
     }
 
     config = Config(
@@ -254,5 +458,9 @@ def get_config() -> Config:
         tempDir=raw_config.get("tempDir"),
         services=services,
         vendors=vendors,
+        auth=parse_auth_config(raw_config["auth"]),
+        cache=parse_cache_config(raw_config["cache"]),
+        rate_limiting=parse_rate_limit_config(raw_config["rate_limiting"]),
+        gateway=parse_gateway_config(raw_config["gateway"]),
     )
     return config
