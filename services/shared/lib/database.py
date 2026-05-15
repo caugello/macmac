@@ -14,7 +14,7 @@ Usage in service db.py:
 """
 
 import os
-from typing import Generator
+from collections.abc import Generator
 
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session, declarative_base, sessionmaker

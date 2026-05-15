@@ -1,6 +1,6 @@
-from services.framework.tracing import TRACE_ID_HEADER
-from services.framework.user_context import set_user_context
 from pydantic import UUID4
+
+from services.framework.user_context import set_user_context
 
 # Custom headers for user context propagation
 USER_ID_HEADER = "X-User-ID"

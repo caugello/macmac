@@ -3,7 +3,7 @@
 import os
 import uuid
 from collections.abc import Generator
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import UUID4

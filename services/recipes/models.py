@@ -3,7 +3,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from services.recipes.db import Base
-from services.shared.models import BaseModel, UUIDPrimaryKeyMixin, UserOwnershipMixin
+from services.shared.models import BaseModel, UserOwnershipMixin, UUIDPrimaryKeyMixin
 
 
 class Recipe(BaseModel, UserOwnershipMixin, Base):

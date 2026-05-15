@@ -7,9 +7,9 @@ TTL management, and cache invalidation patterns.
 
 import json
 import logging
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, Optional
-from datetime import timedelta
+from typing import Any
 
 import redis
 from pydantic import BaseModel
@@ -25,7 +25,7 @@ class CacheConfig:
         host: str = "localhost",
         port: int = 6379,
         db: int = 0,
-        password: Optional[str] = None,
+        password: str | None = None,
         socket_timeout: int = 5,
         socket_connect_timeout: int = 5,
         decode_responses: bool = True,
@@ -63,7 +63,7 @@ class RedisCache:
     def __init__(self, config: CacheConfig, key_prefix: str = ""):
         self.config = config
         self.key_prefix = key_prefix
-        self._client: Optional[redis.Redis] = None
+        self._client: redis.Redis | None = None
 
     @property
     def client(self) -> redis.Redis:
@@ -86,7 +86,7 @@ class RedisCache:
             return f"{self.key_prefix}:{key}"
         return key
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         """Get value from cache."""
         try:
             full_key = self._make_key(key)
@@ -100,7 +100,7 @@ class RedisCache:
             logger.warning(f"Redis GET error for key {key}: {e}")
             return None
 
-    def get_json(self, key: str) -> Optional[dict]:
+    def get_json(self, key: str) -> dict | None:
         """Get JSON value from cache and deserialize."""
         value = self.get(key)
         if value:
@@ -115,7 +115,7 @@ class RedisCache:
         self,
         key: str,
         value: str,
-        ttl: Optional[int] = None,
+        ttl: int | None = None,
     ) -> bool:
         """
         Set value in cache with optional TTL.
@@ -144,7 +144,7 @@ class RedisCache:
         self,
         key: str,
         value: Any,
-        ttl: Optional[int] = None,
+        ttl: int | None = None,
     ) -> bool:
         """
         Set JSON-serializable value in cache.
@@ -241,7 +241,7 @@ class RedisCache:
 def cached(
     cache: RedisCache,
     ttl: int = 300,
-    key_builder: Optional[Callable] = None,
+    key_builder: Callable | None = None,
 ):
     """
     Decorator for caching function results.
@@ -382,6 +382,7 @@ def initialize_service_cache(service_name: str) -> RedisCache:
         cache = initialize_service_cache("recipes")
     """
     import os
+
     from services.config import get_config
 
     config = get_config()

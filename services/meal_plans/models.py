@@ -1,5 +1,7 @@
 import enum
-from sqlalchemy import Column, Date, Enum as SQLEnum, Index, UniqueConstraint
+
+from sqlalchemy import Column, Date, Index, UniqueConstraint
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID
 
 from services.meal_plans.db import Base

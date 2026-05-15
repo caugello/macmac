@@ -5,14 +5,14 @@ This module provides centralized, environment-aware connection pool settings
 with monitoring, health checks, and graceful degradation.
 """
 
-import os
 import logging
+import os
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator
 
-from sqlalchemy import create_engine, event, Engine, exc
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import QueuePool, NullPool
+from sqlalchemy import Engine, create_engine, event, exc
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import NullPool
 
 logger = logging.getLogger(__name__)
 
@@ -243,7 +243,7 @@ def get_db_with_retry(
                 time.sleep(wait_time)
             else:
                 logger.error(f"Database operation failed after {max_retries} attempts")
-        except Exception as e:
+        except Exception:
             # Non-transient errors: don't retry
             session.rollback()
             raise

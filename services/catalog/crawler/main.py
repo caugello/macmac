@@ -10,7 +10,7 @@ vendor = vendors.get("colruyt")
 
 
 print("Staring crawler")
-bus = MessagingBus(url=config.url)
+bus = MessagingBus(url="amqp://guest:guest@0.0.0.0:5672/%2F")
 bus.declare_queue(CATALOG_PROCESS_ENTITY_QUEUE)
 products = fetch_products_for_vendor(vendor)
 for product in products:

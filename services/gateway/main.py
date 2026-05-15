@@ -7,10 +7,10 @@ from fastapi.responses import Response
 
 from services.config import get_config
 from services.framework.logging import log_event
+from services.framework.rate_limit import RateLimitMiddleware
 from services.framework.tracing import TRACE_ID_HEADER
-from services.framework.rate_limit import RateLimitMiddleware, get_rate_limit_for_path
-from services.gateway.middleware import GatewayLoggingMiddleware
 from services.gateway.auth_middleware import AuthenticationMiddleware
+from services.gateway.middleware import GatewayLoggingMiddleware
 
 config = get_config()
 

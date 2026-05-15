@@ -1,6 +1,6 @@
-from pydantic import BaseModel, UUID4, EmailStr, Field, field_validator
-from typing import Optional
 import re
+
+from pydantic import UUID4, BaseModel, EmailStr, Field, field_validator
 
 
 class LoginRequest(BaseModel):
@@ -59,7 +59,7 @@ class GroupOut(BaseModel):
 
     id: UUID4
     name: str
-    owner_id: Optional[UUID4]
+    owner_id: UUID4 | None
     member_count: int
 
     model_config = {"from_attributes": True}

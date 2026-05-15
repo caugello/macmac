@@ -1,10 +1,11 @@
 import contextvars
-from typing import Optional
+
 from pydantic import UUID4
+
 from services.shared.schemas.auth import UserContext
 
 # Context variable for current authenticated user
-current_user: contextvars.ContextVar[Optional[UserContext]] = contextvars.ContextVar(
+current_user: contextvars.ContextVar[UserContext | None] = contextvars.ContextVar(
     "current_user", default=None
 )
 
@@ -15,7 +16,7 @@ def set_user_context(user_id: UUID4, username: str, group_ids: list[UUID4]):
     current_user.set(ctx)
 
 
-def get_user_context() -> Optional[UserContext]:
+def get_user_context() -> UserContext | None:
     """Get current user context"""
     return current_user.get()
 
