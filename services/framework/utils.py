@@ -19,10 +19,6 @@ def build_query_dependency(route):
     This enables ?limit=&offset=&search= etc to be passed to CRUD functions.
     """
 
-    qp_fields = (
-        route.query_params if hasattr(route, "query_params") else ["limit", "offset"]
-    )
-
     # Build dependency function with parameters dynamically
     def query_dep(
         limit: int = Query(None, ge=0, description="Max results"),

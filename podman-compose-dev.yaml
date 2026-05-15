@@ -1,21 +1,28 @@
-version: 3
-networks:
-  macmac_catalog: {}
-  macmac_recipes: {}
+version: "3"
 services:
+  # Infrastructure Services
+  redis:
+    hostname: redis
+    image: docker.io/library/redis:7-alpine
+    ports:
+      - 6379:6379
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   rabbitmq:
     hostname: rabbitmq
     image: docker.io/library/rabbitmq:4.1.6-management
-    networks:
-      - macmac_catalog
     ports:
       - 5672:5672
       - 15672:15672
+
   recipes_db:
     hostname: recipes-db
     image: quay.io/fedora/postgresql-16
-    networks:
-      - macmac_recipes
     environment:
       POSTGRESQL_USER: dbuser
       POSTGRESQL_PASSWORD: dbpass
@@ -23,11 +30,16 @@ services:
       POSTGRESQL_ADMIN_PASSWORD: admin
     ports:
       - 5432:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dbuser -d recipes"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
   catalog_db:
     hostname: catalog-db
     image: quay.io/fedora/postgresql-16
-    networks:
-      - macmac_catalog
     environment:
       POSTGRESQL_USER: dbuser
       POSTGRESQL_PASSWORD: dbpass
@@ -35,3 +47,265 @@ services:
       POSTGRESQL_ADMIN_PASSWORD: admin
     ports:
       - 5433:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dbuser -d catalog"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  # Migration services
+  recipes_migration:
+    image: quay.io/caugello/macmac-base:dev
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      PYTHONPATH: /app
+      ENVIRONMENT: "development"
+      RECIPES_DATABASE_URL: "postgresql+psycopg2://dbuser:dbpass@recipes-db:5432/recipes"
+    command: sh -c "until python -c 'import psycopg2; psycopg2.connect(\"host=recipes-db dbname=recipes user=dbuser password=dbpass\")' 2>/dev/null; do echo 'Waiting for recipes-db...'; sleep 2; done && alembic -c services/recipes/alembic.ini upgrade head"
+    depends_on:
+      recipes_db:
+        condition: service_healthy
+    restart: "no"
+
+  catalog_migration:
+    image: quay.io/caugello/macmac-base:dev
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      PYTHONPATH: /app
+      ENVIRONMENT: "development"
+      CATALOG_DATABASE_URL: "postgresql+psycopg2://dbuser:dbpass@catalog-db:5432/catalog"
+    command: sh -c "until python -c 'import psycopg2; psycopg2.connect(\"host=catalog-db dbname=catalog user=dbuser password=dbpass\")' 2>/dev/null; do echo 'Waiting for catalog-db...'; sleep 2; done && alembic -c services/catalog/alembic.ini upgrade head"
+    depends_on:
+      catalog_db:
+        condition: service_healthy
+    restart: "no"
+
+  meal_plans_db:
+    hostname: meal-plans-db
+    image: quay.io/fedora/postgresql-16
+    environment:
+      POSTGRESQL_USER: dbuser
+      POSTGRESQL_PASSWORD: dbpass
+      POSTGRESQL_DATABASE: meal_plans
+      POSTGRESQL_ADMIN_PASSWORD: admin
+    ports:
+      - 5434:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dbuser -d meal_plans"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  meal_plans_migration:
+    image: quay.io/caugello/macmac-base:dev
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      PYTHONPATH: /app
+      ENVIRONMENT: "development"
+      MEAL_PLANS_DATABASE_URL: "postgresql+psycopg2://dbuser:dbpass@meal-plans-db:5432/meal_plans"
+    command: sh -c "until python -c 'import psycopg2; psycopg2.connect(\"host=meal-plans-db dbname=meal_plans user=dbuser password=dbpass\")' 2>/dev/null; do echo 'Waiting for meal-plans-db...'; sleep 2; done && alembic -c services/meal_plans/alembic.ini upgrade head"
+    depends_on:
+      meal_plans_db:
+        condition: service_healthy
+    restart: "no"
+
+  auth_db:
+    hostname: auth-db
+    image: quay.io/fedora/postgresql-16
+    environment:
+      POSTGRESQL_USER: dbuser
+      POSTGRESQL_PASSWORD: dbpass
+      POSTGRESQL_DATABASE: auth
+      POSTGRESQL_ADMIN_PASSWORD: admin
+    ports:
+      - 5435:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dbuser -d auth"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  keycloak_db:
+    hostname: keycloak-db
+    image: quay.io/fedora/postgresql-16
+    environment:
+      POSTGRESQL_USER: dbuser
+      POSTGRESQL_PASSWORD: dbpass
+      POSTGRESQL_DATABASE: keycloak
+      POSTGRESQL_ADMIN_PASSWORD: admin
+    ports:
+      - 5436:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dbuser -d keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  auth_migration:
+    image: quay.io/caugello/macmac-base:dev
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      PYTHONPATH: /app
+      ENVIRONMENT: "development"
+      AUTH_DATABASE_URL: "postgresql+psycopg2://dbuser:dbpass@auth-db:5432/auth"
+    command: sh -c "until python -c 'import psycopg2; psycopg2.connect(\"host=auth-db dbname=auth user=dbuser password=dbpass\")' 2>/dev/null; do echo 'Waiting for auth-db...'; sleep 2; done && alembic -c services/auth/alembic.ini upgrade head"
+    depends_on:
+      auth_db:
+        condition: service_healthy
+    restart: "no"
+
+  keycloak:
+    hostname: keycloak
+    image: quay.io/keycloak/keycloak:26.1
+    ports:
+      - 8080:8080
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: dbuser
+      KC_DB_PASSWORD: dbpass
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+    command:
+      - start-dev
+      - --import-realm
+    volumes:
+      - ./openshift/keycloak-dev-realm.json:/opt/keycloak/data/import/macmac-dev-realm.json
+    depends_on:
+      keycloak_db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q 'UP'"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+  # API Services
+  auth_api:
+    hostname: auth-api
+    image: quay.io/caugello/macmac-base:dev
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      PYTHONPATH: /app
+      ENVIRONMENT: "development"
+      AUTH_DATABASE_URL: "postgresql+psycopg2://dbuser:dbpass@auth-db:5432/auth"
+      # Redis config from config.yaml (host: redis, port: 6379, db: 0)
+      JWT_SECRET_KEY: "dev-secret-key-change-in-production-min-32-chars"
+      KEYCLOAK_URL: "http://keycloak:8080"
+      KEYCLOAK_REALM: "macmac-dev"
+      KEYCLOAK_CLIENT_ID: "macmac-api"
+      KEYCLOAK_CLIENT_SECRET: "macmac-api-secret"
+    ports:
+      - 8004:8004
+    command: uvicorn services.auth.main:app --reload --host 0.0.0.0 --port 8004
+    depends_on:
+      redis:
+        condition: service_healthy
+      auth_migration:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy
+
+  gateway:
+    hostname: gateway
+    image: quay.io/caugello/macmac-base:dev
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      PYTHONPATH: /app
+      ENVIRONMENT: "development"
+      JWT_SECRET_KEY: "dev-secret-key-change-in-production-min-32-chars"
+      # Redis config from config.yaml (host: redis, port: 6379, db: 0)
+    ports:
+      - 8000:8000
+    command: uvicorn services.gateway.main:app --reload --host 0.0.0.0 --port 8000
+    depends_on:
+      redis:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      recipes_api:
+        condition: service_started
+      catalog_api:
+        condition: service_started
+      meal_plans_api:
+        condition: service_started
+      auth_api:
+        condition: service_started
+
+  recipes_api:
+    hostname: recipes-api
+    image: quay.io/caugello/macmac-base:dev
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      PYTHONPATH: /app
+      RECIPES_DATABASE_URL: "postgresql+psycopg2://dbuser:dbpass@recipes-db:5432/recipes"
+      # Redis config from config.yaml (host: redis, port: 6379, db: 0)
+    ports:
+      - 8001:8001
+    command: uvicorn services.recipes.main:app --reload --host 0.0.0.0 --port 8001
+    depends_on:
+      redis:
+        condition: service_healthy
+      recipes_migration:
+        condition: service_completed_successfully
+
+  catalog_api:
+    hostname: catalog-api
+    image: quay.io/caugello/macmac-base:dev
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      PYTHONPATH: /app
+      CATALOG_DATABASE_URL: "postgresql+psycopg2://dbuser:dbpass@catalog-db:5432/catalog"
+      # Redis config from config.yaml (host: redis, port: 6379, db: 0)
+    ports:
+      - 8002:8002
+    command: uvicorn services.catalog.main:app --reload --host 0.0.0.0 --port 8002
+    depends_on:
+      redis:
+        condition: service_healthy
+      catalog_migration:
+        condition: service_completed_successfully
+
+  meal_plans_api:
+    hostname: meal-plans-api
+    image: quay.io/caugello/macmac-base:dev
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      PYTHONPATH: /app
+      MEAL_PLANS_DATABASE_URL: "postgresql+psycopg2://dbuser:dbpass@meal-plans-db:5432/meal_plans"
+      # Redis config from config.yaml (host: redis, port: 6379, db: 0)
+    ports:
+      - 8003:8003
+    command: uvicorn services.meal_plans.main:app --reload --host 0.0.0.0 --port 8003
+    depends_on:
+      redis:
+        condition: service_healthy
+      meal_plans_migration:
+        condition: service_completed_successfully

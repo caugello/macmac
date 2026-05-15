@@ -1,9 +1,8 @@
 from datetime import datetime
-from typing import List, Optional
 
 from pydantic import UUID4, BaseModel, Field
 
-from .ingredient import Ingredient
+from .ingredient import Ingredient, IngredientCreate
 
 
 class RecipeCreate(BaseModel):
@@ -12,9 +11,9 @@ class RecipeCreate(BaseModel):
     """
 
     title: str = Field(..., min_length=2, max_length=200)
-    description: Optional[str] = None
-    ingredients: List[Ingredient]
-    steps: Optional[List[str]] = None
+    description: str | None = None
+    ingredients: list[IngredientCreate]
+    steps: list[str] | None = None
 
 
 class RecipeUpdate(BaseModel):
@@ -22,10 +21,10 @@ class RecipeUpdate(BaseModel):
     Model for updating an existing recipe.
     """
 
-    title: Optional[str] = None
-    description: Optional[str] = None
-    ingredients: Optional[List[Ingredient]] = None
-    steps: Optional[List[str]] = None
+    title: str | None = None
+    description: str | None = None
+    ingredients: list[IngredientCreate] | None = None
+    steps: list[str] | None = None
 
 
 class RecipeOut(BaseModel):
@@ -36,9 +35,9 @@ class RecipeOut(BaseModel):
     id: UUID4
     title: str
     normalized_title: str
-    description: Optional[str]
-    ingredients: List[Ingredient]
-    steps: Optional[List[str]]
+    description: str | None
+    ingredients: list[Ingredient]
+    steps: list[str] | None
     created_at: datetime
     updated_at: datetime
 
@@ -52,9 +51,9 @@ class RecipeListResponse(BaseModel):
     """
 
     total: int
-    limit: Optional[int] = None
-    offset: Optional[int] = None
-    data: List[RecipeOut]
+    limit: int | None = None
+    offset: int | None = None
+    data: list[RecipeOut]
 
 
 class RecipeQueryParams(BaseModel):

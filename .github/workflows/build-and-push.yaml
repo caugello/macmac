@@ -1,7 +1,10 @@
 name: Build and Push Image
 on:
-  push:
+  workflow_run:
+    workflows: ["Test and Lint"]
+    types: [completed]
     branches: ["main"]
+  push:
     tags: ["v*"]
   workflow_dispatch: {}
 
@@ -9,6 +12,10 @@ jobs:
   build:
     name: Build and push image
     runs-on: ubuntu-22.04
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
 
     steps:
       - uses: actions/checkout@v4

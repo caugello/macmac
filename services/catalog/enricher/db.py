@@ -16,6 +16,11 @@ def create_catalog_item(data: rs.CatalogItemCreate, db: Session):
         net_quantity_unit=data.net_quantity_unit,
         product_url=data.product_url,
         is_food=data.is_food,
+        # Enhanced fields from LLM extraction
+        price=data.price,
+        currency=data.currency,
+        category=data.category,
+        nutrition=data.nutrition,
     )
 
     db.add(item)
@@ -24,8 +29,6 @@ def create_catalog_item(data: rs.CatalogItemCreate, db: Session):
         db.refresh(item)
     except IntegrityError as exc:
         db.rollback()
-        raise ValueError(
-            f"CatalogItem '{data.product_url}' already exists. {exc.detail}"
-        )
+        raise ValueError(f"CatalogItem '{data.product_url}' already exists. {exc.detail}") from exc
 
     return rs.CatalogItemOut.model_validate(item)

@@ -4,11 +4,20 @@ from sqlalchemy import asc, desc
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from services.config import get_config
 from services.framework.logging import Span
 from services.framework.tracing import traced
 from services.shared.schemas import catalog as rs
+from services.shared.lib.cache import initialize_service_cache
+from services.shared.lib.crud_helpers import apply_pagination, apply_sorting, safe_commit
 
 from .models import CatalogItem
+
+# Load configuration
+config = get_config()
+
+# Initialize cache
+cache = initialize_service_cache("catalog")
 
 
 @traced
@@ -28,18 +37,19 @@ async def create_catalog_item(data: rs.CatalogItemCreate, db: Session):
             net_quantity_unit=data.net_quantity_unit,
             product_url=data.product_url,
             is_food=data.is_food,
+            # Enhanced fields from LLM extraction
+            price=data.price,
+            currency=data.currency,
+            category=data.category,
+            nutrition=data.nutrition,
         )
 
-        db.add(item)
-        try:
-            db.commit()
-            db.refresh(item)
-        except IntegrityError as exc:
-            db.rollback()
-            raise HTTPException(
-                status_code=400,
-                detail=f"CatalogItem '{data.product_url}' already exists. {exc.detail}",
-            )
+        with safe_commit(db, f"CatalogItem '{data.product_url}' already exists"):
+            db.add(item)
+        db.refresh(item)
+
+        # Invalidate list caches
+        cache.delete_pattern("catalog:list:*")
 
         return rs.CatalogItemOut.model_validate(item)
 
@@ -54,7 +64,14 @@ async def list_catalog_items(
 ):
     """
     Lists catalog items with optional filtering, searching, and sorting.
+    Caches results for 5 minutes.
     """
+    # Build cache key from query params
+    cache_key = f"catalog:list:l={limit}:o={offset}:s={search or ''}:sort={sort or ''}"
+    cached = cache.get_json(cache_key)
+    if cached:
+        return cached
+
     with Span("db_list_catalog_items"):
         query = db.query(CatalogItem)
 
@@ -64,45 +81,44 @@ async def list_catalog_items(
             query = query.filter(CatalogItem.normalized_name.ilike(s))
 
         # ---- SORTING
-        if sort:
-            try:
-                field, direction = sort.split(":")
-                direction = direction.lower()
-                field_obj = getattr(CatalogItem, field)
-                if direction == "asc":
-                    query = query.order_by(asc(field_obj))
-                elif direction == "desc":
-                    query = query.order_by(desc(field_obj))
-                else:
-                    raise ValueError()
-            except Exception:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Invalid sort value. Use field:asc or field:desc",
-                )
-
-        # ---- TOTAL COUNT (before applying limit/offset)
-        total = query.count()
+        query = apply_sorting(query, CatalogItem, sort)
 
         # ---- PAGINATION
-        items = query.offset(offset).limit(limit).all()
+        total, items = apply_pagination(query, limit, offset)
 
         # Return with metadata
-        return {
+        result = {
             "total": total,
             "limit": limit,
             "offset": offset,
             "data": [rs.CatalogItemOut.model_validate(r) for r in items],
         }
 
+        # Cache for configured TTL
+        cache.set_json(cache_key, result, ttl=config.cache.ttl.catalog_list)
+
+        return result
+
 
 @traced
 async def get_catalog_item(item_id: UUID4, db: Session) -> rs.CatalogItemOut:
     """
-    Retrieves a single item by its ID.
+    Retrieves a single item by its ID with caching.
     """
+    # Try cache first
+    cache_key = f"catalog:{item_id}"
+    cached = cache.get_json(cache_key)
+    if cached:
+        return rs.CatalogItemOut(**cached)
+
     with Span("db_query_catalog"):
         recipe = db.query(CatalogItem).filter(CatalogItem.id == item_id).first()
         if not recipe:
             raise HTTPException(404, "CatalogItem not found")
-        return rs.CatalogItemOut.model_validate(recipe)
+
+        result = rs.CatalogItemOut.model_validate(recipe)
+
+        # Cache for configured TTL
+        cache.set_json(cache_key, result, ttl=config.cache.ttl.catalog_detail)
+
+        return result

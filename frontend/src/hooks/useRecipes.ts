@@ -1,0 +1,57 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { recipesApi } from '../api/recipes'
+import type { RecipeCreate, RecipeUpdate } from '../lib/types'
+
+export const useRecipes = (params?: {
+  limit?: number
+  offset?: number
+  search?: string
+  ingredient?: string
+  sort?: string
+}) => {
+  return useQuery({
+    queryKey: ['recipes', params],
+    queryFn: () => recipesApi.list(params),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  })
+}
+
+export const useRecipe = (id: string) => {
+  return useQuery({
+    queryKey: ['recipe', id],
+    queryFn: () => recipesApi.get(id),
+    enabled: !!id,
+  })
+}
+
+export const useCreateRecipe = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: RecipeCreate) => recipesApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recipes'] })
+    },
+  })
+}
+
+export const useUpdateRecipe = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: RecipeUpdate }) => recipesApi.update(id, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['recipes'] })
+      queryClient.invalidateQueries({ queryKey: ['recipe', variables.id] })
+    },
+  })
+}
+
+export const useDeleteRecipe = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => recipesApi.delete(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['recipes'] })
+      queryClient.removeQueries({ queryKey: ['recipe', id] })
+    },
+  })
+}

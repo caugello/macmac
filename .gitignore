@@ -6,6 +6,15 @@
 ehthumbs.db
 Thumbs.db
 
+# Remove later
+openshift/
+docs/
+
+# Claude
+CLAUDE.md
+STATUS.md
+.claude/
+
 # Python
 **/__pycache__/
 *.pyc
@@ -18,11 +27,71 @@ venv/
 .installed.dists
 .venv
 .env
-.pytest_cache
-.mypy_cache
-.dmypy.json
+
+# IDE
 .vscode/
 .idea/
 *.ipynb
+
+# Testing and Coverage
+.pytest_cache/
+.coverage
+coverage.xml
+coverage/
+htmlcov/
+.tox/
+
+# Node / Frontend
+node_modules/
+
+# Linting and Type Checking
+.mypy_cache/
+.dmypy.json
+.ruff_cache/
+
+# Logs
 *.log
+logs/
+
+# Temporary files
 tmp/
+*.tmp
+*.bak
+*.swp
+*~
+
+# Script-generated temporary files
+/tmp/macmac_*_ids.txt
+
+# Build artifacts
+build/
+dist/
+*.egg
+*.whl
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment files
+.env.local
+.env.*.local
+# Security-sensitive files - NEVER commit these
+.env
+.env.local
+.env.production
+*.key
+*.pem
+*.crt
+secrets/
+credentials.json
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs may contain sensitive data
+*.log
+logs/

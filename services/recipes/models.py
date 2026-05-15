@@ -1,20 +1,17 @@
-import uuid
-
-from sqlalchemy import JSON, Column, DateTime, Index, String, func
+from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Index, String, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import relationship
 
-Base = declarative_base()
+from services.recipes.db import Base
+from services.shared.models import BaseModel, UUIDPrimaryKeyMixin, UserOwnershipMixin
 
 
-class Recipe(Base):
+class Recipe(BaseModel, UserOwnershipMixin, Base):
     """
     A recipe for a dish.
     """
 
     __tablename__ = "recipes"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # original user-facing title
     title = Column(String, nullable=False)
@@ -23,19 +20,44 @@ class Recipe(Base):
     normalized_title = Column(String, nullable=False)
 
     description = Column(String)
-    ingredients = Column(JSON, nullable=False)
     steps = Column(JSON)
 
-    created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
-    updated_at = Column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
-        nullable=False,
+    # Relationship to ingredients
+    recipe_ingredients = relationship(
+        "RecipeIngredient", back_populates="recipe", cascade="all, delete-orphan"
     )
 
     __table_args__ = (
         Index("ix_recipe_normalized_title", "normalized_title", unique=True),
+        Index("ix_recipe_user_id", "user_id"),
+        Index("ix_recipe_group_id", "group_id"),
+        # Composite index for efficient user+group queries
+        Index("ix_recipe_user_group", "user_id", "group_id"),
+    )
+
+
+class RecipeIngredient(UUIDPrimaryKeyMixin, Base):
+    """
+    Join table linking recipes to catalog items with quantities.
+    """
+
+    __tablename__ = "recipe_ingredients"
+
+    recipe_id = Column(
+        UUID(as_uuid=True), ForeignKey("recipes.id", ondelete="CASCADE"), nullable=False
+    )
+    catalog_item_id = Column(
+        UUID(as_uuid=True), nullable=False
+    )  # FK to catalog.catalog_items (different DB)
+    qty = Column(Float, nullable=False)
+    unit = Column(String, nullable=False)  # UnitEnum value
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationship back to recipe
+    recipe = relationship("Recipe", back_populates="recipe_ingredients")
+
+    __table_args__ = (
+        Index("ix_recipe_ingredient_recipe_id", "recipe_id"),
+        Index("ix_recipe_ingredient_catalog_item_id", "catalog_item_id"),
     )

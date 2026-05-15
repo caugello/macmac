@@ -1,20 +1,16 @@
-import uuid
+from sqlalchemy import Boolean, Column, Float, Index, String
+from sqlalchemy.dialects.postgresql import JSON
 
-from sqlalchemy import JSON, Boolean, Column, DateTime, Float, Index, String, func
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import declarative_base
-
-Base = declarative_base()
+from services.catalog.db import Base
+from services.shared.models import BaseModel
 
 
-class CatalogItem(Base):
+class CatalogItem(BaseModel, Base):
     """
     A catalog item
     """
 
     __tablename__ = "catalog"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # TODO: make this a relation to vendor table when more vendors are available
     vendor_name = Column(String, nullable=False)
@@ -26,15 +22,12 @@ class CatalogItem(Base):
     net_quantity_unit = Column(String)
     product_url = Column(String, nullable=False)
     is_food = Column(Boolean, nullable=False)
-    created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
-    updated_at = Column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
-        nullable=False,
-    )
+
+    # Enhanced fields from LLM extraction
+    price = Column(Float)
+    currency = Column(String, default="EUR")
+    category = Column(String)
+    nutrition = Column(JSON)  # Nutritional values per 100g
     __table_args__ = (
         Index("ix_catalog_normalized_name", "normalized_name"),
         Index("ix_catalog_product_url", "product_url", unique=True),

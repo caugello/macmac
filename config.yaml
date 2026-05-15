@@ -4,6 +4,69 @@ title: MacMac
 version: 0.1.0
 tmpDir: /tmp
 
+# Authentication & Security Configuration
+auth:
+  jwt:
+    algorithm: HS256
+    access_token_expire_minutes: 120
+  keycloak:
+    url: "http://keycloak:8080"
+    realm: "macmac-dev"
+    client_id: "macmac-api"
+
+# Cache Configuration
+cache:
+  host: redis
+  port: 6379
+  db: 0
+  socket_timeout: 5
+  socket_connect_timeout: 5
+  ttl:
+    # Recipes cache TTLs (in seconds)
+    recipes_list: 120
+    recipes_detail: 300
+    # Catalog cache TTLs
+    catalog_list: 300
+    catalog_detail: 600
+    # Meal plans cache TTLs
+    meal_plans_list: 60
+    meal_plans_detail: 120
+
+# Rate Limiting Configuration
+rate_limiting:
+  enabled: true
+  default:
+    calls: 100
+    period: 60
+  endpoints:
+    "/auth/login":
+      calls: 5
+      period: 60
+    "/auth/":
+      calls: 20
+      period: 60
+
+# Gateway Configuration
+gateway:
+  cors:
+    allowed_origins:
+      - "http://localhost:5173"
+      - "http://localhost:3000"
+      - "http://frontend-dev:5173"
+    allow_credentials: true
+    allow_methods:
+      - GET
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+      - OPTIONS
+    allow_headers:
+      - Authorization
+      - Content-Type
+      - X-Request-ID
+    max_age: 3600
+
 vendors:
   colruyt:
     url: "https://www.collectandgo.be/sitemap.xml"
@@ -11,12 +74,69 @@ vendors:
     product_url_identifier: "/assortiment/"
 
 services:
+  auth:
+    name: auth
+    title: Authentication API
+    version: 0.1.0
+    url: "http://auth-api:8004"
+    db: "postgresql+psycopg2://dbuser:dbpass@auth-db:5432/auth"
+    routes:
+      - name: login
+        method: post
+        path: /auth/login
+        request_model: services.shared.schemas.auth.LoginRequest
+        response_model: services.shared.schemas.auth.LoginResponse
+        handler: services.auth.crud.login
+        description: Authenticate user and return JWT token
+        tags:
+          - auth
+      - name: get_me
+        method: get
+        path: /auth/me
+        response_model: services.shared.schemas.auth.UserOut
+        handler: services.auth.crud.get_current_user
+        description: Get current user info
+        tags:
+          - auth
+      - name: create_group
+        method: post
+        path: /auth/groups
+        request_model: services.shared.schemas.auth.GroupCreate
+        response_model: services.shared.schemas.auth.GroupOut
+        handler: services.auth.crud.create_group
+        description: Create a new group
+        tags:
+          - groups
+      - name: list_groups
+        method: get
+        path: /auth/groups
+        response_model: services.shared.schemas.auth.GroupListResponse
+        handler: services.auth.crud.list_groups
+        description: List user's groups
+        tags:
+          - groups
+      - name: add_member
+        method: post
+        path: /auth/groups/{group_id}/members
+        request_model: services.shared.schemas.auth.AddMemberRequest
+        handler: services.auth.crud.add_user_to_group
+        description: Add user to group
+        tags:
+          - groups
+      - name: remove_member
+        method: delete
+        path: /auth/groups/{group_id}/members/{user_id}
+        handler: services.auth.crud.remove_user_from_group
+        description: Remove user from group
+        tags:
+          - groups
+
   recipes:
     name: recipes
     title: Recipes API
     version: 0.1.0
-    url: "http://0.0.0.0:8001"
-    db: "postgresql+psycopg2://dbuser:dbpass@0.0.0.0:5432/recipes"
+    url: "http://recipes-api:8001"
+    db: "postgresql+psycopg2://dbuser:dbpass@recipes-db:5432/recipes"
     routes:
       - name: create_recipe
         method: post
@@ -81,8 +201,14 @@ services:
     name: catalog
     title: catalog API
     version: 0.1.0
-    url: "http://0.0.0.0:8002"
-    db: "postgresql+psycopg2://dbuser:dbpass@0.0.0.0:5433/catalog"
+    url: "http://catalog-api:8002"
+    db: "postgresql+psycopg2://dbuser:dbpass@catalog-db:5432/catalog"
+    enricher:
+      batch_size: 5
+      delay_between_requests: 5
+      page_timeout: 15000
+      batch_pause: 60
+      openai_model: "gpt-4o-mini"
     routes:
       - name: create_recipe
         method: post
@@ -130,7 +256,97 @@ services:
         title: Crawler
         version: 0.1.0
         url: "amqp://guest:guest@0.0.0.0:5672/%2F"
-      - name: llm
-        title: Llamacpp
-        version: 0.1.0
-        url: "http://vllm.caugello.lan:8080/v1/chat/completions"
+  meal_plans:
+    name: meal_plans
+    title: Meal Plans API
+    version: 0.1.0
+    url: "http://meal-plans-api:8003"
+    db: "postgresql+psycopg2://dbuser:dbpass@meal-plans-db:5432/meal_plans"
+    routes:
+      - name: create_meal_plan
+        method: post
+        path: /meal-plans
+        request_model: services.shared.schemas.meal_plan.MealPlanCreate
+        response_model: services.shared.schemas.meal_plan.MealPlanOut
+        handler: services.meal_plans.crud.create_meal_plan
+        description: Schedule a recipe to a date+meal_type slot
+        tags:
+          - meal_plans
+      - name: list_meal_plans
+        method: get
+        path: /meal-plans
+        response_model: services.shared.schemas.meal_plan.MealPlanListResponse
+        handler: services.meal_plans.crud.list_meal_plans
+        description: List meal plans for a date range (default current week)
+        query_params:
+          start_date:
+            type: date
+            default: null
+            description: "Start date (YYYY-MM-DD)"
+          end_date:
+            type: date
+            default: null
+            description: "End date (YYYY-MM-DD)"
+          limit:
+            type: int
+            default: 100
+            ge: 1
+            le: 1000
+          offset:
+            type: int
+            default: 0
+            ge: 0
+        tags:
+          - meal_plans
+      - name: get_meal_plan
+        method: get
+        path: /meal-plans/{meal_plan_id}
+        handler: services.meal_plans.crud.get_meal_plan
+        response_model: services.shared.schemas.meal_plan.MealPlanOut
+        description: Get a single meal plan
+        tags:
+          - meal_plans
+      - name: update_meal_plan
+        description: Update a meal plan
+        method: patch
+        path: /meal-plans/{meal_plan_id}
+        handler: services.meal_plans.crud.update_meal_plan
+        request_model: services.shared.schemas.meal_plan.MealPlanUpdate
+        response_model: services.shared.schemas.meal_plan.MealPlanOut
+        tags:
+          - meal_plans
+      - name: delete_meal_plan
+        description: Delete a meal plan (clear meal slot)
+        method: delete
+        path: /meal-plans/{meal_plan_id}
+        handler: services.meal_plans.crud.delete_meal_plan
+        response_model: services.shared.schemas.generic.DeleteResponse
+        tags:
+          - meal_plans
+      - name: copy_day
+        method: post
+        path: /meal-plans/copy-day
+        request_model: services.shared.schemas.meal_plan.CopyDayRequest
+        response_model: services.shared.schemas.meal_plan.CopyResponse
+        handler: services.meal_plans.crud.copy_day
+        description: Copy all 3 meals from one date to another
+        tags:
+          - meal_plans
+      - name: copy_week
+        method: post
+        path: /meal-plans/copy-week
+        request_model: services.shared.schemas.meal_plan.CopyWeekRequest
+        response_model: services.shared.schemas.meal_plan.CopyResponse
+        handler: services.meal_plans.crud.copy_week
+        description: Copy entire week (Mon-Sun) to another week
+        tags:
+          - meal_plans
+      - name: generate_shopping_list
+        method: post
+        path: /meal-plans/shopping-list
+        request_model: services.shared.schemas.meal_plan.ShoppingListRequest
+        response_model: services.shared.schemas.meal_plan.ShoppingListResponse
+        handler: services.meal_plans.crud.generate_shopping_list
+        description: Generate shopping list for date range
+        tags:
+          - meal_plans

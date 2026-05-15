@@ -1,19 +1,16 @@
-from pydantic import BaseModel, Field
+from pydantic import UUID4, BaseModel, Field
 
 from services.shared.schemas.generic import UnitEnum
 
 
-class Ingredient(BaseModel):
+class IngredientCreate(BaseModel):
     """
-    Ingredient schema for the API
+    Ingredient input schema - references catalog item
     """
 
-    name: str = Field(
+    catalog_item_id: UUID4 = Field(
         ...,
-        description="Name of the ingredient",
-        example="chicken breast",
-        min_length=2,
-        max_length=200,
+        description="ID of the catalog item to use as ingredient",
     )
     qty: float = Field(
         ...,
@@ -27,6 +24,24 @@ class Ingredient(BaseModel):
         example=UnitEnum.GRAM,
     )
 
+
+class IngredientOut(BaseModel):
+    """
+    Ingredient output schema - includes catalog item details
+    """
+
+    catalog_item_id: UUID4
+    catalog_item_name: str = Field(
+        ...,
+        description="Name of the catalog item (for display)",
+    )
+    qty: float
+    unit: UnitEnum
+
     model_config = {
         "from_attributes": True,
     }
+
+
+# Backward compatibility alias
+Ingredient = IngredientOut

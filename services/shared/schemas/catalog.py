@@ -1,7 +1,6 @@
 from datetime import datetime
-from typing import List, Optional
 
-from pydantic import UUID4, BaseModel
+from pydantic import UUID4, BaseModel, ConfigDict
 
 from services.shared.schemas.generic import UnitEnum
 
@@ -14,12 +13,18 @@ class CatalogItemCreate(BaseModel):
     vendor_name: str
     raw_name: str
     product_url: str
-    canonical_name: Optional[str] = None
-    normalized_name: Optional[str] = None
-    brand: Optional[str] = None
-    net_quantity_value: Optional[float] = None
-    net_quantity_unit: Optional[UnitEnum] = None
+    canonical_name: str | None = None
+    normalized_name: str | None = None
+    brand: str | None = None
+    net_quantity_value: float | None = None
+    net_quantity_unit: UnitEnum | None = None
     is_food: bool
+
+    # Enhanced fields from LLM extraction
+    price: float | None = None
+    currency: str | None = "EUR"
+    category: str | None = None
+    nutrition: dict | None = None  # Nutritional values per 100g
 
 
 class CatalogItemOut(CatalogItemCreate):
@@ -31,8 +36,7 @@ class CatalogItemOut(CatalogItemCreate):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CatalogItemListResponse(BaseModel):
@@ -41,6 +45,6 @@ class CatalogItemListResponse(BaseModel):
     """
 
     total: int
-    limit: Optional[int] = None
-    offset: Optional[int] = None
-    data: List[CatalogItemOut]
+    limit: int | None = None
+    offset: int | None = None
+    data: list[CatalogItemOut]
