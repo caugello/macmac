@@ -17,11 +17,12 @@ const createWrapper = () => {
       mutations: { retry: false },
     },
   })
-  return ({ children }: { children: React.ReactNode }) => (
+  const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>{children}</BrowserRouter>
     </QueryClientProvider>
   )
+  return Wrapper
 }
 
 describe('RecipeList Page', () => {
@@ -223,9 +224,7 @@ describe('RecipeList Page', () => {
       // Wait for debounce
       await waitFor(
         () => {
-          expect(mockUseRecipes).toHaveBeenCalledWith(
-            expect.objectContaining({ search: 'pasta' })
-          )
+          expect(mockUseRecipes).toHaveBeenCalledWith(expect.objectContaining({ search: 'pasta' }))
         },
         { timeout: 1000 }
       )
@@ -251,9 +250,7 @@ describe('RecipeList Page', () => {
       await user.click(page2Button)
 
       await waitFor(() => {
-        expect(mockUseRecipes).toHaveBeenCalledWith(
-          expect.objectContaining({ offset: 20 })
-        )
+        expect(mockUseRecipes).toHaveBeenCalledWith(expect.objectContaining({ offset: 20 }))
       })
     })
   })

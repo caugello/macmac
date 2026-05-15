@@ -100,10 +100,13 @@ describe('Button Component', () => {
     })
 
     it('should not call onClick when disabled', async () => {
-      const user = userEvent.setup()
       const handleClick = vi.fn()
 
-      render(<Button onClick={handleClick} disabled>Click</Button>)
+      render(
+        <Button onClick={handleClick} disabled>
+          Click
+        </Button>
+      )
 
       const button = screen.getByRole('button')
       // Disabled buttons can't be clicked with userEvent

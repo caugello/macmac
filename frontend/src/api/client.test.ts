@@ -1,11 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest'
+import type { AxiosRequestConfig, InternalAxiosRequestConfig, AxiosResponse } from 'axios'
 
 describe('apiClient', () => {
   beforeEach(() => {
     localStorage.clear()
     // Reset window.location
-    delete (window as any).location
-    window.location = { href: '' } as any
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: { href: '' },
+    })
   })
 
   it('should be configured with correct baseURL', async () => {
@@ -23,26 +26,38 @@ describe('apiClient', () => {
     localStorage.setItem('auth_token', token)
 
     const { apiClient } = await import('./client')
-    const config = { headers: {} } as any
-    const interceptor = (apiClient.interceptors.request as any).handlers[0].fulfilled
+    const config = { headers: {} } as InternalAxiosRequestConfig
+    const interceptor = (
+      apiClient.interceptors.request as unknown as {
+        handlers: { fulfilled: (c: AxiosRequestConfig) => AxiosRequestConfig }[]
+      }
+    ).handlers[0].fulfilled
     const result = interceptor(config)
 
-    expect(result.headers.Authorization).toBe(`Bearer ${token}`)
+    expect(result.headers!.Authorization).toBe(`Bearer ${token}`)
   })
 
   it('should not add Authorization header when token does not exist', async () => {
     const { apiClient } = await import('./client')
-    const config = { headers: {} } as any
-    const interceptor = (apiClient.interceptors.request as any).handlers[0].fulfilled
+    const config = { headers: {} } as InternalAxiosRequestConfig
+    const interceptor = (
+      apiClient.interceptors.request as unknown as {
+        handlers: { fulfilled: (c: AxiosRequestConfig) => AxiosRequestConfig }[]
+      }
+    ).handlers[0].fulfilled
     const result = interceptor(config)
 
-    expect(result.headers.Authorization).toBeUndefined()
+    expect(result.headers!.Authorization).toBeUndefined()
   })
 
   it('should pass through successful responses', async () => {
     const { apiClient } = await import('./client')
-    const response = { data: { message: 'success' }, status: 200 }
-    const interceptor = (apiClient.interceptors.response as any).handlers[0].fulfilled
+    const response = { data: { message: 'success' }, status: 200 } as AxiosResponse
+    const interceptor = (
+      apiClient.interceptors.response as unknown as {
+        handlers: { fulfilled: (r: AxiosResponse) => AxiosResponse }[]
+      }
+    ).handlers[0].fulfilled
     const result = interceptor(response)
 
     expect(result).toBe(response)
@@ -60,7 +75,11 @@ describe('apiClient', () => {
       },
     }
 
-    const interceptor = (apiClient.interceptors.response as any).handlers[0].rejected
+    const interceptor = (
+      apiClient.interceptors.response as unknown as {
+        handlers: { rejected: (e: typeof error) => Promise<never> }[]
+      }
+    ).handlers[0].rejected
 
     await expect(interceptor(error)).rejects.toThrow()
 
@@ -78,7 +97,11 @@ describe('apiClient', () => {
       },
     }
 
-    const interceptor = (apiClient.interceptors.response as any).handlers[0].rejected
+    const interceptor = (
+      apiClient.interceptors.response as unknown as {
+        handlers: { rejected: (e: typeof error) => Promise<never> }[]
+      }
+    ).handlers[0].rejected
 
     await expect(interceptor(error)).rejects.toThrow()
     expect(window.location.href).toBe('')
@@ -90,7 +113,11 @@ describe('apiClient', () => {
       message: 'Network Error',
     }
 
-    const interceptor = (apiClient.interceptors.response as any).handlers[0].rejected
+    const interceptor = (
+      apiClient.interceptors.response as unknown as {
+        handlers: { rejected: (e: typeof error) => Promise<never> }[]
+      }
+    ).handlers[0].rejected
 
     await expect(interceptor(error)).rejects.toThrow()
   })

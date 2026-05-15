@@ -17,11 +17,12 @@ const createWrapper = () => {
       mutations: { retry: false },
     },
   })
-  return ({ children }: { children: React.ReactNode }) => (
+  const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>{children}</BrowserRouter>
     </QueryClientProvider>
   )
+  return Wrapper
 }
 
 describe('CatalogList Page', () => {
@@ -245,9 +246,7 @@ describe('CatalogList Page', () => {
 
       await waitFor(
         () => {
-          expect(mockUseCatalog).toHaveBeenCalledWith(
-            expect.objectContaining({ search: 'milk' })
-          )
+          expect(mockUseCatalog).toHaveBeenCalledWith(expect.objectContaining({ search: 'milk' }))
         },
         { timeout: 1000 }
       )
@@ -272,9 +271,7 @@ describe('CatalogList Page', () => {
       await user.click(page2Button)
 
       await waitFor(() => {
-        expect(mockUseCatalog).toHaveBeenCalledWith(
-          expect.objectContaining({ offset: 20 })
-        )
+        expect(mockUseCatalog).toHaveBeenCalledWith(expect.objectContaining({ offset: 20 }))
       })
     })
   })

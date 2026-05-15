@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Card } from '@/components/ui/card'
-import { UnitEnum, type IngredientCreate, type IngredientOut, type CatalogItemOut } from '@/lib/types'
-import { Plus, X, Search } from 'lucide-react'
+import { UnitEnum, type IngredientCreate, type CatalogItemOut } from '@/lib/types'
+import { X, Search } from 'lucide-react'
 
 interface IngredientEditorProps {
   ingredients: (IngredientCreate & { _catalog_item?: CatalogItemOut })[]
@@ -34,11 +34,7 @@ export const IngredientEditor = ({ ingredients, onChange }: IngredientEditorProp
     setShowResults(false)
   }
 
-  const updateIngredient = (
-    index: number,
-    field: 'qty' | 'unit',
-    value: number | UnitEnum
-  ) => {
+  const updateIngredient = (index: number, field: 'qty' | 'unit', value: number | UnitEnum) => {
     const updated = [...ingredients]
     updated[index] = { ...updated[index], [field]: value }
     onChange(updated)
@@ -94,9 +90,7 @@ export const IngredientEditor = ({ ingredients, onChange }: IngredientEditorProp
                       {item.net_quantity_unit}
                     </span>
                   )}
-                  {item.price && (
-                    <span className="ml-2">€{item.price.toFixed(2)}</span>
-                  )}
+                  {item.price && <span className="ml-2">€{item.price.toFixed(2)}</span>}
                 </div>
               </button>
             ))}
@@ -113,7 +107,10 @@ export const IngredientEditor = ({ ingredients, onChange }: IngredientEditorProp
         )}
 
         {ingredients.map((ing, i) => (
-          <div key={i} className="flex gap-2 items-center p-3 border border-gray-700 rounded-lg bg-[#0a0e1a]">
+          <div
+            key={i}
+            className="flex gap-2 items-center p-3 border border-gray-700 rounded-lg bg-[#0a0e1a]"
+          >
             <div className="flex-1">
               <div className="font-medium text-sm text-white">
                 {ing._catalog_item?.canonical_name || ing._catalog_item?.raw_name || 'Unknown Item'}

@@ -45,7 +45,11 @@ export const CatalogDetail = () => {
           <Badge className={item.is_food ? 'bg-[#00CEB8] text-black' : 'bg-gray-700 text-gray-300'}>
             {item.is_food ? 'Food' : 'Non-Food'}
           </Badge>
-          {item.brand && <Badge variant="outline" className="border-gray-700 text-gray-300">{item.brand}</Badge>}
+          {item.brand && (
+            <Badge variant="outline" className="border-gray-700 text-gray-300">
+              {item.brand}
+            </Badge>
+          )}
           {item.category && <Badge className="bg-gray-700 text-gray-300">{item.category}</Badge>}
         </div>
         <h1 className="text-4xl font-bold mb-2 text-white">
@@ -94,7 +98,11 @@ export const CatalogDetail = () => {
 
           <div>
             <p className="text-sm font-medium text-gray-500 mb-2">Product URL</p>
-            <Button variant="outline" asChild className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white">
+            <Button
+              variant="outline"
+              asChild
+              className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
+            >
               <a href={item.product_url} target="_blank" rel="noopener noreferrer">
                 View on Vendor Site
                 <ExternalLink className="h-4 w-4 ml-2" />
@@ -114,7 +122,9 @@ export const CatalogDetail = () => {
               {item.nutrition.energy_kcal && (
                 <div>
                   <p className="text-sm text-gray-500">Energy</p>
-                  <p className="text-lg font-semibold text-white">{item.nutrition.energy_kcal} kcal</p>
+                  <p className="text-lg font-semibold text-white">
+                    {item.nutrition.energy_kcal} kcal
+                  </p>
                 </div>
               )}
               {item.nutrition.protein_g && (
@@ -144,7 +154,9 @@ export const CatalogDetail = () => {
               {item.nutrition.saturated_fat_g !== undefined && (
                 <div>
                   <p className="text-sm text-gray-500">Saturated Fat</p>
-                  <p className="text-lg font-semibold text-white">{item.nutrition.saturated_fat_g}g</p>
+                  <p className="text-lg font-semibold text-white">
+                    {item.nutrition.saturated_fat_g}g
+                  </p>
                 </div>
               )}
               {item.nutrition.fiber_g && (

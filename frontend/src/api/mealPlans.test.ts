@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mealPlansApi } from './mealPlans'
 import { apiClient } from './client'
+import { MealTypeEnum } from '@/lib/types'
 
 vi.mock('./client', () => ({
   apiClient: {
@@ -84,7 +85,7 @@ describe('mealPlansApi', () => {
     it('should call POST /meal-plans with meal plan data', async () => {
       const newMealPlan = {
         date: '2024-01-01',
-        meal_type: 'lunch',
+        meal_type: MealTypeEnum.LUNCH,
         recipe_id: 'recipe-456',
       }
 
@@ -175,8 +176,8 @@ describe('mealPlansApi', () => {
   describe('copyWeek', () => {
     it('should call POST /meal-plans/copy-week with copy data', async () => {
       const copyData = {
-        source_start_date: '2024-01-01',
-        target_start_date: '2024-01-08',
+        source_week_start: '2024-01-01',
+        target_week_start: '2024-01-08',
       }
 
       const mockResponse = {

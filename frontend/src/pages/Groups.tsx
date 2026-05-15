@@ -38,8 +38,9 @@ export const Groups: React.FC = () => {
       setNewGroupName('')
       setError(null)
     },
-    onError: (err: any) => {
-      setError(err.response?.data?.detail || 'Failed to create group')
+    onError: (err) => {
+      const detail = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+      setError(detail || 'Failed to create group')
     },
   })
 
@@ -51,11 +52,14 @@ export const Groups: React.FC = () => {
       setNewMemberUsername('')
       setError(null)
     },
-    onError: (err: any) => {
-      setError(err.response?.data?.detail || 'Failed to add member')
+    onError: (err) => {
+      const detail = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+      setError(detail || 'Failed to add member')
     },
   })
 
+  // @ts-expect-error mutation wired but UI not yet connected
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const removeMemberMutation = useMutation({
     mutationFn: ({ groupId, userId }: { groupId: string; userId: string }) =>
       authApi.removeMember(groupId, userId),
@@ -63,8 +67,9 @@ export const Groups: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['groups'] })
       setError(null)
     },
-    onError: (err: any) => {
-      setError(err.response?.data?.detail || 'Failed to remove member')
+    onError: (err) => {
+      const detail = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+      setError(detail || 'Failed to remove member')
     },
   })
 
@@ -101,9 +106,7 @@ export const Groups: React.FC = () => {
 
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-[#00CEB8] hover:bg-[#00b8a5] text-black">
-              Create Group
-            </Button>
+            <Button className="bg-[#00CEB8] hover:bg-[#00b8a5] text-black">Create Group</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -128,11 +131,7 @@ export const Groups: React.FC = () => {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={createGroupMutation.isPending}
-              >
+              <Button type="submit" className="w-full" disabled={createGroupMutation.isPending}>
                 {createGroupMutation.isPending ? 'Creating...' : 'Create Group'}
               </Button>
             </form>
@@ -191,9 +190,7 @@ export const Groups: React.FC = () => {
       {groupsData?.data.length === 0 && (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground mb-4">
-              You don't belong to any groups yet
-            </p>
+            <p className="text-muted-foreground mb-4">You don&apos;t belong to any groups yet</p>
             <Button
               onClick={() => setIsCreateDialogOpen(true)}
               className="bg-[#00CEB8] hover:bg-[#00b8a5] text-black"

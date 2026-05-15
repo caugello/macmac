@@ -7,7 +7,9 @@ describe('Pagination Component', () => {
   describe('rendering', () => {
     it('should not render when totalPages <= 1', () => {
       const onPageChange = vi.fn()
-      const { container } = render(<Pagination total={5} limit={10} page={0} onPageChange={onPageChange} />)
+      const { container } = render(
+        <Pagination total={5} limit={10} page={0} onPageChange={onPageChange} />
+      )
 
       expect(container.firstChild).toBeNull()
     })
@@ -22,7 +24,9 @@ describe('Pagination Component', () => {
 
     it('should render previous and next buttons', () => {
       const onPageChange = vi.fn()
-      const { container } = render(<Pagination total={50} limit={10} page={0} onPageChange={onPageChange} />)
+      const { container } = render(
+        <Pagination total={50} limit={10} page={0} onPageChange={onPageChange} />
+      )
 
       // Check for ChevronLeft and ChevronRight icons (SVGs)
       const svgs = container.querySelectorAll('svg')
@@ -190,21 +194,27 @@ describe('Pagination Component', () => {
   describe('edge cases', () => {
     it('should handle total = 0', () => {
       const onPageChange = vi.fn()
-      const { container } = render(<Pagination total={0} limit={10} page={0} onPageChange={onPageChange} />)
+      const { container } = render(
+        <Pagination total={0} limit={10} page={0} onPageChange={onPageChange} />
+      )
 
       expect(container.firstChild).toBeNull()
     })
 
     it('should handle single item', () => {
       const onPageChange = vi.fn()
-      const { container } = render(<Pagination total={1} limit={10} page={0} onPageChange={onPageChange} />)
+      const { container } = render(
+        <Pagination total={1} limit={10} page={0} onPageChange={onPageChange} />
+      )
 
       expect(container.firstChild).toBeNull()
     })
 
     it('should handle exactly limit items (1 page)', () => {
       const onPageChange = vi.fn()
-      const { container } = render(<Pagination total={10} limit={10} page={0} onPageChange={onPageChange} />)
+      const { container } = render(
+        <Pagination total={10} limit={10} page={0} onPageChange={onPageChange} />
+      )
 
       expect(container.firstChild).toBeNull()
     })

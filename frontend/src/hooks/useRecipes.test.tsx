@@ -20,9 +20,10 @@ const createWrapper = () => {
       mutations: { retry: false },
     },
   })
-  return ({ children }: { children: React.ReactNode }) => (
+  const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   )
+  return Wrapper
 }
 
 describe('useRecipes', () => {
@@ -31,7 +32,7 @@ describe('useRecipes', () => {
   })
 
   it('should fetch recipes without params', async () => {
-    const mockData = { items: [], total: 0, limit: 10, offset: 0 }
+    const mockData = { data: [], total: 0, limit: 10, offset: 0 }
     vi.mocked(recipesApi.list).mockResolvedValue(mockData)
 
     const { result } = renderHook(() => useRecipes(), { wrapper: createWrapper() })
@@ -42,7 +43,7 @@ describe('useRecipes', () => {
   })
 
   it('should fetch recipes with params', async () => {
-    const mockData = { items: [], total: 0, limit: 10, offset: 0 }
+    const mockData = { data: [], total: 0, limit: 10, offset: 0 }
     const params = { limit: 20, offset: 10, search: 'pasta' }
     vi.mocked(recipesApi.list).mockResolvedValue(mockData)
 
@@ -59,7 +60,16 @@ describe('useRecipe', () => {
   })
 
   it('should fetch a single recipe by id', async () => {
-    const mockRecipe = { id: '1', title: 'Test Recipe', ingredients: [] }
+    const mockRecipe = {
+      id: '1',
+      title: 'Test Recipe',
+      normalized_title: 'test recipe',
+      description: null,
+      ingredients: [],
+      steps: null,
+      created_at: '',
+      updated_at: '',
+    }
     vi.mocked(recipesApi.get).mockResolvedValue(mockRecipe)
 
     const { result } = renderHook(() => useRecipe('1'), { wrapper: createWrapper() })
@@ -83,7 +93,16 @@ describe('useCreateRecipe', () => {
   })
 
   it('should create a recipe and invalidate queries', async () => {
-    const mockRecipe = { id: '1', title: 'New Recipe' }
+    const mockRecipe = {
+      id: '1',
+      title: 'New Recipe',
+      normalized_title: 'new recipe',
+      description: null,
+      ingredients: [],
+      steps: null,
+      created_at: '',
+      updated_at: '',
+    }
     const createData = { title: 'New Recipe', ingredients: [] }
     vi.mocked(recipesApi.create).mockResolvedValue(mockRecipe)
 
@@ -103,7 +122,16 @@ describe('useUpdateRecipe', () => {
   })
 
   it('should update a recipe and invalidate queries', async () => {
-    const mockRecipe = { id: '1', title: 'Updated Recipe' }
+    const mockRecipe = {
+      id: '1',
+      title: 'Updated Recipe',
+      normalized_title: 'updated recipe',
+      description: null,
+      ingredients: [],
+      steps: null,
+      created_at: '',
+      updated_at: '',
+    }
     const updateData = { title: 'Updated Recipe' }
     vi.mocked(recipesApi.update).mockResolvedValue(mockRecipe)
 
@@ -123,7 +151,7 @@ describe('useDeleteRecipe', () => {
   })
 
   it('should delete a recipe and invalidate queries', async () => {
-    vi.mocked(recipesApi.delete).mockResolvedValue(undefined)
+    vi.mocked(recipesApi.delete).mockResolvedValue({ success: true })
 
     const { result } = renderHook(() => useDeleteRecipe(), { wrapper: createWrapper() })
 

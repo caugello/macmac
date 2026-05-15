@@ -37,8 +37,7 @@ export const useCreateRecipe = () => {
 export const useUpdateRecipe = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: RecipeUpdate }) =>
-      recipesApi.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: RecipeUpdate }) => recipesApi.update(id, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['recipes'] })
       queryClient.invalidateQueries({ queryKey: ['recipe', variables.id] })

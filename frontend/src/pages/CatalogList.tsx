@@ -56,11 +56,21 @@ export const CatalogList = () => {
                       <ExternalLink className="h-4 w-4 text-gray-500 flex-shrink-0" />
                     </div>
                     <div className="flex gap-2 mb-2 flex-wrap">
-                      <Badge className={item.is_food ? 'bg-[#00CEB8] text-black' : 'bg-gray-700 text-gray-300'}>
+                      <Badge
+                        className={
+                          item.is_food ? 'bg-[#00CEB8] text-black' : 'bg-gray-700 text-gray-300'
+                        }
+                      >
                         {item.is_food ? 'Food' : 'Non-Food'}
                       </Badge>
-                      {item.brand && <Badge variant="outline" className="border-gray-700 text-gray-300">{item.brand}</Badge>}
-                      {item.category && <Badge className="bg-gray-700 text-gray-300">{item.category}</Badge>}
+                      {item.brand && (
+                        <Badge variant="outline" className="border-gray-700 text-gray-300">
+                          {item.brand}
+                        </Badge>
+                      )}
+                      {item.category && (
+                        <Badge className="bg-gray-700 text-gray-300">{item.category}</Badge>
+                      )}
                     </div>
                     <CardDescription className="text-sm text-gray-400">
                       {item.vendor_name}
@@ -82,12 +92,7 @@ export const CatalogList = () => {
             ))}
           </div>
 
-          <Pagination
-            total={data?.total || 0}
-            limit={limit}
-            page={page}
-            onPageChange={setPage}
-          />
+          <Pagination total={data?.total || 0} limit={limit} page={page} onPageChange={setPage} />
         </>
       )}
     </div>

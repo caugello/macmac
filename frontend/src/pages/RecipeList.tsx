@@ -63,7 +63,8 @@ export const RecipeList = () => {
                       {recipe.description || 'No description'}
                     </CardDescription>
                     <div className="pt-2 text-sm text-gray-500">
-                      {recipe.ingredients.length} ingredient{recipe.ingredients.length !== 1 ? 's' : ''}
+                      {recipe.ingredients.length} ingredient
+                      {recipe.ingredients.length !== 1 ? 's' : ''}
                     </div>
                   </CardHeader>
                 </Card>
@@ -71,12 +72,7 @@ export const RecipeList = () => {
             ))}
           </div>
 
-          <Pagination
-            total={data?.total || 0}
-            limit={limit}
-            page={page}
-            onPageChange={setPage}
-          />
+          <Pagination total={data?.total || 0} limit={limit} page={page} onPageChange={setPage} />
         </>
       )}
     </div>

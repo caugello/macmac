@@ -28,7 +28,7 @@ const TestComponent = () => {
   const handleLogin = async () => {
     try {
       await login('testuser', 'password')
-    } catch (error) {
+    } catch {
       // Silently catch - error is logged in AuthContext
     }
   }
@@ -140,10 +140,7 @@ describe('AuthContext', () => {
         expect(localStorage.getItem('auth_user')).toBeNull()
       })
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Failed to parse stored user:',
-        expect.any(Error)
-      )
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to parse stored user:', expect.any(Error))
 
       consoleSpy.mockRestore()
     })
@@ -278,7 +275,10 @@ describe('AuthContext', () => {
   describe('isAuthenticated property', () => {
     it('should be true when token exists', async () => {
       localStorage.setItem('auth_token', 'some-token')
-      localStorage.setItem('auth_user', JSON.stringify({ id: '1', username: 'test', email: 'test@test.com', groups: [] }))
+      localStorage.setItem(
+        'auth_user',
+        JSON.stringify({ id: '1', username: 'test', email: 'test@test.com', groups: [] })
+      )
 
       render(
         <BrowserRouter>

@@ -34,7 +34,5 @@ export const mealPlansApi = {
     apiClient.post<CopyResponse>('/meal-plans/copy-week', data).then((res) => res.data),
 
   generateShoppingList: (data: ShoppingListRequest) =>
-    apiClient
-      .post<ShoppingListResponse>('/meal-plans/shopping-list', data)
-      .then((res) => res.data),
+    apiClient.post<ShoppingListResponse>('/meal-plans/shopping-list', data).then((res) => res.data),
 }

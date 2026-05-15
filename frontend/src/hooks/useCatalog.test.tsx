@@ -14,9 +14,10 @@ const createWrapper = () => {
       mutations: { retry: false },
     },
   })
-  return ({ children }: { children: React.ReactNode }) => (
+  const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   )
+  return Wrapper
 }
 
 describe('useCatalog', () => {
@@ -25,7 +26,7 @@ describe('useCatalog', () => {
   })
 
   it('should fetch catalog items without params', async () => {
-    const mockData = { items: [], total: 0, limit: 10, offset: 0 }
+    const mockData = { data: [], total: 0, limit: 10, offset: 0 }
     vi.mocked(catalogApi.list).mockResolvedValue(mockData)
 
     const { result } = renderHook(() => useCatalog(), { wrapper: createWrapper() })
@@ -36,7 +37,7 @@ describe('useCatalog', () => {
   })
 
   it('should fetch catalog items with params', async () => {
-    const mockData = { items: [], total: 0, limit: 10, offset: 0 }
+    const mockData = { data: [], total: 0, limit: 10, offset: 0 }
     const params = { limit: 20, offset: 10, search: 'milk' }
     vi.mocked(catalogApi.list).mockResolvedValue(mockData)
 
@@ -55,9 +56,21 @@ describe('useCatalogItem', () => {
   it('should fetch a single catalog item by id', async () => {
     const mockItem = {
       id: '1',
+      vendor_name: 'Vendor',
+      raw_name: 'Test Item Raw',
+      product_url: 'https://example.com',
       canonical_name: 'Test Item',
+      normalized_name: null,
       brand: 'Brand',
-      quantities: [],
+      net_quantity_value: null,
+      net_quantity_unit: null,
+      is_food: true,
+      price: null,
+      currency: null,
+      category: null,
+      nutrition: null,
+      created_at: '',
+      updated_at: '',
     }
     vi.mocked(catalogApi.get).mockResolvedValue(mockItem)
 

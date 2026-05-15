@@ -74,9 +74,12 @@ describe('SearchBar Component', () => {
       expect(onChange).not.toHaveBeenCalled()
 
       // Wait for debounce
-      await waitFor(() => {
-        expect(onChange).toHaveBeenCalledWith('test')
-      }, { timeout: 600 })
+      await waitFor(
+        () => {
+          expect(onChange).toHaveBeenCalledWith('test')
+        },
+        { timeout: 600 }
+      )
     })
 
     it('should debounce multiple rapid changes', async () => {
@@ -96,9 +99,12 @@ describe('SearchBar Component', () => {
       expect(onChange).not.toHaveBeenCalled()
 
       // Wait for debounce - should only be called once with final value
-      await waitFor(() => {
-        expect(onChange).toHaveBeenCalledWith('abc')
-      }, { timeout: 400 })
+      await waitFor(
+        () => {
+          expect(onChange).toHaveBeenCalledWith('abc')
+        },
+        { timeout: 400 }
+      )
 
       // Should only be called once despite multiple character inputs
       await waitFor(() => {
@@ -116,9 +122,12 @@ describe('SearchBar Component', () => {
       await user.type(input, 'test')
 
       // Should be called faster with shorter debounce
-      await waitFor(() => {
-        expect(onChange).toHaveBeenCalledWith('test')
-      }, { timeout: 150 })
+      await waitFor(
+        () => {
+          expect(onChange).toHaveBeenCalledWith('test')
+        },
+        { timeout: 150 }
+      )
     })
   })
 
@@ -161,7 +170,7 @@ describe('SearchBar Component', () => {
       unmount()
 
       // Wait past debounce time
-      await new Promise(resolve => setTimeout(resolve, 600))
+      await new Promise((resolve) => setTimeout(resolve, 600))
 
       // onChange should not be called after unmount
       expect(onChange).not.toHaveBeenCalled()

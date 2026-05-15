@@ -46,9 +46,9 @@ describe('authApi', () => {
       const mockError = new Error('Invalid credentials')
       vi.mocked(apiClient.post).mockRejectedValue(mockError)
 
-      await expect(
-        authApi.login({ username: 'wrong', password: 'wrong' })
-      ).rejects.toThrow('Invalid credentials')
+      await expect(authApi.login({ username: 'wrong', password: 'wrong' })).rejects.toThrow(
+        'Invalid credentials'
+      )
     })
   })
 

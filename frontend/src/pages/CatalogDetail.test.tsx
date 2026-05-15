@@ -17,7 +17,7 @@ const createWrapper = (initialRoute = '/catalog/1') => {
     },
   })
   window.history.pushState({}, '', initialRoute)
-  return ({ children }: { children: React.ReactNode }) => (
+  const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
@@ -26,6 +26,7 @@ const createWrapper = (initialRoute = '/catalog/1') => {
       </BrowserRouter>
     </QueryClientProvider>
   )
+  return Wrapper
 }
 
 describe('CatalogDetail Page', () => {

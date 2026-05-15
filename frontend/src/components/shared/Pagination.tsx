@@ -15,11 +15,7 @@ export const Pagination = ({ total, limit, page, onPageChange }: PaginationProps
 
   const pages = []
   for (let i = 0; i < totalPages; i++) {
-    if (
-      i === 0 ||
-      i === totalPages - 1 ||
-      (i >= page - 1 && i <= page + 1)
-    ) {
+    if (i === 0 || i === totalPages - 1 || (i >= page - 1 && i <= page + 1)) {
       pages.push(i)
     } else if (pages[pages.length - 1] !== -1) {
       pages.push(-1) // Ellipsis

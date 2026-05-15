@@ -14,7 +14,9 @@ export const RecipeForm = () => {
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [ingredients, setIngredients] = useState<(IngredientCreate & { _catalog_item?: CatalogItemOut })[]>([])
+  const [ingredients, setIngredients] = useState<
+    (IngredientCreate & { _catalog_item?: CatalogItemOut })[]
+  >([])
   const [stepsText, setStepsText] = useState('')
 
   const navigate = useNavigate()
@@ -58,11 +60,13 @@ export const RecipeForm = () => {
       .filter((s) => s.length > 0)
 
     // Strip _catalog_item helper before submitting
-    const cleanIngredients: IngredientCreate[] = ingredients.map(({ catalog_item_id, qty, unit }) => ({
-      catalog_item_id,
-      qty,
-      unit,
-    }))
+    const cleanIngredients: IngredientCreate[] = ingredients.map(
+      ({ catalog_item_id, qty, unit }) => ({
+        catalog_item_id,
+        qty,
+        unit,
+      })
+    )
 
     const recipeData = {
       title,
@@ -103,7 +107,9 @@ export const RecipeForm = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl">
-      <h1 className="text-3xl font-bold mb-6 text-white">{isEditMode ? 'Edit Recipe' : 'Create Recipe'}</h1>
+      <h1 className="text-3xl font-bold mb-6 text-white">
+        {isEditMode ? 'Edit Recipe' : 'Create Recipe'}
+      </h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card className="bg-[#141824] border-gray-800">
@@ -171,14 +177,18 @@ export const RecipeForm = () => {
         </Card>
 
         <div className="flex gap-4">
-          <Button type="submit" disabled={createRecipe.isPending || updateRecipe.isPending} className="bg-[#00CEB8] hover:bg-[#00b8a5] text-black font-semibold">
+          <Button
+            type="submit"
+            disabled={createRecipe.isPending || updateRecipe.isPending}
+            className="bg-[#00CEB8] hover:bg-[#00b8a5] text-black font-semibold"
+          >
             {isEditMode
               ? updateRecipe.isPending
                 ? 'Updating...'
                 : 'Update Recipe'
               : createRecipe.isPending
-              ? 'Creating...'
-              : 'Create Recipe'}
+                ? 'Creating...'
+                : 'Create Recipe'}
           </Button>
           <Button
             type="button"

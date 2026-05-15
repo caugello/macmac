@@ -45,14 +45,22 @@ export const RecipeDetail = () => {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
       <div className="flex items-center justify-between">
-        <Button variant="ghost" asChild className="text-gray-300 hover:text-white hover:bg-gray-800">
+        <Button
+          variant="ghost"
+          asChild
+          className="text-gray-300 hover:text-white hover:bg-gray-800"
+        >
           <Link to="/recipes">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Link>
         </Button>
         <div className="flex gap-2">
-          <Button variant="outline" asChild className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white">
+          <Button
+            variant="outline"
+            asChild
+            className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
+          >
             <Link to={`/recipes/${id}/edit`}>
               <Pencil className="h-4 w-4 mr-2" />
               Edit
@@ -67,9 +75,7 @@ export const RecipeDetail = () => {
 
       <div>
         <h1 className="text-4xl font-bold mb-2 text-white">{recipe.title}</h1>
-        {recipe.description && (
-          <p className="text-lg text-gray-400">{recipe.description}</p>
-        )}
+        {recipe.description && <p className="text-lg text-gray-400">{recipe.description}</p>}
       </div>
 
       <Card className="bg-[#141824] border-gray-800">
@@ -80,7 +86,10 @@ export const RecipeDetail = () => {
           <ul className="space-y-2">
             {recipe.ingredients.map((ing, i) => (
               <li key={i} className="flex items-center gap-2">
-                <Badge variant="secondary" className="bg-[#00CEB8]/20 text-[#00CEB8] border-[#00CEB8]/30">
+                <Badge
+                  variant="secondary"
+                  className="bg-[#00CEB8]/20 text-[#00CEB8] border-[#00CEB8]/30"
+                >
                   {ing.qty} {ing.unit}
                 </Badge>
                 <span className="text-gray-300">{ing.catalog_item_name}</span>

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '@/api/auth'
@@ -54,7 +55,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       localStorage.setItem('auth_token', response.access_token)
       localStorage.setItem('auth_user', JSON.stringify(response.user))
       navigate('/recipes')
-    } catch (error: any) {
+    } catch (error) {
       console.error('Login failed:', error)
       throw error
     }
@@ -76,7 +77,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         login,
         logout,
         isAuthenticated: !!token,
-        isLoading
+        isLoading,
       }}
     >
       {children}

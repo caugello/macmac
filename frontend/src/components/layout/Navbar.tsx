@@ -27,7 +27,10 @@ export const Navbar = () => {
               <Link to="/recipes" className="text-gray-300 hover:text-[#00CEB8] transition-colors">
                 Recipes
               </Link>
-              <Link to="/meal-plans" className="text-gray-300 hover:text-[#00CEB8] transition-colors">
+              <Link
+                to="/meal-plans"
+                className="text-gray-300 hover:text-[#00CEB8] transition-colors"
+              >
                 Meal Plans
               </Link>
               <Link to="/catalog" className="text-gray-300 hover:text-[#00CEB8] transition-colors">
@@ -39,9 +42,7 @@ export const Navbar = () => {
             </div>
 
             <div className="flex items-center gap-4">
-              <span className="text-gray-300 text-sm">
-                {user?.username}
-              </span>
+              <span className="text-gray-300 text-sm">{user?.username}</span>
               <Button
                 onClick={logout}
                 variant="outline"
@@ -54,10 +55,16 @@ export const Navbar = () => {
         ) : (
           <>
             <div className="hidden md:flex items-center gap-8">
-              <Link to="/#features" className="text-gray-300 hover:text-[#00CEB8] transition-colors">
+              <Link
+                to="/#features"
+                className="text-gray-300 hover:text-[#00CEB8] transition-colors"
+              >
                 Features
               </Link>
-              <Link to="/#how-it-works" className="text-gray-300 hover:text-[#00CEB8] transition-colors">
+              <Link
+                to="/#how-it-works"
+                className="text-gray-300 hover:text-[#00CEB8] transition-colors"
+              >
                 How It Works
               </Link>
             </div>

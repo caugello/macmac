@@ -54,9 +54,7 @@ describe('Landing Page', () => {
     it('should render Reduce Food Waste feature', () => {
       renderWithRouter(<Landing />)
       expect(screen.getByText('Reduce Food Waste')).toBeInTheDocument()
-      expect(
-        screen.getByText(/Plan smarter, waste less/i)
-      ).toBeInTheDocument()
+      expect(screen.getByText(/Plan smarter, waste less/i)).toBeInTheDocument()
     })
 
     it('should render Calorie Tracking feature', () => {
@@ -78,17 +76,13 @@ describe('Landing Page', () => {
     it('should render step 1', () => {
       renderWithRouter(<Landing />)
       expect(screen.getByText('1. Visualize Meal')).toBeInTheDocument()
-      expect(
-        screen.getByText(/Browse recipes or let AI suggest meals/i)
-      ).toBeInTheDocument()
+      expect(screen.getByText(/Browse recipes or let AI suggest meals/i)).toBeInTheDocument()
     })
 
     it('should render step 2', () => {
       renderWithRouter(<Landing />)
       expect(screen.getByText('2. AI Builds a Meal Plan')).toBeInTheDocument()
-      expect(
-        screen.getByText(/Smart algorithm creates balanced meal plans/i)
-      ).toBeInTheDocument()
+      expect(screen.getByText(/Smart algorithm creates balanced meal plans/i)).toBeInTheDocument()
     })
 
     it('should render step 3', () => {
@@ -117,9 +111,7 @@ describe('Landing Page', () => {
 
     it('should render CTA description', () => {
       renderWithRouter(<Landing />)
-      expect(
-        screen.getByText(/Start your meal prep revolution today/i)
-      ).toBeInTheDocument()
+      expect(screen.getByText(/Start your meal prep revolution today/i)).toBeInTheDocument()
     })
   })
 

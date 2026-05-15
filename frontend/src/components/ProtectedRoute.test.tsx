@@ -2,8 +2,6 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ProtectedRoute } from './ProtectedRoute'
-import { AuthProvider } from '@/contexts/AuthContext'
-
 // Mock useAuth hook
 const mockUseAuth = vi.fn()
 vi.mock('@/contexts/AuthContext', async () => {
@@ -20,7 +18,7 @@ vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
   return {
     ...actual,
-    Navigate: (props: any) => {
+    Navigate: (props: { to: string; replace?: boolean }) => {
       mockNavigate(props)
       return <div data-testid="navigate">Navigating to {props.to}</div>
     },

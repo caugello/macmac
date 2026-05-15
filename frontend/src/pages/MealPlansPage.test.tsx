@@ -24,11 +24,12 @@ const createWrapper = () => {
       mutations: { retry: false },
     },
   })
-  return ({ children }: { children: React.ReactNode }) => (
+  const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>{children}</BrowserRouter>
     </QueryClientProvider>
   )
+  return Wrapper
 }
 
 describe('MealPlansPage', () => {

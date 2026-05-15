@@ -20,9 +20,10 @@ export const Login: React.FC = () => {
 
     try {
       await login(username, password)
-    } catch (err: any) {
+    } catch (err) {
       console.error('Login error:', err)
-      setError(err.response?.data?.detail || 'Login failed. Please check your credentials.')
+      const detail = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+      setError(detail || 'Login failed. Please check your credentials.')
     } finally {
       setIsLoading(false)
     }

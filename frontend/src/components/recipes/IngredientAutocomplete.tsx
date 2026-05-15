@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useCatalog } from '@/hooks/useCatalog'
 import { Input } from '@/components/ui/input'
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Check } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { CatalogItemOut } from '@/lib/types'
 
 interface IngredientAutocompleteProps {
@@ -47,9 +51,7 @@ export const IngredientAutocomplete = ({
       <PopoverContent className="w-[400px] p-0" align="start">
         <Command>
           <CommandList>
-            {isLoading && (
-              <CommandEmpty>Loading...</CommandEmpty>
-            )}
+            {isLoading && <CommandEmpty>Loading...</CommandEmpty>}
             {!isLoading && (!data || data.data.length === 0) && (
               <CommandEmpty>No ingredients found.</CommandEmpty>
             )}
@@ -66,17 +68,16 @@ export const IngredientAutocomplete = ({
                     }}
                   >
                     <div className="flex flex-col flex-1">
-                      <div className="font-medium">
-                        {item.canonical_name || item.raw_name}
-                      </div>
+                      <div className="font-medium">{item.canonical_name || item.raw_name}</div>
                       <div className="text-sm text-muted-foreground">
                         {item.brand && `${item.brand} • `}
                         {item.net_quantity_value && item.net_quantity_unit && (
-                          <span>{item.net_quantity_value}{item.net_quantity_unit}</span>
+                          <span>
+                            {item.net_quantity_value}
+                            {item.net_quantity_unit}
+                          </span>
                         )}
-                        {item.price && (
-                          <span className="ml-2">€{item.price.toFixed(2)}</span>
-                        )}
+                        {item.price && <span className="ml-2">€{item.price.toFixed(2)}</span>}
                       </div>
                     </div>
                   </CommandItem>

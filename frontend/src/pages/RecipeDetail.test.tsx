@@ -34,7 +34,7 @@ const createWrapper = (initialRoute = '/recipes/1') => {
     },
   })
   window.history.pushState({}, '', initialRoute)
-  return ({ children }: { children: React.ReactNode }) => (
+  const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
@@ -43,6 +43,7 @@ const createWrapper = (initialRoute = '/recipes/1') => {
       </BrowserRouter>
     </QueryClientProvider>
   )
+  return Wrapper
 }
 
 describe('RecipeDetail Page', () => {
@@ -256,7 +257,7 @@ describe('RecipeDetail Page', () => {
 
     it('should delete when user confirms', async () => {
       const user = userEvent.setup()
-      const mockMutate = vi.fn((id, callbacks) => {
+      const mockMutate = vi.fn((_id, callbacks) => {
         callbacks.onSuccess()
       })
       mockConfirm.mockReturnValue(true)
@@ -275,7 +276,7 @@ describe('RecipeDetail Page', () => {
 
     it('should navigate to recipes list after successful deletion', async () => {
       const user = userEvent.setup()
-      const mockMutate = vi.fn((id, callbacks) => {
+      const mockMutate = vi.fn((_id, callbacks) => {
         callbacks.onSuccess()
       })
       mockConfirm.mockReturnValue(true)
@@ -296,7 +297,7 @@ describe('RecipeDetail Page', () => {
 
     it('should show alert on deletion error', async () => {
       const user = userEvent.setup()
-      const mockMutate = vi.fn((id, callbacks) => {
+      const mockMutate = vi.fn((_id, callbacks) => {
         callbacks.onError()
       })
       mockConfirm.mockReturnValue(true)

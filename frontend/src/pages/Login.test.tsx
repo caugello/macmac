@@ -130,8 +130,12 @@ describe('Login Page', () => {
   describe('loading state', () => {
     it('should show loading text when submitting', async () => {
       const user = userEvent.setup()
-      let resolveLogin: any
-      mockLogin.mockReturnValue(new Promise((resolve) => { resolveLogin = resolve }))
+      let resolveLogin!: (value?: unknown) => void
+      mockLogin.mockReturnValue(
+        new Promise((resolve) => {
+          resolveLogin = resolve
+        })
+      )
 
       render(<Login />)
 
@@ -153,8 +157,12 @@ describe('Login Page', () => {
 
     it('should disable inputs and button during loading', async () => {
       const user = userEvent.setup()
-      let resolveLogin: any
-      mockLogin.mockReturnValue(new Promise((resolve) => { resolveLogin = resolve }))
+      let resolveLogin!: (value?: unknown) => void
+      mockLogin.mockReturnValue(
+        new Promise((resolve) => {
+          resolveLogin = resolve
+        })
+      )
 
       render(<Login />)
 

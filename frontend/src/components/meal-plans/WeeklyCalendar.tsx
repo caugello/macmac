@@ -4,7 +4,7 @@ import { useMealPlans } from '@/hooks/useMealPlans'
 import { MealSlot } from './MealSlot'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { MealTypeEnum } from '@/lib/types'
+import { MealTypeEnum, type MealPlanOut } from '@/lib/types'
 
 export const WeeklyCalendar = () => {
   const [currentWeekStart, setCurrentWeekStart] = useState(
@@ -23,7 +23,7 @@ export const WeeklyCalendar = () => {
   const mealTypes = [MealTypeEnum.BREAKFAST, MealTypeEnum.LUNCH, MealTypeEnum.DINNER]
 
   // Index meal plans by date+meal_type
-  const mealPlanMap = new Map<string, any>()
+  const mealPlanMap = new Map<string, MealPlanOut>()
   data?.data.forEach((mp) => {
     const key = `${mp.date}-${mp.meal_type}`
     mealPlanMap.set(key, mp)
@@ -71,7 +71,6 @@ export const WeeklyCalendar = () => {
             <div className="text-sm text-gray-500">{format(day, 'MMM d')}</div>
           </div>
         ))}
-
         {/* Meal Rows */}
         {mealTypes.map((mealType) => (
           <>

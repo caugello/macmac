@@ -13,7 +13,7 @@ afterEach(() => {
 
 // Setup TextEncoder/TextDecoder for Node 16
 global.TextEncoder = TextEncoder
-global.TextDecoder = TextDecoder as any
+global.TextDecoder = TextDecoder as unknown as typeof globalThis.TextDecoder
 
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
@@ -31,7 +31,7 @@ Object.defineProperty(window, 'matchMedia', {
 })
 
 // Mock IntersectionObserver
-global.IntersectionObserver = class IntersectionObserver {
+global.IntersectionObserver = class MockIntersectionObserver {
   constructor() {}
   disconnect() {}
   observe() {}
@@ -39,4 +39,4 @@ global.IntersectionObserver = class IntersectionObserver {
     return []
   }
   unobserve() {}
-} as any
+} as unknown as typeof globalThis.IntersectionObserver

@@ -14,13 +14,20 @@ export const Landing = () => {
               MacMac: <span className="text-[#00CEB8]">Your AI-Powered</span> Meal Prep Revolution.
             </h1>
             <p className="text-xl text-gray-400">
-              Intelligent meal planning meets effortless grocery shopping. Transform your kitchen routine with AI-driven recipes and smart price comparisons.
+              Intelligent meal planning meets effortless grocery shopping. Transform your kitchen
+              routine with AI-driven recipes and smart price comparisons.
             </p>
             <div className="flex gap-4">
-              <Button asChild className="bg-[#00CEB8] hover:bg-[#00b8a5] text-black font-semibold px-8 py-6 text-lg">
+              <Button
+                asChild
+                className="bg-[#00CEB8] hover:bg-[#00b8a5] text-black font-semibold px-8 py-6 text-lg"
+              >
                 <Link to="/recipes">Get Started Free</Link>
               </Button>
-              <Button variant="outline" className="border-[#00CEB8] text-[#00CEB8] hover:bg-[#00CEB8]/10 px-8 py-6 text-lg">
+              <Button
+                variant="outline"
+                className="border-[#00CEB8] text-[#00CEB8] hover:bg-[#00CEB8]/10 px-8 py-6 text-lg"
+              >
                 Learn Course
               </Button>
             </div>
@@ -48,7 +55,8 @@ export const Landing = () => {
               </div>
               <h3 className="text-xl font-semibold">AI-Personalized Plans</h3>
               <p className="text-gray-400">
-                Get custom meal plans tailored to your preferences, dietary needs, and smart price comparisons.
+                Get custom meal plans tailored to your preferences, dietary needs, and smart price
+                comparisons.
               </p>
             </CardContent>
           </Card>
@@ -60,7 +68,8 @@ export const Landing = () => {
               </div>
               <h3 className="text-xl font-semibold">Smart Grocery Lists</h3>
               <p className="text-gray-400">
-                Automatically generated shopping lists with real-time prices. Save money with intelligent price comparisons.
+                Automatically generated shopping lists with real-time prices. Save money with
+                intelligent price comparisons.
               </p>
             </CardContent>
           </Card>
@@ -72,7 +81,8 @@ export const Landing = () => {
               </div>
               <h3 className="text-xl font-semibold">Reduce Food Waste</h3>
               <p className="text-gray-400">
-                Plan smarter, waste less. Our AI helps you use ingredients efficiently and minimize food waste.
+                Plan smarter, waste less. Our AI helps you use ingredients efficiently and minimize
+                food waste.
               </p>
             </CardContent>
           </Card>
@@ -84,7 +94,8 @@ export const Landing = () => {
               </div>
               <h3 className="text-xl font-semibold">Calorie Tracking & Nutrition</h3>
               <p className="text-gray-400">
-                Monitor your nutrition intake with detailed tracking. Make informed decisions for a healthier you.
+                Monitor your nutrition intake with detailed tracking. Make informed decisions for a
+                healthier you.
               </p>
             </CardContent>
           </Card>
@@ -106,7 +117,9 @@ export const Landing = () => {
               <div className="aspect-video bg-gradient-to-br from-[#00CEB8]/10 to-transparent rounded-lg flex items-center justify-center">
                 <Calendar className="w-12 h-12 text-[#00CEB8]/50" />
               </div>
-              <p className="text-gray-400">Browse recipes or let AI suggest meals based on your preferences</p>
+              <p className="text-gray-400">
+                Browse recipes or let AI suggest meals based on your preferences
+              </p>
             </CardContent>
           </Card>
 
@@ -116,7 +129,9 @@ export const Landing = () => {
               <div className="aspect-video bg-gradient-to-br from-[#00CEB8]/10 to-transparent rounded-lg flex items-center justify-center">
                 <BarChart3 className="w-12 h-12 text-[#00CEB8]/50" />
               </div>
-              <p className="text-gray-400">Smart algorithm creates balanced meal plans with nutrition insights</p>
+              <p className="text-gray-400">
+                Smart algorithm creates balanced meal plans with nutrition insights
+              </p>
             </CardContent>
           </Card>
 
@@ -126,7 +141,9 @@ export const Landing = () => {
               <div className="aspect-video bg-gradient-to-br from-[#00CEB8]/10 to-transparent rounded-lg flex items-center justify-center">
                 <ShoppingCart className="w-12 h-12 text-[#00CEB8]/50" />
               </div>
-              <p className="text-gray-400">Auto-generated shopping lists with price comparisons across stores</p>
+              <p className="text-gray-400">
+                Auto-generated shopping lists with price comparisons across stores
+              </p>
             </CardContent>
           </Card>
 
@@ -136,7 +153,9 @@ export const Landing = () => {
               <div className="aspect-video bg-gradient-to-br from-[#00CEB8]/10 to-transparent rounded-lg flex items-center justify-center">
                 <Trash2 className="w-12 h-12 text-[#00CEB8]/50" />
               </div>
-              <p className="text-gray-400">Follow step-by-step instructions and enjoy delicious homemade meals</p>
+              <p className="text-gray-400">
+                Follow step-by-step instructions and enjoy delicious homemade meals
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -151,7 +170,10 @@ export const Landing = () => {
           <p className="text-xl text-gray-400">
             Start your meal prep revolution today. Free to use, easy to master.
           </p>
-          <Button asChild className="bg-[#00CEB8] hover:bg-[#00b8a5] text-black font-semibold px-8 py-6 text-lg">
+          <Button
+            asChild
+            className="bg-[#00CEB8] hover:bg-[#00b8a5] text-black font-semibold px-8 py-6 text-lg"
+          >
             <Link to="/recipes">Get Started Free</Link>
           </Button>
         </div>
