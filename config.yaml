@@ -255,7 +255,7 @@ services:
       - name: crawler
         title: Crawler
         version: 0.1.0
-        url: "amqp://guest:guest@0.0.0.0:5672/%2F"
+        url: "amqp://guest:guest@rabbitmq:5672/%2F"
   meal_plans:
     name: meal_plans
     title: Meal Plans API
