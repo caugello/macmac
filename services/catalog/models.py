@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Float, Index, String
+from sqlalchemy import Boolean, Column, Date, Float, Index, String, Text
 from sqlalchemy.dialects.postgresql import JSON
 
 from services.catalog.db import Base
@@ -28,6 +28,9 @@ class CatalogItem(BaseModel, Base):
     currency = Column(String, default="EUR")
     category = Column(String)
     nutrition = Column(JSON)  # Nutritional values per 100g
+    nutriscore = Column(String)
+    nutriscore_svg = Column(Text)
+    promotion_until_date = Column(Date)
     __table_args__ = (
         Index("ix_catalog_normalized_name", "normalized_name"),
         Index("ix_catalog_product_url", "product_url", unique=True),
