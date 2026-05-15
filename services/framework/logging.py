@@ -8,7 +8,9 @@ from datetime import datetime
 
 from services.config import get_config
 
-_span_stack = contextvars.ContextVar("span_stack", default=[])
+_span_stack: contextvars.ContextVar[list | None] = contextvars.ContextVar(
+    "span_stack", default=None
+)
 current_trace_id = contextvars.ContextVar("trace_id", default=str(uuid.uuid4()))
 
 
@@ -70,11 +72,11 @@ class Span:
     def __enter__(self):
         self.start = time.time()
         log_span(f"span_start_{self.name}", name=self.name)
-        stack = _span_stack.get()
+        stack = _span_stack.get() or []
         _span_stack.set(stack + [self.name])
 
     def __exit__(self, exc_type, exc_val, tb):
-        stack = _span_stack.get()[:-1]
+        stack = (_span_stack.get() or [])[:-1]
         _span_stack.set(stack)
         duration = round((time.time() - self.start) * 1000, 2)
         log_span(f"span_end_{self.name}", name=self.name, duration_ms=duration)

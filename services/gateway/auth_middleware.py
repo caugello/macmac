@@ -1,9 +1,10 @@
 import jwt
+from pydantic import UUID4
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
+
 from services.auth.security import decode_access_token
 from services.framework.user_context import set_user_context
-from pydantic import UUID4
 
 # Public routes that don't require authentication
 PUBLIC_ROUTES = {
@@ -45,7 +46,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             try:
                 user_id = UUID4(user_id_str)
             except (ValueError, TypeError) as e:
-                raise ValueError(f"Invalid UUID format for user_id: {user_id_str}")
+                raise ValueError(f"Invalid UUID format for user_id: {user_id_str}") from e
 
             # Parse group IDs (may be empty list)
             group_ids = []

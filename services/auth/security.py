@@ -1,12 +1,12 @@
+import logging
 import os
 import sys
 from datetime import datetime, timedelta
-from typing import Optional
-import jwt
+
 import bcrypt
-from pydantic import UUID4
+import jwt
 from keycloak import KeycloakOpenID
-import logging
+from pydantic import UUID4
 
 from services.config import get_config
 
@@ -131,4 +131,6 @@ def decode_access_token(token: str) -> dict:
         }
     except Exception as keycloak_error:
         logger.warning(f"Keycloak token validation failed: {keycloak_error}")
-        raise jwt.InvalidTokenError(f"Token validation failed: {keycloak_error}")
+        raise jwt.InvalidTokenError(
+            f"Token validation failed: {keycloak_error}"
+        ) from keycloak_error

@@ -1,25 +1,25 @@
-import httpx
-from datetime import date, timedelta
 from collections import defaultdict
+from datetime import date, timedelta
+
+import httpx
 from fastapi import HTTPException
 from pydantic import UUID4
 from sqlalchemy import and_, delete, or_
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from services.config import get_config, get_config_for_service
 from services.framework.logging import Span
 from services.framework.tracing import traced
 from services.framework.user_context import require_user_context
-from services.shared.schemas import meal_plan as mp
-from services.shared.schemas.generic import DeleteResponse
-from services.shared.lib.cache import initialize_service_cache
-from services.shared.lib.crud_helpers import safe_commit
 from services.shared.lib.authorization import (
     apply_ownership_filter,
     check_owner_only,
     check_owner_or_group,
 )
+from services.shared.lib.cache import initialize_service_cache
+from services.shared.lib.crud_helpers import safe_commit
+from services.shared.schemas import meal_plan as mp
+from services.shared.schemas.generic import DeleteResponse
 
 from .models import MealPlan, MealTypeEnum
 
@@ -52,10 +52,12 @@ async def validate_recipe_exists(recipe_id: UUID4) -> str:
                 raise HTTPException(
                     status_code=400,
                     detail=f"Recipe {recipe_id} not found. Cannot schedule non-existent recipe.",
-                )
-            raise HTTPException(status_code=500, detail=f"Failed to validate recipe {recipe_id}")
+                ) from e
+            raise HTTPException(
+                status_code=500, detail=f"Failed to validate recipe {recipe_id}"
+            ) from e
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error validating recipe: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error validating recipe: {str(e)}") from e
 
 
 async def fetch_recipe_titles(recipe_ids: list[UUID4]) -> dict[UUID4, str]:
@@ -164,7 +166,7 @@ async def list_meal_plans(
         meal_plans = query.limit(limit).offset(offset).all()
 
         # Fetch recipe titles
-        recipe_ids = list(set(meal_plan.recipe_id for meal_plan in meal_plans))
+        recipe_ids = list({meal_plan.recipe_id for meal_plan in meal_plans})
         titles = await fetch_recipe_titles(recipe_ids)
 
         meal_plan_outs = [
@@ -191,7 +193,7 @@ async def list_meal_plans(
 @traced
 async def get_meal_plan(meal_plan_id: UUID4, db: Session) -> mp.MealPlanOut:
     """Get a single meal plan by ID with caching. Verifies user has access."""
-    user_ctx = require_user_context()
+    require_user_context()
 
     # Try cache first
     cache_key = f"meal_plan:{meal_plan_id}"
@@ -241,7 +243,7 @@ async def update_meal_plan(
     db: Session,
 ) -> mp.MealPlanOut:
     """Update meal plan (change recipe, date, or meal_type). Only owner can update."""
-    user_ctx = require_user_context()
+    require_user_context()
 
     with Span("db_update_meal_plan"):
         meal_plan = db.query(MealPlan).filter(MealPlan.id == meal_plan_id).first()
@@ -277,7 +279,7 @@ async def update_meal_plan(
 @traced
 async def delete_meal_plan(meal_plan_id: UUID4, db: Session) -> DeleteResponse:
     """Delete a meal plan (clear a meal slot). Only owner can delete."""
-    user_ctx = require_user_context()
+    require_user_context()
 
     with Span("db_delete_meal_plan"):
         meal_plan = db.query(MealPlan).filter(MealPlan.id == meal_plan_id).first()
@@ -476,7 +478,7 @@ async def generate_shopping_list(
             )
 
         # Fetch all recipes
-        recipe_ids = list(set(meal_plan.recipe_id for meal_plan in meal_plans))
+        recipe_ids = list({meal_plan.recipe_id for meal_plan in meal_plans})
         recipes_config = get_config_for_service("recipes")
         catalog_config = get_config_for_service("catalog")
 
