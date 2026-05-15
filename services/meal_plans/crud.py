@@ -15,7 +15,11 @@ from services.shared.schemas import meal_plan as mp
 from services.shared.schemas.generic import DeleteResponse
 from services.shared.lib.cache import initialize_service_cache
 from services.shared.lib.crud_helpers import safe_commit
-from services.shared.lib.authorization import apply_ownership_filter, check_owner_only, check_owner_or_group
+from services.shared.lib.authorization import (
+    apply_ownership_filter,
+    check_owner_only,
+    check_owner_or_group,
+)
 
 from .models import MealPlan, MealTypeEnum
 
@@ -94,7 +98,10 @@ async def create_meal_plan(data: mp.MealPlanCreate, db: Session) -> mp.MealPlanO
             group_id=group_id,
         )
 
-        with safe_commit(db, f"Meal slot already occupied for {data.date} {data.meal_type}. Delete existing entry first or use PATCH to update"):
+        with safe_commit(
+            db,
+            f"Meal slot already occupied for {data.date} {data.meal_type}. Delete existing entry first or use PATCH to update",
+        ):
             db.add(meal_plan)
         db.refresh(meal_plan)
 
@@ -136,7 +143,9 @@ async def list_meal_plans(
         end_date = start_date + timedelta(days=6)  # Sunday
 
     # Build cache key from query params + user_id (user-specific cache)
-    cache_key = f"meal_plans:list:u={user_ctx.user_id}:sd={start_date}:ed={end_date}:l={limit}:o={offset}"
+    cache_key = (
+        f"meal_plans:list:u={user_ctx.user_id}:sd={start_date}:ed={end_date}:l={limit}:o={offset}"
+    )
     cached = cache.get_json(cache_key)
     if cached:
         return mp.MealPlanListResponse(**cached)
@@ -252,7 +261,9 @@ async def update_meal_plan(
         if data.meal_type is not None:
             meal_plan.meal_type = MealTypeEnum(data.meal_type)
 
-        with safe_commit(db, f"Cannot update: meal slot {meal_plan.date} {meal_plan.meal_type} already occupied"):
+        with safe_commit(
+            db, f"Cannot update: meal slot {meal_plan.date} {meal_plan.meal_type} already occupied"
+        ):
             pass  # Changes already tracked by SQLAlchemy
         db.refresh(meal_plan)
 
@@ -300,26 +311,29 @@ async def copy_day(data: mp.CopyDayRequest, db: Session) -> mp.CopyResponse:
 
     with Span("db_copy_day"):
         # Fetch source meals (filter by user OR group)
-        source_meals = db.query(MealPlan).filter(
-            and_(
-                MealPlan.date == data.source_date,
-                or_(
-                    MealPlan.user_id == user_ctx.user_id,
-                    MealPlan.group_id.in_(user_ctx.group_ids) if user_ctx.group_ids else False
+        source_meals = (
+            db.query(MealPlan)
+            .filter(
+                and_(
+                    MealPlan.date == data.source_date,
+                    or_(
+                        MealPlan.user_id == user_ctx.user_id,
+                        MealPlan.group_id.in_(user_ctx.group_ids) if user_ctx.group_ids else False,
+                    ),
                 )
             )
-        ).all()
+            .all()
+        )
 
         if not source_meals:
             raise HTTPException(404, f"No meals found for {data.source_date}")
 
         # Delete existing target meals (only user's own meals)
-        db.execute(delete(MealPlan).where(
-            and_(
-                MealPlan.date == data.target_date,
-                MealPlan.user_id == user_ctx.user_id
+        db.execute(
+            delete(MealPlan).where(
+                and_(MealPlan.date == data.target_date, MealPlan.user_id == user_ctx.user_id)
             )
-        ))
+        )
 
         # Copy meals with user/group ownership
         group_id = user_ctx.group_ids[0] if user_ctx.group_ids else None
@@ -375,8 +389,8 @@ async def copy_week(data: mp.CopyWeekRequest, db: Session) -> mp.CopyResponse:
                     MealPlan.date <= source_end,
                     or_(
                         MealPlan.user_id == user_ctx.user_id,
-                        MealPlan.group_id.in_(user_ctx.group_ids) if user_ctx.group_ids else False
-                    )
+                        MealPlan.group_id.in_(user_ctx.group_ids) if user_ctx.group_ids else False,
+                    ),
                 )
             )
             .all()
@@ -391,7 +405,7 @@ async def copy_week(data: mp.CopyWeekRequest, db: Session) -> mp.CopyResponse:
                 and_(
                     MealPlan.date >= data.target_week_start,
                     MealPlan.date <= target_end,
-                    MealPlan.user_id == user_ctx.user_id
+                    MealPlan.user_id == user_ctx.user_id,
                 )
             )
         )
@@ -449,15 +463,17 @@ async def generate_shopping_list(
                     MealPlan.date <= data.end_date,
                     or_(
                         MealPlan.user_id == user_ctx.user_id,
-                        MealPlan.group_id.in_(user_ctx.group_ids) if user_ctx.group_ids else False
-                    )
+                        MealPlan.group_id.in_(user_ctx.group_ids) if user_ctx.group_ids else False,
+                    ),
                 )
             )
             .all()
         )
 
         if not meal_plans:
-            raise HTTPException(404, f"No meals found between {data.start_date} and {data.end_date}")
+            raise HTTPException(
+                404, f"No meals found between {data.start_date} and {data.end_date}"
+            )
 
         # Fetch all recipes
         recipe_ids = list(set(meal_plan.recipe_id for meal_plan in meal_plans))

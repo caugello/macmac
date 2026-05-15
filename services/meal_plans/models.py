@@ -26,7 +26,9 @@ class MealPlan(BaseModel, UserOwnershipMixin, Base):
     date = Column(Date, nullable=False, index=True)
 
     # Meal slot type
-    meal_type = Column(SQLEnum(MealTypeEnum, values_callable=lambda x: [e.value for e in x]), nullable=False)
+    meal_type = Column(
+        SQLEnum(MealTypeEnum, values_callable=lambda x: [e.value for e in x]), nullable=False
+    )
 
     # Recipe reference (validated against recipes service via httpx)
     recipe_id = Column(UUID(as_uuid=True), nullable=False)
@@ -40,8 +42,8 @@ class MealPlan(BaseModel, UserOwnershipMixin, Base):
         # Index on recipe_id for "where is this recipe used?" queries
         Index("ix_meal_plans_recipe_id", "recipe_id"),
         # User and group ownership indexes
-        Index('ix_meal_plan_user_id', 'user_id'),
-        Index('ix_meal_plan_group_id', 'group_id'),
+        Index("ix_meal_plan_user_id", "user_id"),
+        Index("ix_meal_plan_group_id", "group_id"),
         # Composite index for efficient user+group queries
-        Index('ix_meal_plan_user_group', 'user_id', 'group_id'),
+        Index("ix_meal_plan_user_group", "user_id", "group_id"),
     )

@@ -112,11 +112,7 @@ def mock_user_context():
     test_user_id = uuid.uuid4()
     test_group_id = uuid.uuid4()
 
-    set_user_context(
-        user_id=test_user_id,
-        username="testuser",
-        group_ids=[test_group_id]
-    )
+    set_user_context(user_id=test_user_id, username="testuser", group_ids=[test_group_id])
     yield
     # Cleanup happens automatically when context var goes out of scope
 
@@ -124,6 +120,7 @@ def mock_user_context():
 @pytest.fixture(autouse=True)
 def mock_validate_catalog_items():
     """Mock catalog item validation to avoid HTTP calls in unit tests."""
+
     async def mock_validate(catalog_item_ids: list[UUID4]) -> dict[UUID4, str]:
         # Return fake catalog item names for testing
         return {item_id: f"Test Item {str(item_id)[:8]}" for item_id in catalog_item_ids}

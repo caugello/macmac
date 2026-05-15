@@ -73,14 +73,10 @@ def apply_sorting(query: Query, model_class: type, sort_param: str | None) -> Qu
 
     except ValueError as e:
         raise HTTPException(
-            status_code=400,
-            detail="Invalid sort value. Use format 'field:asc' or 'field:desc'"
+            status_code=400, detail="Invalid sort value. Use format 'field:asc' or 'field:desc'"
         ) from e
     except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Sort error: {str(e)}"
-        ) from e
+        raise HTTPException(status_code=400, detail=f"Sort error: {str(e)}") from e
 
 
 def apply_pagination(query: Query, limit: int, offset: int) -> Tuple[int, list]:
@@ -175,7 +171,7 @@ def safe_commit(db: Session, error_message: str):
     except IntegrityError as exc:
         db.rollback()
         # Extract detail from SQLAlchemy exception if available
-        detail = getattr(exc, 'detail', None)
+        detail = getattr(exc, "detail", None)
         if detail:
             full_message = f"{error_message}. {detail}"
         else:

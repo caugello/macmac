@@ -2,6 +2,7 @@
 Security improvements test suite.
 Tests all security enhancements implemented in the refactor branch.
 """
+
 import pytest
 import os
 import time
@@ -12,7 +13,12 @@ from pydantic import ValidationError
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-testing-min-32-chars")
 os.environ.setdefault("ENVIRONMENT", "development")
 
-from services.auth.security import create_access_token, decode_access_token, verify_password, get_password_hash
+from services.auth.security import (
+    create_access_token,
+    decode_access_token,
+    verify_password,
+    get_password_hash,
+)
 from services.shared.schemas.auth import LoginRequest, GroupCreate, AddMemberRequest
 
 
@@ -24,12 +30,14 @@ class TestJWTSecurity:
         # This is tested via the security.py module loading
         # The module should have logged warnings or errors if SECRET_KEY is weak
         from services.auth.security import SECRET_KEY
+
         assert SECRET_KEY is not None
         assert len(SECRET_KEY) > 0
 
     def test_token_expiration_is_reasonable(self):
         """Test that token expiration is set to 2 hours (not 24h)"""
         from services.auth.security import ACCESS_TOKEN_EXPIRE_MINUTES
+
         assert ACCESS_TOKEN_EXPIRE_MINUTES == 120, "Token expiration should be 2 hours for security"
 
     def test_create_and_decode_token(self):
@@ -62,7 +70,7 @@ class TestJWTSecurity:
             "sub": str(uuid4()),
             "username": "testuser",
             "groups": [],
-            "exp": datetime.utcnow() - timedelta(hours=1)  # Expired 1 hour ago
+            "exp": datetime.utcnow() - timedelta(hours=1),  # Expired 1 hour ago
         }
         expired_token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 

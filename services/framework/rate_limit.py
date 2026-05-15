@@ -2,6 +2,7 @@
 Simple in-memory rate limiting middleware.
 For production, use Redis-based rate limiting.
 """
+
 import time
 from collections import defaultdict
 from typing import Callable
@@ -47,8 +48,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         # Clean old timestamps for this client and path
         self.clients[client_ip][path_key] = [
-            ts for ts in self.clients[client_ip][path_key]
-            if now - ts < period
+            ts for ts in self.clients[client_ip][path_key] if now - ts < period
         ]
 
         # Check if client has exceeded rate limit
@@ -57,7 +57,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             raise HTTPException(
                 status_code=429,
                 detail="Too many requests. Please try again later.",
-                headers={"Retry-After": str(period)}
+                headers={"Retry-After": str(period)},
             )
 
         # Add current timestamp
@@ -69,9 +69,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         response.headers["X-RateLimit-Remaining"] = str(
             calls - len(self.clients[client_ip][path_key])
         )
-        response.headers["X-RateLimit-Reset"] = str(
-            int(now + period)
-        )
+        response.headers["X-RateLimit-Reset"] = str(int(now + period))
 
         return response
 

@@ -11,30 +11,30 @@ def normalize_unit(unit: str | None) -> str | None:
     unit_lower = unit.lower().strip()
 
     unit_map = {
-        'piece': 'pc',
-        'pieces': 'pc',
-        'pcs': 'pc',
-        'stuks': 'pc',
-        'stuk': 'pc',
-        'st': 'pc',
-        'gram': 'g',
-        'grams': 'g',
-        'gr': 'g',
-        'kilo': 'kg',
-        'kilogram': 'kg',
-        'milliliter': 'ml',
-        'milliliters': 'ml',
-        'liter': 'l',
-        'liters': 'l',
-        'centiliter': 'ml',
-        'cl': 'ml',
-        'teaspoon': 'tsp',
-        'teaspoons': 'tsp',
-        'tablespoon': 'tbsp',
-        'tablespoons': 'tbsp',
+        "piece": "pc",
+        "pieces": "pc",
+        "pcs": "pc",
+        "stuks": "pc",
+        "stuk": "pc",
+        "st": "pc",
+        "gram": "g",
+        "grams": "g",
+        "gr": "g",
+        "kilo": "kg",
+        "kilogram": "kg",
+        "milliliter": "ml",
+        "milliliters": "ml",
+        "liter": "l",
+        "liters": "l",
+        "centiliter": "ml",
+        "cl": "ml",
+        "teaspoon": "tsp",
+        "teaspoons": "tsp",
+        "tablespoon": "tbsp",
+        "tablespoons": "tbsp",
     }
 
-    valid_units = {'g', 'kg', 'ml', 'l', 'tsp', 'tbsp', 'pc', 'pinch', 'dash'}
+    valid_units = {"g", "kg", "ml", "l", "tsp", "tbsp", "pc", "pinch", "dash"}
     if unit_lower in valid_units:
         return unit_lower
 
@@ -48,13 +48,13 @@ def extract_quantity_from_url(url: str) -> tuple[float | None, str | None]:
     """
     import re
 
-    URL_QTY_PATTERN = re.compile(r'-(\d+(?:[.,]\d+)?)(g|kg|ml|l|cl)(?:-|$)', re.IGNORECASE)
+    URL_QTY_PATTERN = re.compile(r"-(\d+(?:[.,]\d+)?)(g|kg|ml|l|cl)(?:-|$)", re.IGNORECASE)
 
     match = URL_QTY_PATTERN.search(url)
     if not match:
         return None, None
 
-    qty_str = match.group(1).replace(',', '.')
+    qty_str = match.group(1).replace(",", ".")
     unit = match.group(2).lower()
 
     try:
@@ -63,9 +63,9 @@ def extract_quantity_from_url(url: str) -> tuple[float | None, str | None]:
         return None, None
 
     # Handle centiliters conversion before normalization
-    if unit == 'cl':
+    if unit == "cl":
         qty = qty * 10
-        unit = 'ml'
+        unit = "ml"
 
     # Normalize unit to schema-compliant value
     normalized = normalize_unit(unit)

@@ -57,11 +57,11 @@ class DatabaseConfig:
             "production": {
                 # Conservative: 200 total DB connections / 5 app instances = 40 per instance
                 # Leave 20 for background jobs, admin, monitoring
-                "pool_size": 15,           # Base pool (always open)
-                "max_overflow": 25,        # Burst capacity (40 total)
-                "pool_timeout": 5,         # Fail fast in production
-                "pool_recycle": 300,       # Recycle every 5 min (prevent stale connections)
-                "pool_pre_ping": True,     # Always verify connection health
+                "pool_size": 15,  # Base pool (always open)
+                "max_overflow": 25,  # Burst capacity (40 total)
+                "pool_timeout": 5,  # Fail fast in production
+                "pool_recycle": 300,  # Recycle every 5 min (prevent stale connections)
+                "pool_pre_ping": True,  # Always verify connection health
                 "echo_pool": False,
                 # Additional production settings
                 "connect_args": {
@@ -141,16 +141,12 @@ def _register_pool_listeners(engine: Engine, service_name: str):
     @event.listens_for(engine, "soft_invalidate")
     def receive_soft_invalidate(dbapi_conn, connection_record, exception):
         """Log soft invalidation (connection error, will retry)."""
-        logger.warning(
-            f"[{service_name}] Connection soft-invalidated: {exception}"
-        )
+        logger.warning(f"[{service_name}] Connection soft-invalidated: {exception}")
 
     @event.listens_for(engine, "invalidate")
     def receive_invalidate(dbapi_conn, connection_record, exception):
         """Log hard invalidation (connection permanently failed)."""
-        logger.error(
-            f"[{service_name}] Connection invalidated: {exception}"
-        )
+        logger.error(f"[{service_name}] Connection invalidated: {exception}")
 
 
 class PoolHealthCheck:
@@ -206,9 +202,7 @@ class PoolHealthCheck:
 
 @contextmanager
 def get_db_with_retry(
-    session_factory: sessionmaker,
-    max_retries: int = 3,
-    backoff_factor: float = 0.5
+    session_factory: sessionmaker, max_retries: int = 3, backoff_factor: float = 0.5
 ) -> Generator[Session, None, None]:
     """
     Database session with automatic retry on transient failures.
@@ -241,7 +235,7 @@ def get_db_with_retry(
             last_error = e
 
             if attempt < max_retries - 1:
-                wait_time = backoff_factor * (2 ** attempt)
+                wait_time = backoff_factor * (2**attempt)
                 logger.warning(
                     f"Database operation failed (attempt {attempt + 1}/{max_retries}), "
                     f"retrying in {wait_time}s: {e}"

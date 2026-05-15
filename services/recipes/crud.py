@@ -13,7 +13,11 @@ from services.shared.schemas import recipe as rs
 from services.shared.schemas.ingredient import IngredientOut
 from services.shared.lib.cache import initialize_service_cache
 from services.shared.lib.crud_helpers import apply_pagination, apply_sorting, safe_commit
-from services.shared.lib.authorization import apply_ownership_filter, check_owner_only, check_owner_or_group
+from services.shared.lib.authorization import (
+    apply_ownership_filter,
+    check_owner_only,
+    check_owner_or_group,
+)
 
 from .models import Recipe, RecipeIngredient
 
@@ -47,11 +51,15 @@ async def validate_catalog_items(catalog_item_ids: list[UUID4]) -> dict[UUID4, s
                 if e.response.status_code == 404:
                     raise HTTPException(
                         status_code=400,
-                        detail=f"Catalog item {item_id} not found. All ingredients must exist in catalog."
+                        detail=f"Catalog item {item_id} not found. All ingredients must exist in catalog.",
                     )
-                raise HTTPException(status_code=500, detail=f"Failed to validate catalog item {item_id}")
+                raise HTTPException(
+                    status_code=500, detail=f"Failed to validate catalog item {item_id}"
+                )
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Error validating catalog items: {str(e)}")
+                raise HTTPException(
+                    status_code=500, detail=f"Error validating catalog items: {str(e)}"
+                )
 
     return item_names
 

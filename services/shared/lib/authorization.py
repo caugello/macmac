@@ -47,16 +47,11 @@ def check_owner_only(resource_user_id: UUID, operation: str = "perform this oper
     user_ctx = require_user_context()
 
     if resource_user_id != user_ctx.user_id:
-        raise HTTPException(
-            status_code=403,
-            detail=f"Only resource owner can {operation}"
-        )
+        raise HTTPException(status_code=403, detail=f"Only resource owner can {operation}")
 
 
 def check_owner_or_group(
-    resource_user_id: UUID,
-    resource_group_id: UUID | None,
-    resource_type: str = "resource"
+    resource_user_id: UUID, resource_group_id: UUID | None, resource_type: str = "resource"
 ):
     """
     Verify that the current user can access a resource (owner or group member).
@@ -95,17 +90,11 @@ def check_owner_or_group(
     # User is not owner - check group membership
     if not resource_group_id:
         # Resource is private (no group sharing)
-        raise HTTPException(
-            status_code=403,
-            detail=f"Access denied to this {resource_type}"
-        )
+        raise HTTPException(status_code=403, detail=f"Access denied to this {resource_type}")
 
     if resource_group_id not in user_ctx.group_ids:
         # User is not in the resource's group
-        raise HTTPException(
-            status_code=403,
-            detail=f"Access denied to this {resource_type}"
-        )
+        raise HTTPException(status_code=403, detail=f"Access denied to this {resource_type}")
 
 
 def apply_ownership_filter(query: Query, model_class: type) -> Query:
@@ -149,8 +138,6 @@ def apply_ownership_filter(query: Query, model_class: type) -> Query:
 
     # Add group filter if user is in any groups
     if user_ctx.group_ids:
-        ownership_conditions.append(
-            model_class.group_id.in_(user_ctx.group_ids)
-        )
+        ownership_conditions.append(model_class.group_id.in_(user_ctx.group_ids))
 
     return query.filter(or_(*ownership_conditions))

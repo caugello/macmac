@@ -158,10 +158,10 @@ def make_proxy_handler(service, route):
         headers[TRACE_ID_HEADER] = trace_id
 
         # Add user context headers if available (set by auth middleware)
-        if hasattr(request.state, 'user_id'):
-            headers['X-User-ID'] = request.state.user_id
-            headers['X-Username'] = request.state.username
-            headers['X-User-Groups'] = ','.join(request.state.group_ids)
+        if hasattr(request.state, "user_id"):
+            headers["X-User-ID"] = request.state.user_id
+            headers["X-Username"] = request.state.username
+            headers["X-User-Groups"] = ",".join(request.state.group_ids)
 
         async with httpx.AsyncClient() as client:
             response = await client.request(

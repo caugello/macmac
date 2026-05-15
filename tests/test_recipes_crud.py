@@ -34,8 +34,12 @@ async def test_create_recipe(mock_db):
         title="Test Recipe",
         description="A test recipe",
         ingredients=[
-            IngredientCreate(catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=2.0, unit=UnitEnum.KILOGRAM),
-            IngredientCreate(catalog_item_id=TEST_CATALOG_ITEM_SUGAR, qty=1.0, unit=UnitEnum.KILOGRAM),
+            IngredientCreate(
+                catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=2.0, unit=UnitEnum.KILOGRAM
+            ),
+            IngredientCreate(
+                catalog_item_id=TEST_CATALOG_ITEM_SUGAR, qty=1.0, unit=UnitEnum.KILOGRAM
+            ),
         ],
         steps=["Mix ingredients", "Bake at 350F"],
     )
@@ -56,7 +60,11 @@ async def test_create_recipe_duplicate_title(mock_db):
     recipe_data = RecipeCreate(
         title="Duplicate Recipe",
         description="First recipe",
-        ingredients=[IngredientCreate(catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM)],
+        ingredients=[
+            IngredientCreate(
+                catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+            )
+        ],
         steps=["Step 1"],
     )
 
@@ -91,7 +99,11 @@ async def test_list_recipes_with_data(mock_db):
         recipe_data = RecipeCreate(
             title=f"Recipe {i}",
             description=f"Description {i}",
-            ingredients=[IngredientCreate(catalog_item_id=TEST_CATALOG_ITEM_INGREDIENT, qty=1.0, unit=UnitEnum.GRAM)],
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_INGREDIENT, qty=1.0, unit=UnitEnum.GRAM
+                )
+            ],
             steps=[f"Step {i}"],
         )
         await create_recipe(recipe_data, mock_db)
@@ -111,14 +123,22 @@ async def test_list_recipes_with_search(mock_db):
     await create_recipe(
         RecipeCreate(
             title="Chocolate Cake",
-            ingredients=[IngredientCreate(catalog_item_id=TEST_CATALOG_ITEM_CHOCOLATE, qty=100.0, unit=UnitEnum.GRAM)],
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_CHOCOLATE, qty=100.0, unit=UnitEnum.GRAM
+                )
+            ],
         ),
         mock_db,
     )
     await create_recipe(
         RecipeCreate(
             title="Vanilla Cookies",
-            ingredients=[IngredientCreate(catalog_item_id=TEST_CATALOG_ITEM_VANILLA, qty=1.0, unit=UnitEnum.TEASPOON)],
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_VANILLA, qty=1.0, unit=UnitEnum.TEASPOON
+                )
+            ],
         ),
         mock_db,
     )
@@ -138,14 +158,22 @@ async def test_list_recipes_with_sort(mock_db):
     await create_recipe(
         RecipeCreate(
             title="Zebra Cake",
-            ingredients=[IngredientCreate(catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM)],
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
         ),
         mock_db,
     )
     await create_recipe(
         RecipeCreate(
             title="Apple Pie",
-            ingredients=[IngredientCreate(catalog_item_id=TEST_CATALOG_ITEM_APPLES, qty=3.0, unit=UnitEnum.PIECE)],
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_APPLES, qty=3.0, unit=UnitEnum.PIECE
+                )
+            ],
         ),
         mock_db,
     )
@@ -179,7 +207,11 @@ async def test_list_recipes_invalid_sort_direction(mock_db):
     await create_recipe(
         RecipeCreate(
             title="Test Recipe",
-            ingredients=[IngredientCreate(catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM)],
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
         ),
         mock_db,
     )
@@ -200,7 +232,11 @@ async def test_get_recipe(mock_db):
     created = await create_recipe(
         RecipeCreate(
             title="Test Recipe",
-            ingredients=[IngredientCreate(catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM)],
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
         ),
         mock_db,
     )
@@ -233,7 +269,11 @@ async def test_update_recipe(mock_db):
         RecipeCreate(
             title="Original Title",
             description="Original description",
-            ingredients=[IngredientCreate(catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM)],
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
             steps=["Step 1"],
         ),
         mock_db,
@@ -276,7 +316,11 @@ async def test_delete_recipe(mock_db):
     created = await create_recipe(
         RecipeCreate(
             title="To Delete",
-            ingredients=[IngredientCreate(catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM)],
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
         ),
         mock_db,
     )
@@ -325,7 +369,11 @@ async def test_update_recipe_with_ingredients(mock_db):
     created = await create_recipe(
         RecipeCreate(
             title="Original Recipe",
-            ingredients=[IngredientCreate(catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM)],
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
         ),
         mock_db,
     )
@@ -333,8 +381,12 @@ async def test_update_recipe_with_ingredients(mock_db):
     # Update with new ingredients
     update_data = RecipeUpdate(
         ingredients=[
-            IngredientCreate(catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=2.0, unit=UnitEnum.KILOGRAM),
-            IngredientCreate(catalog_item_id=TEST_CATALOG_ITEM_SUGAR, qty=0.5, unit=UnitEnum.KILOGRAM),
+            IngredientCreate(
+                catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=2.0, unit=UnitEnum.KILOGRAM
+            ),
+            IngredientCreate(
+                catalog_item_id=TEST_CATALOG_ITEM_SUGAR, qty=0.5, unit=UnitEnum.KILOGRAM
+            ),
         ]
     )
 
@@ -354,7 +406,11 @@ async def test_update_recipe_with_steps(mock_db):
     created = await create_recipe(
         RecipeCreate(
             title="Recipe with Steps",
-            ingredients=[IngredientCreate(catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM)],
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
             steps=["Step 1"],
         ),
         mock_db,
@@ -377,14 +433,22 @@ async def test_update_recipe_duplicate_title(mock_db):
     await create_recipe(
         RecipeCreate(
             title="First Recipe",
-            ingredients=[IngredientCreate(catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM)],
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
         ),
         mock_db,
     )
     second = await create_recipe(
         RecipeCreate(
             title="Second Recipe",
-            ingredients=[IngredientCreate(catalog_item_id=TEST_CATALOG_ITEM_SUGAR, qty=1.0, unit=UnitEnum.KILOGRAM)],
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_SUGAR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
         ),
         mock_db,
     )

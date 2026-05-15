@@ -23,14 +23,16 @@ class Recipe(BaseModel, UserOwnershipMixin, Base):
     steps = Column(JSON)
 
     # Relationship to ingredients
-    recipe_ingredients = relationship("RecipeIngredient", back_populates="recipe", cascade="all, delete-orphan")
+    recipe_ingredients = relationship(
+        "RecipeIngredient", back_populates="recipe", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         Index("ix_recipe_normalized_title", "normalized_title", unique=True),
-        Index('ix_recipe_user_id', 'user_id'),
-        Index('ix_recipe_group_id', 'group_id'),
+        Index("ix_recipe_user_id", "user_id"),
+        Index("ix_recipe_group_id", "group_id"),
         # Composite index for efficient user+group queries
-        Index('ix_recipe_user_group', 'user_id', 'group_id'),
+        Index("ix_recipe_user_group", "user_id", "group_id"),
     )
 
 
@@ -41,8 +43,12 @@ class RecipeIngredient(UUIDPrimaryKeyMixin, Base):
 
     __tablename__ = "recipe_ingredients"
 
-    recipe_id = Column(UUID(as_uuid=True), ForeignKey("recipes.id", ondelete="CASCADE"), nullable=False)
-    catalog_item_id = Column(UUID(as_uuid=True), nullable=False)  # FK to catalog.catalog_items (different DB)
+    recipe_id = Column(
+        UUID(as_uuid=True), ForeignKey("recipes.id", ondelete="CASCADE"), nullable=False
+    )
+    catalog_item_id = Column(
+        UUID(as_uuid=True), nullable=False
+    )  # FK to catalog.catalog_items (different DB)
     qty = Column(Float, nullable=False)
     unit = Column(String, nullable=False)  # UnitEnum value
 

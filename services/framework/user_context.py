@@ -25,5 +25,6 @@ def require_user_context() -> UserContext:
     ctx = current_user.get()
     if ctx is None:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=401, detail="Authentication required")
     return ctx

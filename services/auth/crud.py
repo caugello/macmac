@@ -21,9 +21,7 @@ async def login(data: auth_schemas.LoginRequest, db: Session) -> auth_schemas.Lo
     try:
         # Try Keycloak authentication first
         token_response = keycloak_openid.token(
-            username=data.username,
-            password=data.password,
-            grant_type="password"
+            username=data.username, password=data.password, grant_type="password"
         )
 
         access_token = token_response.get("access_token")
@@ -80,14 +78,17 @@ async def login(data: auth_schemas.LoginRequest, db: Session) -> auth_schemas.Lo
                 username=user.username,
                 email=user.email,
                 groups=group_ids,
-            )
+            ),
         )
 
     except Exception as keycloak_error:
         # Log Keycloak error for debugging but don't expose to user
         import logging
+
         logger = logging.getLogger(__name__)
-        logger.warning(f"Keycloak authentication failed for user '{data.username}': {keycloak_error}")
+        logger.warning(
+            f"Keycloak authentication failed for user '{data.username}': {keycloak_error}"
+        )
 
         # Fall back to local authentication
         # Check if user exists in DB with local password
@@ -104,7 +105,9 @@ async def login(data: auth_schemas.LoginRequest, db: Session) -> auth_schemas.Lo
 
         if not user.is_active:
             logger.warning(f"Login attempt for inactive user '{data.username}'")
-            raise HTTPException(status_code=401, detail="Invalid username or password")  # Don't reveal account is inactive
+            raise HTTPException(
+                status_code=401, detail="Invalid username or password"
+            )  # Don't reveal account is inactive
 
         # Create self-signed token for local auth
         group_ids = [group.id for group in user.groups]
@@ -118,7 +121,7 @@ async def login(data: auth_schemas.LoginRequest, db: Session) -> auth_schemas.Lo
                 username=user.username,
                 email=user.email,
                 groups=group_ids,
-            )
+            ),
         )
 
 
@@ -247,7 +250,10 @@ async def remove_user_from_group(path_params: dict, db: Session):
 
     # Don't allow owner to remove themselves
     if user_id == user_ctx.user_id:
-        raise HTTPException(status_code=400, detail="Group owner cannot remove themselves. Delete the group instead.")
+        raise HTTPException(
+            status_code=400,
+            detail="Group owner cannot remove themselves. Delete the group instead.",
+        )
 
     # Remove user from group
     group.members.remove(user_to_remove)

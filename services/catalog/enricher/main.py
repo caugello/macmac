@@ -26,7 +26,9 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 # Enricher configuration from config.yaml
 OPENAI_MODEL = catalog_config.enricher.openai_model if catalog_config.enricher else "gpt-4o-mini"
 BATCH_SIZE = catalog_config.enricher.batch_size if catalog_config.enricher else 5
-DELAY_BETWEEN_REQUESTS = catalog_config.enricher.delay_between_requests if catalog_config.enricher else 5
+DELAY_BETWEEN_REQUESTS = (
+    catalog_config.enricher.delay_between_requests if catalog_config.enricher else 5
+)
 PAGE_TIMEOUT = catalog_config.enricher.page_timeout if catalog_config.enricher else 15000
 BATCH_PAUSE = catalog_config.enricher.batch_pause if catalog_config.enricher else 60
 
@@ -36,7 +38,7 @@ batch_start_time = time.time()
 
 # Regex for extracting quantity from URL
 # Matches patterns like: 280g, 1kg, 500ml, 1.5l, 375g
-URL_QTY_PATTERN = re.compile(r'-(\d+(?:[.,]\d+)?)(g|kg|ml|l|cl)(?:-|$)', re.IGNORECASE)
+URL_QTY_PATTERN = re.compile(r"-(\d+(?:[.,]\d+)?)(g|kg|ml|l|cl)(?:-|$)", re.IGNORECASE)
 
 
 def normalize_unit(unit: str | None) -> str | None:
@@ -52,37 +54,34 @@ def normalize_unit(unit: str | None) -> str | None:
     # Direct mapping for variations
     unit_map = {
         # Pieces
-        'piece': 'pc',
-        'pieces': 'pc',
-        'pcs': 'pc',
-        'stuks': 'pc',
-        'stuk': 'pc',
-        'st': 'pc',
-
+        "piece": "pc",
+        "pieces": "pc",
+        "pcs": "pc",
+        "stuks": "pc",
+        "stuk": "pc",
+        "st": "pc",
         # Weight
-        'gram': 'g',
-        'grams': 'g',
-        'gr': 'g',
-        'kilo': 'kg',
-        'kilogram': 'kg',
-
+        "gram": "g",
+        "grams": "g",
+        "gr": "g",
+        "kilo": "kg",
+        "kilogram": "kg",
         # Volume
-        'milliliter': 'ml',
-        'milliliters': 'ml',
-        'liter': 'l',
-        'liters': 'l',
-        'centiliter': 'ml',  # Will be converted
-        'cl': 'ml',
-
+        "milliliter": "ml",
+        "milliliters": "ml",
+        "liter": "l",
+        "liters": "l",
+        "centiliter": "ml",  # Will be converted
+        "cl": "ml",
         # Spoons
-        'teaspoon': 'tsp',
-        'teaspoons': 'tsp',
-        'tablespoon': 'tbsp',
-        'tablespoons': 'tbsp',
+        "teaspoon": "tsp",
+        "teaspoons": "tsp",
+        "tablespoon": "tbsp",
+        "tablespoons": "tbsp",
     }
 
     # Check if it's already valid
-    valid_units = {'g', 'kg', 'ml', 'l', 'tsp', 'tbsp', 'pc', 'pinch', 'dash'}
+    valid_units = {"g", "kg", "ml", "l", "tsp", "tbsp", "pc", "pinch", "dash"}
     if unit_lower in valid_units:
         return unit_lower
 
@@ -103,7 +102,7 @@ def extract_quantity_from_url(url: str) -> tuple[float | None, str | None]:
     if not match:
         return None, None
 
-    qty_str = match.group(1).replace(',', '.')
+    qty_str = match.group(1).replace(",", ".")
     unit = match.group(2).lower()
 
     try:
@@ -112,9 +111,9 @@ def extract_quantity_from_url(url: str) -> tuple[float | None, str | None]:
         return None, None
 
     # Handle centiliters conversion before normalization
-    if unit == 'cl':
+    if unit == "cl":
         qty = qty * 10
-        unit = 'ml'
+        unit = "ml"
 
     # Normalize unit to schema-compliant value
     normalized = normalize_unit(unit)
@@ -138,40 +137,40 @@ async def crawl_product_page(url: str) -> tuple[str | None, str | None, float | 
     try:
         async with async_playwright() as p:
             # Try webkit (Safari) - often less detected than Chromium
-            browser = await p.webkit.launch(
-                headless=True
-            )
+            browser = await p.webkit.launch(headless=True)
 
             # Create context with realistic Safari fingerprint
             context = await browser.new_context(
-                viewport={'width': 1440, 'height': 900},
-                user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15',
-                locale='fr-BE',
-                timezone_id='Europe/Brussels',
-                color_scheme='light',
+                viewport={"width": 1440, "height": 900},
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+                locale="fr-BE",
+                timezone_id="Europe/Brussels",
+                color_scheme="light",
                 extra_http_headers={
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                    'Accept-Language': 'fr-BE,fr;q=0.9',
-                    'Accept-Encoding': 'gzip, deflate, br',
-                    'Connection': 'keep-alive',
-                }
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Accept-Language": "fr-BE,fr;q=0.9",
+                    "Accept-Encoding": "gzip, deflate, br",
+                    "Connection": "keep-alive",
+                },
             )
 
             page = await context.new_page()
 
             # Simple stealth script for Safari/webkit
-            await page.add_init_script("""
+            await page.add_init_script(
+                """
                 Object.defineProperty(navigator, 'webdriver', {
                     get: () => undefined
                 });
-            """)
+            """
+            )
 
             # Step 1: Visit homepage first to establish session and get cookies
-            base_url = 'https://www.collectandgo.be/fr'
+            base_url = "https://www.collectandgo.be/fr"
             print(f"  → Visiting homepage first")
 
             try:
-                home_response = await page.goto(base_url, timeout=15000, wait_until='networkidle')
+                home_response = await page.goto(base_url, timeout=15000, wait_until="networkidle")
                 if home_response and home_response.status == 200:
                     print(f"  → Homepage loaded successfully")
                     # Wait longer like a real user browsing
@@ -184,7 +183,9 @@ async def crawl_product_page(url: str) -> tuple[str | None, str | None, float | 
                     await page.evaluate("window.scrollTo({top: 800, behavior: 'smooth'})")
                     await asyncio.sleep(1.0)
                 else:
-                    print(f"  → Homepage returned status {home_response.status if home_response else 'None'}")
+                    print(
+                        f"  → Homepage returned status {home_response.status if home_response else 'None'}"
+                    )
             except Exception as e:
                 print(f"  → Warning: Could not load homepage: {e}")
 
@@ -195,10 +196,7 @@ async def crawl_product_page(url: str) -> tuple[str | None, str | None, float | 
             print(f"  → Navigating to product page")
             try:
                 response = await page.goto(
-                    url,
-                    timeout=15000,
-                    wait_until='domcontentloaded',
-                    referer=base_url
+                    url, timeout=15000, wait_until="domcontentloaded", referer=base_url
                 )
             except Exception as e:
                 print(f"  → Navigation error: {e}")
@@ -223,15 +221,19 @@ async def crawl_product_page(url: str) -> tuple[str | None, str | None, float | 
                 print(f"  → Redirected to: {final_url}")
 
             # Mimic human behavior: random scroll
-            await asyncio.sleep(0.5 + (asyncio.get_event_loop().time() % 1))  # Random delay 0.5-1.5s
+            await asyncio.sleep(
+                0.5 + (asyncio.get_event_loop().time() % 1)
+            )  # Random delay 0.5-1.5s
 
             # Scroll down slowly like a human
-            await page.evaluate("""
+            await page.evaluate(
+                """
                 window.scrollTo({
                     top: document.body.scrollHeight / 3,
                     behavior: 'smooth'
                 });
-            """)
+            """
+            )
             await asyncio.sleep(0.3)
 
             # Wait for content to load
@@ -242,29 +244,28 @@ async def crawl_product_page(url: str) -> tuple[str | None, str | None, float | 
             try:
                 # Wait for price element with specific selector
                 await page.wait_for_selector(
-                    'span.price-per-unit, [class*="price"]',
-                    timeout=3000,
-                    state='visible'
+                    'span.price-per-unit, [class*="price"]', timeout=3000, state="visible"
                 )
 
                 # Try to extract price from specific selector first
-                price_element = await page.query_selector('span.price-per-unit')
+                price_element = await page.query_selector("span.price-per-unit")
                 if price_element:
                     price_text = await price_element.inner_text()
                     # Clean price text: remove €, newlines, spaces, /pce, /kg, etc.
                     # Handle formats like "2.\n99\n/pce" or "€1,89/kg"
                     price_text = (
                         price_text.strip()
-                        .replace('\n', '')
-                        .replace('\r', '')
-                        .replace('€', '')
-                        .replace(' ', '')
-                        .replace(',', '.')
+                        .replace("\n", "")
+                        .replace("\r", "")
+                        .replace("€", "")
+                        .replace(" ", "")
+                        .replace(",", ".")
                     )
 
                     # Remove unit suffixes like /pce, /kg, /l, etc.
                     import re
-                    price_text = re.sub(r'/[a-z]+$', '', price_text)
+
+                    price_text = re.sub(r"/[a-z]+$", "", price_text)
 
                     try:
                         extracted_price = float(price_text)
@@ -284,16 +285,18 @@ async def crawl_product_page(url: str) -> tuple[str | None, str | None, float | 
             # Try to find the "plus d'infos" link while page is still open
             info_link_url = None
             try:
-                info_link = await page.query_selector('a:has-text("plus d\'infos"), a:has-text("Plus d\'infos"), a:has-text("meer info"), a:has-text("Meer info")')
+                info_link = await page.query_selector(
+                    'a:has-text("plus d\'infos"), a:has-text("Plus d\'infos"), a:has-text("meer info"), a:has-text("Meer info")'
+                )
                 if info_link:
-                    info_href = await info_link.get_attribute('href')
+                    info_href = await info_link.get_attribute("href")
                     if info_href:
                         # Make absolute URL if relative
-                        if info_href.startswith('/'):
-                            base = final_url.split('/')[0] + '//' + final_url.split('/')[2]
+                        if info_href.startswith("/"):
+                            base = final_url.split("/")[0] + "//" + final_url.split("/")[2]
                             info_link_url = base + info_href
-                        elif not info_href.startswith('http'):
-                            info_link_url = final_url.rsplit('/', 1)[0] + '/' + info_href
+                        elif not info_href.startswith("http"):
+                            info_link_url = final_url.rsplit("/", 1)[0] + "/" + info_href
                         else:
                             info_link_url = info_href
                         print(f"  → Found product info link: {info_link_url}")
@@ -327,42 +330,65 @@ async def crawl_nutrition_page(info_url: str, main_page_url: str) -> tuple[str |
         async with async_playwright() as p:
             browser = await p.webkit.launch(headless=True)
             context = await browser.new_context(
-                viewport={'width': 1440, 'height': 900},
-                user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15',
-                locale='fr-BE',
-                timezone_id='Europe/Brussels',
+                viewport={"width": 1440, "height": 900},
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+                locale="fr-BE",
+                timezone_id="Europe/Brussels",
             )
 
             page = await context.new_page()
-            await page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined});")
+            await page.add_init_script(
+                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
+            )
 
             # Navigate to nutrition page
-            response = await page.goto(info_url, timeout=PAGE_TIMEOUT, wait_until='domcontentloaded', referer=main_page_url)
+            response = await page.goto(
+                info_url, timeout=PAGE_TIMEOUT, wait_until="domcontentloaded", referer=main_page_url
+            )
 
             if not response or response.status >= 400:
-                print(f"  → Failed to load nutrition page (status {response.status if response else 'None'})")
+                print(
+                    f"  → Failed to load nutrition page (status {response.status if response else 'None'})"
+                )
                 await browser.close()
                 return None, None
 
             # Wait and scroll to load nutrition table
             await page.wait_for_timeout(2000)
-            await page.evaluate("window.scrollTo({top: document.body.scrollHeight / 2, behavior: 'smooth'})")
+            await page.evaluate(
+                "window.scrollTo({top: document.body.scrollHeight / 2, behavior: 'smooth'})"
+            )
             await asyncio.sleep(0.8)
-            await page.evaluate("window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'})")
+            await page.evaluate(
+                "window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'})"
+            )
             await asyncio.sleep(1.0)
 
             # Extract nutrition table text
             nutrition_table_text = None
             try:
-                await page.wait_for_selector('table', timeout=5000, state='visible')
-                tables = await page.query_selector_all('table')
+                await page.wait_for_selector("table", timeout=5000, state="visible")
+                tables = await page.query_selector_all("table")
                 for table in tables:
                     table_text = await table.inner_text()
-                    if any(keyword in table_text.lower() for keyword in [
-                        'valeur nutritionnelle', 'voedingswaarde', 'nutrition',
-                        'energie', 'energy', 'protéine', 'protein', 'kcal',
-                        'glucide', 'carbohydrate', 'lipide', 'fat', 'par 100'
-                    ]):
+                    if any(
+                        keyword in table_text.lower()
+                        for keyword in [
+                            "valeur nutritionnelle",
+                            "voedingswaarde",
+                            "nutrition",
+                            "energie",
+                            "energy",
+                            "protéine",
+                            "protein",
+                            "kcal",
+                            "glucide",
+                            "carbohydrate",
+                            "lipide",
+                            "fat",
+                            "par 100",
+                        ]
+                    ):
                         nutrition_table_text = table_text
                         print(f"  → Extracted nutrition table ({len(table_text)} chars)")
                         break
@@ -395,11 +421,11 @@ def preprocess_html(html_content: str) -> str:
             html_content = parts[2]  # Rest of HTML
 
     # Check if this is combined HTML (main page + detailed info page)
-    html_parts = html_content.split('<!-- DETAILED PRODUCT INFO PAGE -->')
+    html_parts = html_content.split("<!-- DETAILED PRODUCT INFO PAGE -->")
 
     processed_parts = []
     for part_html in html_parts:
-        soup = BeautifulSoup(part_html, 'html.parser')
+        soup = BeautifulSoup(part_html, "html.parser")
 
         # Remove script and style elements
         for script in soup(["script", "style", "noscript"]):
@@ -410,40 +436,49 @@ def preprocess_html(html_content: str) -> str:
 
         # Look for product details, price, nutrition sections
         for selector in [
-            '[class*="product"]', '[class*="Product"]',
-            '[class*="price"]', '[class*="Price"]',
-            '[class*="nutrition"]', '[class*="Nutrition"]',
-            '[class*="voedingswaarde"]', '[class*="Voedingswaarde"]',
-            '[class*="valeur"]', '[class*="Valeur"]',
-            '[class*="detail"]', '[class*="Detail"]',
-            '[class*="info"]', '[class*="Info"]',
-            'main', 'article', 'table',
+            '[class*="product"]',
+            '[class*="Product"]',
+            '[class*="price"]',
+            '[class*="Price"]',
+            '[class*="nutrition"]',
+            '[class*="Nutrition"]',
+            '[class*="voedingswaarde"]',
+            '[class*="Voedingswaarde"]',
+            '[class*="valeur"]',
+            '[class*="Valeur"]',
+            '[class*="detail"]',
+            '[class*="Detail"]',
+            '[class*="info"]',
+            '[class*="Info"]',
+            "main",
+            "article",
+            "table",
         ]:
             elements = soup.select(selector)
             for elem in elements:
-                text = elem.get_text(separator=' ', strip=True)
+                text = elem.get_text(separator=" ", strip=True)
                 if len(text) > 20:  # Skip empty or tiny sections
                     relevant_sections.append(text)
 
         # Also look for text containing nutrition keywords
-        for keyword in ['valeurs nutritionnelles', 'voedingswaarde', 'per 100', 'par 100']:
+        for keyword in ["valeurs nutritionnelles", "voedingswaarde", "per 100", "par 100"]:
             for elem in soup.find_all(string=lambda text: text and keyword.lower() in text.lower()):
-                parent = elem.find_parent(['div', 'section', 'table', 'article'])
+                parent = elem.find_parent(["div", "section", "table", "article"])
                 if parent:
-                    text = parent.get_text(separator=' ', strip=True)
+                    text = parent.get_text(separator=" ", strip=True)
                     if len(text) > 20 and text not in relevant_sections:
                         relevant_sections.append(text)
 
         if relevant_sections:
-            combined = ' '.join(relevant_sections[:15])  # Top 15 sections
+            combined = " ".join(relevant_sections[:15])  # Top 15 sections
             processed_parts.append(combined)
         else:
             # Fallback: clean full text
-            text = soup.get_text(separator=' ', strip=True)
+            text = soup.get_text(separator=" ", strip=True)
             processed_parts.append(text[:50000])
 
     # Join both parts with delimiter
-    result = '\n\n=== DETAILED PRODUCT INFO PAGE ===\n\n'.join(processed_parts)
+    result = "\n\n=== DETAILED PRODUCT INFO PAGE ===\n\n".join(processed_parts)
 
     # Prepend nutrition table if we extracted it
     if nutrition_table:
@@ -459,7 +494,7 @@ async def extract_with_llm(
     html_content: str,
     url_qty: float | None = None,
     url_unit: str | None = None,
-    extracted_price: float | None = None
+    extracted_price: float | None = None,
 ) -> dict[str, Any]:
     """
     Use OpenAI to extract structured product data from HTML.
@@ -482,7 +517,9 @@ async def extract_with_llm(
         extracted_hint += f"\n- Price: €{extracted_price:.2f}"
 
     if extracted_hint:
-        extracted_hint = f"\n\nPRE-EXTRACTED DATA (use this data, already confirmed):{extracted_hint}"
+        extracted_hint = (
+            f"\n\nPRE-EXTRACTED DATA (use this data, already confirmed):{extracted_hint}"
+        )
 
     system_prompt = f"""You are a product data extraction assistant for Belgian grocery websites (Collect&Go, Delhaize, Carrefour).
 
@@ -641,7 +678,16 @@ Extract product data as JSON following the rules and examples above."""
         # Validate nutrition data types if present
         if extracted_data.get("nutrition") and isinstance(extracted_data["nutrition"], dict):
             nutrition = extracted_data["nutrition"]
-            for key in ["energy_kcal", "protein_g", "carbs_g", "sugars_g", "fat_g", "saturated_fat_g", "fiber_g", "salt_g"]:
+            for key in [
+                "energy_kcal",
+                "protein_g",
+                "carbs_g",
+                "sugars_g",
+                "fat_g",
+                "saturated_fat_g",
+                "fiber_g",
+                "salt_g",
+            ]:
                 if nutrition.get(key) is not None:
                     try:
                         nutrition[key] = float(nutrition[key])
@@ -725,26 +771,42 @@ async def enrich_catalog_item(
 
     # Step 3: Initial LLM extraction to determine if it's food
     print(f"  → Determining if product is food...")
-    extracted_data = await extract_with_llm(raw_name, final_url or product_url, html_content, url_qty, url_unit, extracted_price)
+    extracted_data = await extract_with_llm(
+        raw_name, final_url or product_url, html_content, url_qty, url_unit, extracted_price
+    )
     is_food = extracted_data.get("is_food", True)
 
     # Step 4: If it's food, crawl the nutrition info page
     if is_food:
         print(f"  → Product is food, crawling nutrition page...")
-        detailed_html, nutrition_table_text = await crawl_nutrition_page(info_link_url, final_url or product_url)
+        detailed_html, nutrition_table_text = await crawl_nutrition_page(
+            info_link_url, final_url or product_url
+        )
 
         if detailed_html:
             # Combine main HTML with detailed info
-            combined_html = html_content + "\n\n<!-- DETAILED PRODUCT INFO PAGE -->\n" + detailed_html
+            combined_html = (
+                html_content + "\n\n<!-- DETAILED PRODUCT INFO PAGE -->\n" + detailed_html
+            )
 
             # Add nutrition table prominently if extracted
             if nutrition_table_text:
-                combined_html = f"<!-- EXTRACTED NUTRITION TABLE -->\n{nutrition_table_text}\n\n" + combined_html
+                combined_html = (
+                    f"<!-- EXTRACTED NUTRITION TABLE -->\n{nutrition_table_text}\n\n"
+                    + combined_html
+                )
                 print(f"  → Added nutrition table to HTML")
 
             # Re-extract with combined HTML for nutrition data
             print(f"  → Extracting nutrition data with LLM...")
-            extracted_data = await extract_with_llm(raw_name, final_url or product_url, combined_html, url_qty, url_unit, extracted_price)
+            extracted_data = await extract_with_llm(
+                raw_name,
+                final_url or product_url,
+                combined_html,
+                url_qty,
+                url_unit,
+                extracted_price,
+            )
         else:
             print(f"  → Could not fetch nutrition page, using main page data")
     else:
@@ -781,11 +843,7 @@ async def enrich_catalog_item(
     normalized_name = None
     if canonical_name:
         normalized_name = (
-            canonical_name.lower()
-            .replace(" ", "_")
-            .replace("-", "_")
-            .replace("'", "")
-            .strip("_")
+            canonical_name.lower().replace(" ", "_").replace("-", "_").replace("'", "").strip("_")
         )
 
     # Use final URL after redirect (from crawl_product_page)
@@ -842,7 +900,9 @@ def write_to_db(payload: dict, ch):
 
         # Skip non-food items - don't store them in the catalog
         if enriched_item and not enriched_item.is_food:
-            print(f"⊘ Skipping non-food item: {enriched_item.canonical_name or enriched_item.raw_name}")
+            print(
+                f"⊘ Skipping non-food item: {enriched_item.canonical_name or enriched_item.raw_name}"
+            )
             print(f"  → Category: {enriched_item.category}")
             return
 
@@ -853,7 +913,11 @@ def write_to_db(payload: dict, ch):
                 # Safe formatting with type checking
                 if item.net_quantity_value and item.net_quantity_unit:
                     # Handle enum or string unit
-                    unit_str = item.net_quantity_unit.value if hasattr(item.net_quantity_unit, 'value') else item.net_quantity_unit
+                    unit_str = (
+                        item.net_quantity_unit.value
+                        if hasattr(item.net_quantity_unit, "value")
+                        else item.net_quantity_unit
+                    )
                     qty_str = f"{item.net_quantity_value}{unit_str}"
                 else:
                     qty_str = "N/A"
@@ -876,7 +940,11 @@ def write_to_db(payload: dict, ch):
                 # Detailed nutrition logging
                 if item.nutrition:
                     print(f"  → Nutrition values saved to DB:")
-                    nutrition_json = item.nutrition if isinstance(item.nutrition, dict) else json.loads(item.nutrition)
+                    nutrition_json = (
+                        item.nutrition
+                        if isinstance(item.nutrition, dict)
+                        else json.loads(item.nutrition)
+                    )
                     for key, value in nutrition_json.items():
                         if value is not None:
                             print(f"     • {key}: {value}")
@@ -901,7 +969,9 @@ if __name__ == "__main__":
         exit(1)
 
     print(f"Starting enricher with OpenAI model: {OPENAI_MODEL}")
-    print(f"Rate limits: {BATCH_SIZE} items/batch, {DELAY_BETWEEN_REQUESTS}s delay, {BATCH_PAUSE}s pause")
+    print(
+        f"Rate limits: {BATCH_SIZE} items/batch, {DELAY_BETWEEN_REQUESTS}s delay, {BATCH_PAUSE}s pause"
+    )
 
     config = get_config_for_service_dependency("catalog", "crawler")
     bus = MessagingBus(config.url)

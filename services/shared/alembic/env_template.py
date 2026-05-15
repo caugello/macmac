@@ -96,10 +96,7 @@ def configure_alembic_env(service_name: str, target_metadata: MetaData):
         )
 
         with connectable.connect() as connection:
-            context.configure(
-                connection=connection,
-                target_metadata=target_metadata
-            )
+            context.configure(connection=connection, target_metadata=target_metadata)
 
             with context.begin_transaction():
                 context.run_migrations()

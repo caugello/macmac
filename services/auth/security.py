@@ -27,7 +27,9 @@ if not SECRET_KEY:
     logger.warning("Using development JWT secret - DO NOT USE IN PRODUCTION")
 
 if len(SECRET_KEY) < 32:
-    logger.error(f"JWT_SECRET_KEY is too short ({len(SECRET_KEY)} chars). Minimum 32 characters recommended.")
+    logger.error(
+        f"JWT_SECRET_KEY is too short ({len(SECRET_KEY)} chars). Minimum 32 characters recommended."
+    )
     if os.getenv("ENVIRONMENT") != "development":
         sys.exit(1)
 
@@ -55,16 +57,17 @@ keycloak_openid = KeycloakOpenID(
     client_secret_key=KEYCLOAK_CLIENT_SECRET,
 )
 
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
-    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
 
 
 def get_password_hash(password: str) -> str:
     """Hash a password for storage"""
     salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
-    return hashed.decode('utf-8')
+    hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
+    return hashed.decode("utf-8")
 
 
 def create_access_token(user_id: UUID4, username: str, group_ids: list[UUID4]) -> str:
@@ -108,7 +111,7 @@ def decode_access_token(token: str) -> dict:
             token,
             public_key,
             algorithms=["RS256"],
-            options={"verify_aud": False, "verify_exp": True}
+            options={"verify_aud": False, "verify_exp": True},
         )
 
         user_id = token_info.get("sub")

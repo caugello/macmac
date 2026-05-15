@@ -28,8 +28,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Bearer "):
             return JSONResponse(
-                status_code=401,
-                content={"detail": "Missing or invalid authorization header"}
+                status_code=401, content={"detail": "Missing or invalid authorization header"}
             )
 
         token = auth_header.split(" ")[1]
@@ -56,6 +55,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 except (ValueError, TypeError):
                     # Skip invalid group IDs rather than failing the whole request
                     import logging
+
                     logger = logging.getLogger(__name__)
                     logger.warning(f"Skipping invalid group ID: {gid}")
                     continue
@@ -70,28 +70,24 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
 
         except jwt.InvalidTokenError as e:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.warning(f"Invalid JWT token: {str(e)}")
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "Invalid or expired token"}
-            )
+            return JSONResponse(status_code=401, content={"detail": "Invalid or expired token"})
         except ValueError as e:
             # UUID parsing errors
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(f"Token payload parsing error: {str(e)}")
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "Invalid token format"}
-            )
+            return JSONResponse(status_code=401, content={"detail": "Invalid token format"})
         except Exception as e:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(f"Authentication error: {str(e)}", exc_info=True)
             return JSONResponse(
-                status_code=500,
-                content={"detail": "Authentication service unavailable"}
+                status_code=500, content={"detail": "Authentication service unavailable"}
             )
 
         response = await call_next(request)
