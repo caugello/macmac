@@ -37,8 +37,12 @@ venv/
 .pytest_cache/
 .coverage
 coverage.xml
+coverage/
 htmlcov/
 .tox/
+
+# Node / Frontend
+node_modules/
 
 # Linting and Type Checking
 .mypy_cache/
