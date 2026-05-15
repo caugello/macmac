@@ -1,7 +1,7 @@
 """create users and groups tables
 
 Revision ID: 1150aacc045e
-Revises: 
+Revises:
 Create Date: 2026-05-15 08:28:07.776151
 
 """
@@ -10,7 +10,6 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-
 
 # revision identifiers, used by Alembic.
 revision: str = "1150aacc045e"

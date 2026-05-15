@@ -44,12 +44,10 @@ def upgrade() -> None:
 
         # Insert user
         conn.execute(
-            text(
-                """
+            text("""
                 INSERT INTO users (id, username, email, hashed_password, is_active)
                 VALUES (:id, :username, :email, :hashed_password, :is_active)
-            """
-            ),
+            """),
             {
                 "id": user_id,
                 "username": "christophe",
@@ -61,23 +59,19 @@ def upgrade() -> None:
 
         # Insert default group
         conn.execute(
-            text(
-                """
+            text("""
                 INSERT INTO groups (id, name, owner_id)
                 VALUES (:id, :name, :owner_id)
-            """
-            ),
+            """),
             {"id": group_id, "name": "Christophe's Family", "owner_id": user_id},
         )
 
         # Add user to group
         conn.execute(
-            text(
-                """
+            text("""
                 INSERT INTO user_groups (user_id, group_id)
                 VALUES (:user_id, :group_id)
-            """
-            ),
+            """),
             {"user_id": user_id, "group_id": group_id},
         )
 
