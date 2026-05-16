@@ -17,7 +17,7 @@ describe('authApi', () => {
   })
 
   describe('login', () => {
-    it('should call POST /auth/login with credentials', async () => {
+    it('should call POST /auth/login with Firebase ID token', async () => {
       const mockResponse = {
         data: {
           access_token: 'token-123',
@@ -25,7 +25,7 @@ describe('authApi', () => {
           user: {
             id: '1',
             username: 'testuser',
-            email: 'test@example.com',
+            email: 'test@augello.be',
             groups: [],
           },
         },
@@ -33,21 +33,20 @@ describe('authApi', () => {
 
       vi.mocked(apiClient.post).mockResolvedValue(mockResponse)
 
-      const result = await authApi.login({ username: 'testuser', password: 'password' })
+      const result = await authApi.login({ id_token: 'firebase-id-token-123' })
 
       expect(apiClient.post).toHaveBeenCalledWith('/auth/login', {
-        username: 'testuser',
-        password: 'password',
+        id_token: 'firebase-id-token-123',
       })
       expect(result).toEqual(mockResponse.data)
     })
 
     it('should throw error on login failure', async () => {
-      const mockError = new Error('Invalid credentials')
+      const mockError = new Error('Invalid Firebase token')
       vi.mocked(apiClient.post).mockRejectedValue(mockError)
 
-      await expect(authApi.login({ username: 'wrong', password: 'wrong' })).rejects.toThrow(
-        'Invalid credentials'
+      await expect(authApi.login({ id_token: 'invalid-token' })).rejects.toThrow(
+        'Invalid Firebase token'
       )
     })
   })

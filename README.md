@@ -365,7 +365,7 @@ PR/Push → Lint (ruff, black, mypy)
 
 ### Container Registry
 
-Images: `quay.io/caugello/macmac-base`
+Images: `quay.io/caugello/macmac-{gateway,recipes,catalog,meal-plans,auth,enricher,frontend}`
 
 ## Project Structure
 

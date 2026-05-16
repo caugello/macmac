@@ -67,7 +67,11 @@ services:
 
   # Migration services
   recipes_migration:
-    image: quay.io/caugello/macmac-base:dev
+    build:
+      context: .
+      dockerfile: Containerfile
+      target: recipes
+    image: quay.io/caugello/macmac-recipes:dev
     working_dir: /opt/app-root/src
     volumes:
       - .:/opt/app-root/src
@@ -82,7 +86,11 @@ services:
     restart: "no"
 
   catalog_migration:
-    image: quay.io/caugello/macmac-base:dev
+    build:
+      context: .
+      dockerfile: Containerfile
+      target: catalog
+    image: quay.io/caugello/macmac-catalog:dev
     working_dir: /opt/app-root/src
     volumes:
       - .:/opt/app-root/src
@@ -116,7 +124,11 @@ services:
       start_period: 15s
 
   meal_plans_migration:
-    image: quay.io/caugello/macmac-base:dev
+    build:
+      context: .
+      dockerfile: Containerfile
+      target: meal-plans
+    image: quay.io/caugello/macmac-meal-plans:dev
     working_dir: /opt/app-root/src
     volumes:
       - .:/opt/app-root/src
@@ -149,27 +161,13 @@ services:
       retries: 10
       start_period: 15s
 
-  keycloak_db:
-    hostname: keycloak-db
-    image: quay.io/fedora/postgresql-16
-    environment:
-      POSTGRESQL_USER: dbuser
-      POSTGRESQL_PASSWORD: dbpass
-      POSTGRESQL_DATABASE: keycloak
-      POSTGRESQL_ADMIN_PASSWORD: admin
-    ports:
-      - 5436:5432
-    tmpfs:
-      - /var/lib/pgsql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dbuser -d keycloak"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 15s
 
   auth_migration:
-    image: quay.io/caugello/macmac-base:dev
+    build:
+      context: .
+      dockerfile: Containerfile
+      target: auth
+    image: quay.io/caugello/macmac-auth:dev
     working_dir: /opt/app-root/src
     volumes:
       - .:/opt/app-root/src
@@ -183,68 +181,40 @@ services:
         condition: service_healthy
     restart: "no"
 
-  keycloak:
-    hostname: keycloak
-    image: quay.io/keycloak/keycloak:26.1
-    ports:
-      - 8080:8080
-    environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
-      KC_DB_USERNAME: dbuser
-      KC_DB_PASSWORD: dbpass
-      KC_HOSTNAME: localhost
-      KC_HOSTNAME_STRICT: "false"
-      KC_HTTP_ENABLED: "true"
-      KC_HEALTH_ENABLED: "true"
-    command:
-      - start-dev
-      - --import-realm
-    volumes:
-      - ./openshift/keycloak-dev-realm.json:/opt/keycloak/data/import/macmac-dev-realm.json
-    depends_on:
-      keycloak_db:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q 'UP'"]
-      interval: 10s
-      timeout: 5s
-      retries: 15
-      start_period: 30s
-
   # API Services
   auth_api:
     hostname: auth-api
-    image: quay.io/caugello/macmac-base:dev
+    build:
+      context: .
+      dockerfile: Containerfile
+      target: auth
+    image: quay.io/caugello/macmac-auth:dev
     working_dir: /opt/app-root/src
     volumes:
       - .:/opt/app-root/src
+      - ${GOOGLE_APPLICATION_CREDENTIALS}:/secrets/firebase-service-account.json:ro
     environment:
       PYTHONPATH: /opt/app-root/src
       ENVIRONMENT: "development"
       AUTH_DATABASE_URL: "postgresql+psycopg2://dbuser:dbpass@auth-db:5432/auth"
-      # Redis config from config.yaml (host: redis, port: 6379, db: 0)
       JWT_SECRET_KEY: "dev-secret-key-change-in-production-min-32-chars"
-      KEYCLOAK_URL: "http://keycloak:8080"
-      KEYCLOAK_REALM: "macmac-dev"
-      KEYCLOAK_CLIENT_ID: "macmac-api"
-      KEYCLOAK_CLIENT_SECRET: "macmac-api-secret"
+      GOOGLE_APPLICATION_CREDENTIALS: "/secrets/firebase-service-account.json"
     ports:
       - 8004:8004
-    command: uvicorn services.auth.main:app --reload --host 0.0.0.0 --port 8004
+    command: uvicorn services.auth.main:app --reload --reload-dir services --reload-dir config.yaml --host 0.0.0.0 --port 8004
     depends_on:
       redis:
         condition: service_healthy
       auth_migration:
         condition: service_completed_successfully
-      keycloak:
-        condition: service_healthy
 
   gateway:
     hostname: gateway
-    image: quay.io/caugello/macmac-base:dev
+    build:
+      context: .
+      dockerfile: Containerfile
+      target: gateway
+    image: quay.io/caugello/macmac-gateway:dev
     working_dir: /opt/app-root/src
     volumes:
       - .:/opt/app-root/src
@@ -255,11 +225,9 @@ services:
       # Redis config from config.yaml (host: redis, port: 6379, db: 0)
     ports:
       - 8000:8000
-    command: uvicorn services.gateway.main:app --reload --host 0.0.0.0 --port 8000
+    command: uvicorn services.gateway.main:app --reload --reload-dir services --reload-dir config.yaml --host 0.0.0.0 --port 8000
     depends_on:
       redis:
-        condition: service_healthy
-      keycloak:
         condition: service_healthy
       recipes_api:
         condition: service_started
@@ -272,7 +240,11 @@ services:
 
   recipes_api:
     hostname: recipes-api
-    image: quay.io/caugello/macmac-base:dev
+    build:
+      context: .
+      dockerfile: Containerfile
+      target: recipes
+    image: quay.io/caugello/macmac-recipes:dev
     working_dir: /opt/app-root/src
     volumes:
       - .:/opt/app-root/src
@@ -282,7 +254,7 @@ services:
       # Redis config from config.yaml (host: redis, port: 6379, db: 0)
     ports:
       - 8001:8001
-    command: uvicorn services.recipes.main:app --reload --host 0.0.0.0 --port 8001
+    command: uvicorn services.recipes.main:app --reload --reload-dir services --reload-dir config.yaml --host 0.0.0.0 --port 8001
     depends_on:
       redis:
         condition: service_healthy
@@ -291,7 +263,11 @@ services:
 
   catalog_api:
     hostname: catalog-api
-    image: quay.io/caugello/macmac-base:dev
+    build:
+      context: .
+      dockerfile: Containerfile
+      target: catalog
+    image: quay.io/caugello/macmac-catalog:dev
     working_dir: /opt/app-root/src
     volumes:
       - .:/opt/app-root/src
@@ -301,7 +277,7 @@ services:
       # Redis config from config.yaml (host: redis, port: 6379, db: 0)
     ports:
       - 8002:8002
-    command: uvicorn services.catalog.main:app --reload --host 0.0.0.0 --port 8002
+    command: uvicorn services.catalog.main:app --reload --reload-dir services --reload-dir config.yaml --host 0.0.0.0 --port 8002
     depends_on:
       redis:
         condition: service_healthy
@@ -312,7 +288,8 @@ services:
     hostname: catalog-enricher
     build:
       context: .
-      dockerfile: Containerfile.enricher
+      dockerfile: Containerfile
+      target: enricher
     image: quay.io/caugello/macmac-enricher:dev
     working_dir: /opt/app-root/src
     volumes:
@@ -332,7 +309,11 @@ services:
 
   meal_plans_api:
     hostname: meal-plans-api
-    image: quay.io/caugello/macmac-base:dev
+    build:
+      context: .
+      dockerfile: Containerfile
+      target: meal-plans
+    image: quay.io/caugello/macmac-meal-plans:dev
     working_dir: /opt/app-root/src
     volumes:
       - .:/opt/app-root/src
@@ -342,7 +323,7 @@ services:
       # Redis config from config.yaml (host: redis, port: 6379, db: 0)
     ports:
       - 8003:8003
-    command: uvicorn services.meal_plans.main:app --reload --host 0.0.0.0 --port 8003
+    command: uvicorn services.meal_plans.main:app --reload --reload-dir services --reload-dir config.yaml --host 0.0.0.0 --port 8003
     depends_on:
       redis:
         condition: service_healthy

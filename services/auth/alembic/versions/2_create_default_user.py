@@ -31,18 +31,11 @@ def upgrade() -> None:
     existing_user = result.fetchone()
 
     if not existing_user:
-        # Import bcrypt to hash password
-        import bcrypt
-
-        password_hash = bcrypt.hashpw(b"test", bcrypt.gensalt()).decode("utf-8")
-
-        # Generate UUIDs for user and group
         import uuid
 
         user_id = str(uuid.uuid4())
         group_id = str(uuid.uuid4())
 
-        # Insert user
         conn.execute(
             text("""
                 INSERT INTO users (id, username, email, hashed_password, is_active)
@@ -52,7 +45,7 @@ def upgrade() -> None:
                 "id": user_id,
                 "username": "christophe",
                 "email": "christophe@example.com",
-                "hashed_password": password_hash,
+                "hashed_password": "placeholder-removed-by-next-migration",
                 "is_active": True,
             },
         )

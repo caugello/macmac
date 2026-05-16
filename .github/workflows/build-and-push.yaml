@@ -1,4 +1,4 @@
-name: Build and Push Image
+name: Build and Push Images
 on:
   workflow_run:
     workflows: ["Test and Lint"]
@@ -10,12 +10,44 @@ on:
 
 jobs:
   build:
-    name: Build and push image
+    name: Build and push ${{ matrix.image }}
     runs-on: ubuntu-22.04
     if: >
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'push' ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+
+    strategy:
+      matrix:
+        include:
+          - image: macmac-gateway
+            context: .
+            containerfile: ./Containerfile
+            target: gateway
+          - image: macmac-recipes
+            context: .
+            containerfile: ./Containerfile
+            target: recipes
+          - image: macmac-catalog
+            context: .
+            containerfile: ./Containerfile
+            target: catalog
+          - image: macmac-meal-plans
+            context: .
+            containerfile: ./Containerfile
+            target: meal-plans
+          - image: macmac-auth
+            context: .
+            containerfile: ./Containerfile
+            target: auth
+          - image: macmac-enricher
+            context: .
+            containerfile: ./Containerfile
+            target: enricher
+          - image: macmac-frontend
+            context: ./frontend
+            containerfile: ./frontend/Dockerfile
+            target: ""
 
     steps:
       - uses: actions/checkout@v4
@@ -24,13 +56,13 @@ jobs:
         id: build-image
         uses: redhat-actions/buildah-build@v2
         with:
-          image: macmac-base
+          image: ${{ matrix.image }}
           tags: latest ${{ github.sha }}
+          context: ${{ matrix.context }}
           containerfiles: |
-            ./Containerfile
+            ${{ matrix.containerfile }}
+          build-args: ${{ matrix.target && format('--target={0}', matrix.target) || '' }}
 
-      # Podman Login action (https://github.com/redhat-actions/podman-login) also be used to log in,
-      # in which case 'username' and 'password' can be omitted.
       - name: Push To quay.io
         id: push-to-quay
         uses: redhat-actions/push-to-registry@v2

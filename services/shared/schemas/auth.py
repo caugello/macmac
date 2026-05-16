@@ -3,21 +3,10 @@ import re
 from pydantic import UUID4, BaseModel, EmailStr, Field, field_validator
 
 
-class LoginRequest(BaseModel):
-    """Request body for login"""
+class FirebaseLoginRequest(BaseModel):
+    """Request body for Firebase authentication"""
 
-    username: str = Field(..., min_length=3, max_length=50, description="Username")
-    password: str = Field(..., min_length=1, max_length=128, description="Password")
-
-    @field_validator("username")
-    @classmethod
-    def validate_username(cls, v: str) -> str:
-        # Allow alphanumeric, underscore, hyphen, and dot
-        if not re.match(r"^[a-zA-Z0-9._-]+$", v):
-            raise ValueError(
-                "Username can only contain letters, numbers, dots, underscores, and hyphens"
-            )
-        return v.lower()  # Normalize to lowercase
+    id_token: str = Field(..., min_length=1, description="Firebase ID token from Google sign-in")
 
 
 class UserOut(BaseModel):

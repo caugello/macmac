@@ -71,14 +71,12 @@ class JwtConfig:
 
 
 @dataclass
-class KeycloakConfig:
+class FirebaseConfig:
     """
-    Represents Keycloak configuration.
+    Represents Firebase configuration.
     """
 
-    url: str
-    realm: str
-    client_id: str
+    project_id: str
 
 
 @dataclass
@@ -88,7 +86,7 @@ class AuthConfig:
     """
 
     jwt: JwtConfig
-    keycloak: KeycloakConfig
+    firebase: FirebaseConfig
 
 
 @dataclass
@@ -335,10 +333,8 @@ def parse_auth_config(auth_data: dict) -> AuthConfig:
             algorithm=auth_data["jwt"]["algorithm"],
             access_token_expire_minutes=auth_data["jwt"]["access_token_expire_minutes"],
         ),
-        keycloak=KeycloakConfig(
-            url=auth_data["keycloak"]["url"],
-            realm=auth_data["keycloak"]["realm"],
-            client_id=auth_data["keycloak"]["client_id"],
+        firebase=FirebaseConfig(
+            project_id=auth_data["firebase"]["project_id"],
         ),
     )
 

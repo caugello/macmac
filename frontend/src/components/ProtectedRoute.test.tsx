@@ -4,13 +4,9 @@ import { BrowserRouter } from 'react-router-dom'
 import { ProtectedRoute } from './ProtectedRoute'
 // Mock useAuth hook
 const mockUseAuth = vi.fn()
-vi.mock('@/contexts/AuthContext', async () => {
-  const actual = await vi.importActual('@/contexts/AuthContext')
-  return {
-    ...actual,
-    useAuth: () => mockUseAuth(),
-  }
-})
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => mockUseAuth(),
+}))
 
 // Mock Navigate component
 const mockNavigate = vi.fn()

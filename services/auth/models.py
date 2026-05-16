@@ -23,21 +23,15 @@ user_groups = Table(
 
 
 class User(BaseModel, Base):
-    """User account - MVP uses hardcoded credentials, future: Keycloak sync"""
+    """User account synced from Firebase Authentication"""
 
     __tablename__ = "users"
 
     username = Column(String(100), unique=True, nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
 
-    # MVP: store hashed password (bcrypt)
-    # Future: remove when Keycloak integration complete
-    hashed_password = Column(String(255), nullable=True)
+    firebase_uid = Column(String(255), unique=True, nullable=True, index=True)
 
-    # Keycloak integration fields (for future use)
-    keycloak_id = Column(String(255), unique=True, nullable=True, index=True)
-
-    # Active flag for soft delete
     is_active = Column(Boolean, default=True, nullable=False)
 
     # Relationships
