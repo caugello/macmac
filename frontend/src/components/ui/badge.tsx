@@ -14,6 +14,11 @@ const badgeVariants = cva(
         destructive:
           'border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80',
         outline: 'text-foreground',
+        'nutri-a': 'bg-nutri-a text-white border-transparent',
+        'nutri-b': 'bg-nutri-b text-white border-transparent',
+        'nutri-c': 'bg-nutri-c text-black border-transparent',
+        'nutri-d': 'bg-nutri-d text-white border-transparent',
+        'nutri-e': 'bg-nutri-e text-white border-transparent',
       },
     },
     defaultVariants: {

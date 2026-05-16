@@ -50,7 +50,7 @@ describe('Button Component', () => {
     it('should apply ghost variant', () => {
       render(<Button variant="ghost">Ghost</Button>)
       const button = screen.getByRole('button')
-      expect(button.className).toContain('hover:bg-accent')
+      expect(button.className).toContain('hover:bg-surface-variant')
     })
 
     it('should apply link variant', () => {
@@ -64,7 +64,7 @@ describe('Button Component', () => {
     it('should apply default size', () => {
       render(<Button>Default Size</Button>)
       const button = screen.getByRole('button')
-      expect(button.className).toContain('h-10')
+      expect(button.className).toContain('h-12')
     })
 
     it('should apply sm size', () => {

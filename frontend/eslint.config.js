@@ -7,7 +7,7 @@ import reactRefreshPlugin from "eslint-plugin-react-refresh";
 import globals from "globals";
 
 export default [
-  { ignores: ["dist/", "coverage/"] },
+  { ignores: ["dist/", "coverage/", ".vite/"] },
   js.configs.recommended,
   {
     files: ["**/*.{ts,tsx}"],

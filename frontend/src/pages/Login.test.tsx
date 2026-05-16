@@ -20,11 +20,10 @@ describe('Login Page', () => {
     it('should render login form', () => {
       render(<Login />)
 
-      expect(screen.getByText('Welcome to MacMac')).toBeInTheDocument()
-      expect(screen.getByText('Sign in to manage your recipes and meal plans')).toBeInTheDocument()
+      expect(screen.getByText('Welcome to your digital pantry.')).toBeInTheDocument()
       expect(screen.getByLabelText('Username')).toBeInTheDocument()
       expect(screen.getByLabelText('Password')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /log in/i })).toBeInTheDocument()
     })
 
     it('should render demo credentials hint', () => {
@@ -95,7 +94,7 @@ describe('Login Page', () => {
 
       const usernameInput = screen.getByLabelText('Username')
       const passwordInput = screen.getByLabelText('Password')
-      const submitButton = screen.getByRole('button', { name: /sign in/i })
+      const submitButton = screen.getByRole('button', { name: /log in/i })
 
       await user.type(usernameInput, 'testuser')
       await user.type(passwordInput, 'testpassword')
@@ -121,7 +120,7 @@ describe('Login Page', () => {
 
       await user.type(usernameInput, 'test')
       await user.type(passwordInput, 'pass')
-      await user.click(screen.getByRole('button', { name: /sign in/i }))
+      await user.click(screen.getByRole('button', { name: /log in/i }))
 
       expect(submitHandler).toHaveBeenCalled()
     })
@@ -141,7 +140,7 @@ describe('Login Page', () => {
 
       const usernameInput = screen.getByLabelText('Username')
       const passwordInput = screen.getByLabelText('Password')
-      const submitButton = screen.getByRole('button', { name: /sign in/i })
+      const submitButton = screen.getByRole('button', { name: /log in/i })
 
       await user.type(usernameInput, 'test')
       await user.type(passwordInput, 'pass')
@@ -168,7 +167,7 @@ describe('Login Page', () => {
 
       const usernameInput = screen.getByLabelText('Username') as HTMLInputElement
       const passwordInput = screen.getByLabelText('Password') as HTMLInputElement
-      const submitButton = screen.getByRole('button', { name: /sign in/i }) as HTMLButtonElement
+      const submitButton = screen.getByRole('button', { name: /log in/i }) as HTMLButtonElement
 
       await user.type(usernameInput, 'test')
       await user.type(passwordInput, 'pass')
@@ -192,7 +191,7 @@ describe('Login Page', () => {
 
       const usernameInput = screen.getByLabelText('Username') as HTMLInputElement
       const passwordInput = screen.getByLabelText('Password') as HTMLInputElement
-      const submitButton = screen.getByRole('button', { name: /sign in/i }) as HTMLButtonElement
+      const submitButton = screen.getByRole('button', { name: /log in/i }) as HTMLButtonElement
 
       await user.type(usernameInput, 'test')
       await user.type(passwordInput, 'pass')
@@ -228,7 +227,7 @@ describe('Login Page', () => {
 
       const usernameInput = screen.getByLabelText('Username')
       const passwordInput = screen.getByLabelText('Password')
-      const submitButton = screen.getByRole('button', { name: /sign in/i })
+      const submitButton = screen.getByRole('button', { name: /log in/i })
 
       await user.type(usernameInput, 'wrong')
       await user.type(passwordInput, 'credentials')
@@ -252,7 +251,7 @@ describe('Login Page', () => {
 
       const usernameInput = screen.getByLabelText('Username')
       const passwordInput = screen.getByLabelText('Password')
-      const submitButton = screen.getByRole('button', { name: /sign in/i })
+      const submitButton = screen.getByRole('button', { name: /log in/i })
 
       await user.type(usernameInput, 'test')
       await user.type(passwordInput, 'pass')
@@ -283,7 +282,7 @@ describe('Login Page', () => {
 
       const usernameInput = screen.getByLabelText('Username')
       const passwordInput = screen.getByLabelText('Password')
-      const submitButton = screen.getByRole('button', { name: /sign in/i })
+      const submitButton = screen.getByRole('button', { name: /log in/i })
 
       // First failed attempt
       await user.type(usernameInput, 'wrong')
@@ -321,7 +320,7 @@ describe('Login Page', () => {
 
       const usernameInput = screen.getByLabelText('Username')
       const passwordInput = screen.getByLabelText('Password')
-      const submitButton = screen.getByRole('button', { name: /sign in/i })
+      const submitButton = screen.getByRole('button', { name: /log in/i })
 
       await user.type(usernameInput, 'test')
       await user.type(passwordInput, 'pass')

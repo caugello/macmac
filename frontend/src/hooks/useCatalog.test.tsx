@@ -69,6 +69,9 @@ describe('useCatalogItem', () => {
       currency: null,
       category: null,
       nutrition: null,
+      nutriscore: null,
+      nutriscore_svg: null,
+      promotion_until_date: null,
       created_at: '',
       updated_at: '',
     }

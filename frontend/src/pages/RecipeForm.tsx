@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { IngredientEditor } from '@/components/recipes/IngredientEditor'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Icon } from '@/components/ui/icon'
 
 export const RecipeForm = () => {
   const { id } = useParams<{ id: string }>()
@@ -24,12 +24,10 @@ export const RecipeForm = () => {
   const updateRecipe = useUpdateRecipe()
   const { data: existingRecipe, isLoading } = useRecipe(id || '')
 
-  // Load existing recipe data when in edit mode
   useEffect(() => {
     if (existingRecipe) {
       setTitle(existingRecipe.title)
       setDescription(existingRecipe.description || '')
-      // Convert IngredientOut to IngredientCreate with display data
       setIngredients(
         existingRecipe.ingredients.map((ing) => ({
           catalog_item_id: ing.catalog_item_id,
@@ -59,7 +57,6 @@ export const RecipeForm = () => {
       .map((s) => s.trim())
       .filter((s) => s.length > 0)
 
-    // Strip _catalog_item helper before submitting
     const cleanIngredients: IngredientCreate[] = ingredients.map(
       ({ catalog_item_id, qty, unit }) => ({
         catalog_item_id,
@@ -99,26 +96,39 @@ export const RecipeForm = () => {
 
   if (isEditMode && isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[400px]">
-        <p className="text-gray-400">Loading recipe...</p>
+      <div className="max-w-3xl mx-auto px-4 md:px-12 pt-6 pb-12">
+        <div className="h-8 w-48 rounded skeleton-shimmer mb-8" />
+        <div className="aspect-video rounded-lg skeleton-shimmer mb-8" />
+        <div className="space-y-4">
+          <div className="h-14 rounded skeleton-shimmer" />
+          <div className="h-24 rounded skeleton-shimmer" />
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-3xl">
-      <h1 className="text-3xl font-bold mb-6 text-white">
+    <div className="max-w-3xl mx-auto px-4 md:px-12 pt-6 pb-12">
+      <h1 className="text-headline-xl font-heading font-bold mb-8">
         {isEditMode ? 'Edit Recipe' : 'Create Recipe'}
       </h1>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Card className="bg-[#141824] border-gray-800">
-          <CardHeader>
-            <CardTitle className="text-white">Basic Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+      {/* Image placeholder */}
+      <div className="w-full aspect-video rounded-lg dashed-outline bg-surface-container-low flex flex-col items-center justify-center gap-2 cursor-pointer mb-8 hover:bg-surface-container transition-colors">
+        <Icon name="add_a_photo" size={48} className="text-on-surface-variant/40" />
+        <span className="text-label-md text-on-surface-variant">Add a photo</span>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-8">
+        {/* General Information */}
+        <div className="bg-surface-container-lowest wireframe-border rounded-lg p-6">
+          <h2 className="text-headline-md font-heading font-semibold mb-4">General Information</h2>
+          <div className="space-y-4">
             <div>
-              <label htmlFor="title" className="block text-sm font-medium mb-2 text-gray-300">
+              <label
+                htmlFor="title"
+                className="block text-label-md font-semibold mb-2 text-on-surface"
+              >
                 Recipe Title *
               </label>
               <Input
@@ -129,12 +139,14 @@ export const RecipeForm = () => {
                 required
                 minLength={2}
                 maxLength={200}
-                className="bg-[#0a0e1a] border-gray-700 text-white placeholder:text-gray-500"
               />
             </div>
 
             <div>
-              <label htmlFor="description" className="block text-sm font-medium mb-2 text-gray-300">
+              <label
+                htmlFor="description"
+                className="block text-label-md font-semibold mb-2 text-on-surface"
+              >
                 Description
               </label>
               <Textarea
@@ -143,44 +155,37 @@ export const RecipeForm = () => {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
-                className="bg-[#0a0e1a] border-gray-700 text-white placeholder:text-gray-500"
               />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card className="bg-[#141824] border-gray-800">
-          <CardHeader>
-            <CardTitle className="text-white">Ingredients *</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <IngredientEditor ingredients={ingredients} onChange={setIngredients} />
-          </CardContent>
-        </Card>
+        {/* Ingredients */}
+        <div className="bg-surface-container-lowest wireframe-border rounded-lg p-6">
+          <h2 className="text-headline-md font-heading font-semibold mb-4">Ingredients *</h2>
+          <IngredientEditor ingredients={ingredients} onChange={setIngredients} />
+        </div>
 
-        <Card className="bg-[#141824] border-gray-800">
-          <CardHeader>
-            <CardTitle className="text-white">Steps</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Textarea
-              placeholder="Enter each step on a new line..."
-              value={stepsText}
-              onChange={(e) => setStepsText(e.target.value)}
-              rows={6}
-              className="bg-[#0a0e1a] border-gray-700 text-white placeholder:text-gray-500"
-            />
-            <p className="text-sm text-gray-400 mt-2">
-              Enter each step on a new line. Leave blank if not needed.
-            </p>
-          </CardContent>
-        </Card>
+        {/* Steps */}
+        <div className="bg-surface-container-lowest wireframe-border rounded-lg p-6">
+          <h2 className="text-headline-md font-heading font-semibold mb-4">Steps</h2>
+          <Textarea
+            placeholder="Enter each step on a new line..."
+            value={stepsText}
+            onChange={(e) => setStepsText(e.target.value)}
+            rows={6}
+          />
+          <p className="text-label-sm text-on-surface-variant mt-2">
+            Enter each step on a new line. Leave blank if not needed.
+          </p>
+        </div>
 
-        <div className="flex gap-4">
+        {/* Buttons */}
+        <div className="flex flex-col gap-3">
           <Button
             type="submit"
             disabled={createRecipe.isPending || updateRecipe.isPending}
-            className="bg-[#00CEB8] hover:bg-[#00b8a5] text-black font-semibold"
+            className="w-full rounded-full h-14 text-lg font-semibold"
           >
             {isEditMode
               ? updateRecipe.isPending
@@ -194,7 +199,7 @@ export const RecipeForm = () => {
             type="button"
             variant="outline"
             onClick={() => navigate(isEditMode ? `/recipes/${id}` : '/recipes')}
-            className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
+            className="w-full rounded-full h-14 border-outline-variant"
           >
             Cancel
           </Button>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
-import { Search } from 'lucide-react'
+import { Icon } from '@/components/ui/icon'
 
 interface SearchBarProps {
   value: string
@@ -31,13 +31,17 @@ export const SearchBar = ({
 
   return (
     <div className="relative">
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+      <Icon
+        name="search"
+        size={20}
+        className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant"
+      />
       <Input
         type="text"
         value={localValue}
         onChange={(e) => setLocalValue(e.target.value)}
         placeholder={placeholder}
-        className="pl-10 bg-[#141824] border-gray-700 text-white placeholder:text-gray-500"
+        className="pl-12 h-14 rounded bg-surface-container-lowest border-outline-variant text-on-surface placeholder:text-on-surface-variant"
       />
     </div>
   )

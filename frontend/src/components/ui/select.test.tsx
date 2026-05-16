@@ -177,7 +177,7 @@ describe('Select Component', () => {
       const select = screen.getByRole('combobox')
       expect(select).toHaveClass('custom-class')
       expect(select).toHaveClass('flex')
-      expect(select).toHaveClass('h-10')
+      expect(select).toHaveClass('h-14')
     })
   })
 

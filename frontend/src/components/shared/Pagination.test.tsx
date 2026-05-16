@@ -28,9 +28,8 @@ describe('Pagination Component', () => {
         <Pagination total={50} limit={10} page={0} onPageChange={onPageChange} />
       )
 
-      // Check for ChevronLeft and ChevronRight icons (SVGs)
-      const svgs = container.querySelectorAll('svg')
-      expect(svgs.length).toBeGreaterThanOrEqual(2)
+      const icons = container.querySelectorAll('.material-symbols-outlined')
+      expect(icons.length).toBeGreaterThanOrEqual(2)
     })
 
     it('should render page numbers', () => {
@@ -46,7 +45,7 @@ describe('Pagination Component', () => {
       render(<Pagination total={50} limit={10} page={2} onPageChange={onPageChange} />)
 
       const currentPageButton = screen.getByRole('button', { name: '3' })
-      expect(currentPageButton.className).toContain('bg-[#00CEB8]')
+      expect(currentPageButton.className).toContain('bg-primary')
     })
   })
 

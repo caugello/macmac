@@ -1,0 +1,18 @@
+# Build stage — Node 24 required by package.json engines
+FROM node:24-alpine AS build
+
+WORKDIR /opt/app-root/src
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# Production stage — UBI9 nginx for OpenShift
+FROM registry.access.redhat.com/ubi9/nginx-124
+
+COPY --from=build /opt/app-root/src/dist .
+COPY nginx-openshift.conf "${NGINX_CONF_PATH}"
+
+EXPOSE 8080
+
+CMD ["nginx", "-g", "daemon off;"]

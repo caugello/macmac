@@ -1,7 +1,5 @@
 import { useState } from 'react'
-import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Plus, X } from 'lucide-react'
+import { Icon } from '@/components/ui/icon'
 import { useCreateMealPlan, useDeleteMealPlan } from '@/hooks/useMealPlans'
 import { RecipeSelectorModal } from './RecipeSelectorModal'
 import type { MealPlanOut, MealTypeEnum } from '@/lib/types'
@@ -34,35 +32,33 @@ export const MealSlot = ({ date, mealType, mealPlan }: MealSlotProps) => {
 
   return (
     <>
-      <Card
-        className={`
-          h-24 p-2 flex flex-col justify-between cursor-pointer
-          ${mealPlan ? 'bg-[#1a2332] border-[#00CEB8]' : 'bg-[#0f1419] border-gray-700'}
-          hover:border-[#00CEB8] transition-colors
-        `}
-        onClick={() => !mealPlan && setShowSelector(true)}
-      >
-        {mealPlan ? (
-          <>
-            <div className="text-sm text-white truncate">{mealPlan.recipe_title}</div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation()
-                handleDelete()
-              }}
-              className="self-end p-1 h-6 w-6"
-            >
-              <X className="h-4 w-4 text-red-400" />
-            </Button>
-          </>
-        ) : (
-          <div className="flex items-center justify-center h-full text-gray-500">
-            <Plus className="h-6 w-6" />
+      {mealPlan ? (
+        <div className="flex items-center gap-3 bg-surface rounded-lg wireframe-border p-3 card-hover-shadow group">
+          <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-surface-container-low to-surface-container flex items-center justify-center shrink-0 overflow-hidden">
+            <Icon name="restaurant_menu" size={24} className="text-outline-variant/40" />
           </div>
-        )}
-      </Card>
+          <div className="flex-grow min-w-0">
+            <p className="text-label-md font-semibold text-on-surface truncate">
+              {mealPlan.recipe_title || 'Untitled'}
+            </p>
+            <p className="text-label-sm text-on-surface-variant">Ready to cook</p>
+          </div>
+          <button
+            onClick={handleDelete}
+            className="p-1.5 text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+          >
+            <Icon name="close" size={18} />
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setShowSelector(true)}
+          className="w-full dashed-outline rounded-lg p-4 flex items-center justify-center gap-2 text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
+        >
+          <Icon name="add_circle" size={20} />
+          <span className="text-label-sm">Add meal</span>
+        </button>
+      )}
 
       {showSelector && (
         <RecipeSelectorModal
