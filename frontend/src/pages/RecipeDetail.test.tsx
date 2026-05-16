@@ -56,15 +56,15 @@ describe('RecipeDetail Page', () => {
   })
 
   describe('loading state', () => {
-    it('should show loading message', () => {
+    it('should show loading skeleton', () => {
       mockUseRecipe.mockReturnValue({
         data: null,
         isLoading: true,
         error: null,
       })
 
-      render(<RecipeDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText('Loading recipe...')).toBeInTheDocument()
+      const { container } = render(<RecipeDetail />, { wrapper: createWrapper() })
+      expect(container.querySelector('.skeleton-shimmer')).toBeInTheDocument()
     })
   })
 
@@ -172,7 +172,7 @@ describe('RecipeDetail Page', () => {
 
     it('should render update date', () => {
       render(<RecipeDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText(/Last updated:/)).toBeInTheDocument()
+      expect(screen.getByText(/Updated:/)).toBeInTheDocument()
     })
 
     it('should render Back button', () => {

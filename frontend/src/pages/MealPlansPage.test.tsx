@@ -69,7 +69,7 @@ describe('MealPlansPage', () => {
     it('should apply spacing between components', () => {
       const { container } = render(<MealPlansPage />, { wrapper: createWrapper() })
       const mainDiv = container.firstChild as HTMLElement
-      expect(mainDiv).toHaveClass('space-y-8')
+      expect(mainDiv).toHaveClass('space-y-6')
     })
   })
 })

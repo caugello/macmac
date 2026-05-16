@@ -150,7 +150,7 @@ describe('Input Component', () => {
       render(<Input className="custom-input" />)
       const input = screen.getByRole('textbox')
       expect(input.className).toContain('custom-input')
-      expect(input.className).toContain('rounded-md') // Default class
+      expect(input.className).toContain('rounded') // Default class
     })
   })
 

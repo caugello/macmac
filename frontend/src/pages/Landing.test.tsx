@@ -11,15 +11,13 @@ describe('Landing Page', () => {
   describe('rendering', () => {
     it('should render hero section', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText(/Your AI-Powered/i)).toBeInTheDocument()
-      expect(screen.getAllByText(/Meal Prep Revolution/i).length).toBeGreaterThan(0)
+      expect(screen.getByText(/Your Digital/i)).toBeInTheDocument()
+      expect(screen.getAllByText(/Pantry/i).length).toBeGreaterThan(0)
     })
 
     it('should render hero description', () => {
       renderWithRouter(<Landing />)
-      expect(
-        screen.getByText(/Intelligent meal planning meets effortless grocery shopping/i)
-      ).toBeInTheDocument()
+      expect(screen.getByText(/A warm, organized space for your family/i)).toBeInTheDocument()
     })
 
     it('should render Get Started Free button', () => {
@@ -28,19 +26,16 @@ describe('Landing Page', () => {
       expect(buttons.length).toBeGreaterThan(0)
     })
 
-    it('should render Learn Course button', () => {
+    it('should render Learn More button', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText('Learn Course')).toBeInTheDocument()
+      expect(screen.getByText('Learn More')).toBeInTheDocument()
     })
   })
 
   describe('features section', () => {
-    it('should render AI-Personalized Plans feature', () => {
+    it('should render Smart Meal Plans feature', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText('AI-Personalized Plans')).toBeInTheDocument()
-      expect(
-        screen.getByText(/Get custom meal plans tailored to your preferences/i)
-      ).toBeInTheDocument()
+      expect(screen.getByText('Smart Meal Plans')).toBeInTheDocument()
     })
 
     it('should render Smart Grocery Lists feature', () => {
@@ -57,12 +52,10 @@ describe('Landing Page', () => {
       expect(screen.getByText(/Plan smarter, waste less/i)).toBeInTheDocument()
     })
 
-    it('should render Calorie Tracking feature', () => {
+    it('should render Nutrition Tracking feature', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText('Calorie Tracking & Nutrition')).toBeInTheDocument()
-      expect(
-        screen.getByText(/Monitor your nutrition intake with detailed tracking/i)
-      ).toBeInTheDocument()
+      expect(screen.getByText('Nutrition Tracking')).toBeInTheDocument()
+      expect(screen.getByText(/Monitor your nutrition intake/i)).toBeInTheDocument()
     })
   })
 
@@ -75,27 +68,27 @@ describe('Landing Page', () => {
 
     it('should render step 1', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText('1. Visualize Meal')).toBeInTheDocument()
-      expect(screen.getByText(/Browse recipes or let AI suggest meals/i)).toBeInTheDocument()
+      expect(screen.getByText('1. Browse Recipes')).toBeInTheDocument()
+      expect(screen.getByText(/Browse your collection or create new recipes/i)).toBeInTheDocument()
     })
 
     it('should render step 2', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText('2. AI Builds a Meal Plan')).toBeInTheDocument()
-      expect(screen.getByText(/Smart algorithm creates balanced meal plans/i)).toBeInTheDocument()
+      expect(screen.getByText('2. Plan Your Week')).toBeInTheDocument()
+      expect(screen.getByText(/Drag recipes into your weekly meal calendar/i)).toBeInTheDocument()
     })
 
     it('should render step 3', () => {
       renderWithRouter(<Landing />)
       expect(screen.getByText('3. Get Smart Lists')).toBeInTheDocument()
       expect(
-        screen.getByText(/Auto-generated shopping lists with price comparisons/i)
+        screen.getByText(/Auto-generated shopping lists aggregated by category/i)
       ).toBeInTheDocument()
     })
 
     it('should render step 4', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText('4. Cook Meals')).toBeInTheDocument()
+      expect(screen.getByText('4. Cook & Enjoy')).toBeInTheDocument()
       expect(
         screen.getByText(/Follow step-by-step instructions and enjoy delicious homemade meals/i)
       ).toBeInTheDocument()
@@ -105,13 +98,13 @@ describe('Landing Page', () => {
   describe('CTA section', () => {
     it('should render CTA heading', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText(/Get Access to/i)).toBeInTheDocument()
-      expect(screen.getByText(/on the Web/i)).toBeInTheDocument()
+      expect(screen.getByText(/Digital Pantry/i)).toBeInTheDocument()
+      expect(screen.getByText(/Awaits/i)).toBeInTheDocument()
     })
 
     it('should render CTA description', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText(/Start your meal prep revolution today/i)).toBeInTheDocument()
+      expect(screen.getByText(/Start your meal planning journey today/i)).toBeInTheDocument()
     })
   })
 

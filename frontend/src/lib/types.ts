@@ -73,6 +73,9 @@ export interface CatalogItemCreate {
   currency?: string
   category?: string
   nutrition?: NutritionData
+  nutriscore?: string
+  nutriscore_svg?: string
+  promotion_until_date?: string
 }
 
 export interface NutritionData {
@@ -102,6 +105,9 @@ export interface CatalogItemOut {
   currency: string | null
   category: string | null
   nutrition: NutritionData | null
+  nutriscore: string | null
+  nutriscore_svg: string | null
+  promotion_until_date: string | null
   created_at: string
   updated_at: string
 }

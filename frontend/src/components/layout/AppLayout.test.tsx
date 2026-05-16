@@ -53,15 +53,15 @@ describe('AppLayout Component', () => {
     expect(main).toHaveTextContent('Content')
   })
 
-  it('should apply dark background styling', () => {
+  it('should apply background styling', () => {
     const { container } = renderWithRouter(
       <AppLayout>
         <div>Content</div>
       </AppLayout>
     )
     const wrapper = container.querySelector('.min-h-screen')
-    expect(wrapper).toHaveClass('bg-[#0a0e1a]')
-    expect(wrapper).toHaveClass('text-white')
+    expect(wrapper).toHaveClass('bg-background')
+    expect(wrapper).toHaveClass('text-foreground')
   })
 
   it('should render multiple children', () => {

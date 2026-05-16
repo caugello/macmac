@@ -42,9 +42,8 @@ describe('SearchBar Component', () => {
       const onChange = vi.fn()
       const { container } = render(<SearchBar value="" onChange={onChange} />)
 
-      // lucide-react renders an SVG
-      const svg = container.querySelector('svg')
-      expect(svg).toBeInTheDocument()
+      const icon = container.querySelector('.material-symbols-outlined')
+      expect(icon).toBeInTheDocument()
     })
   })
 
