@@ -195,6 +195,14 @@ services:
         handler: services.recipes.crud.delete_recipe
         response_model: services.shared.schemas.generic.DeleteResponse
         tags: [recipes]
+      - name: batch_get_recipes
+        description: Batch fetch recipes by IDs
+        method: post
+        path: /recipes/batch
+        handler: services.recipes.crud.batch_get_recipes
+        request_model: services.shared.schemas.recipe.BatchRecipeRequest
+        response_model: services.shared.schemas.recipe.BatchRecipeResponse
+        tags: [recipes]
   catalog:
     name: catalog
     title: catalog API
@@ -248,6 +256,14 @@ services:
         handler: services.catalog.crud.get_catalog_item
         response_model: services.shared.schemas.catalog.CatalogItemOut
         description: Get a single catalog item
+        tags: [catalog]
+      - name: batch_get_catalog_items
+        method: post
+        path: /catalog/batch
+        handler: services.catalog.crud.batch_get_catalog_items
+        request_model: services.shared.schemas.catalog.BatchCatalogRequest
+        response_model: services.shared.schemas.catalog.BatchCatalogResponse
+        description: Batch fetch catalog items by IDs
         tags: [catalog]
     dependencies:
       - name: crawler

@@ -8,7 +8,6 @@ from fastapi import Request
 from services.config import Route
 from services.framework.helpers import (
     _run,
-    bind_arguments,
     build_body_handler,
     build_query_handler,
     make_endpoint,
@@ -100,42 +99,6 @@ async def test_run_sync_handler():
 
 
 @pytest.mark.unit
-def test_bind_arguments_with_data():
-    """Test binding arguments with request data."""
-    handler = MagicMock()
-    request = MagicMock(spec=Request)
-    request.path_params = {"id": "123"}
-
-    bind_arguments(request, {"name": "test"}, "db_session", handler, None)
-
-    handler.assert_called_once_with({"name": "test"}, "123", "db_session")
-
-
-@pytest.mark.unit
-def test_bind_arguments_with_query_params():
-    """Test binding arguments with query parameters."""
-    handler = MagicMock()
-    request = MagicMock(spec=Request)
-    request.path_params = {}
-
-    bind_arguments(request, None, "db_session", handler, {"limit": 10})
-
-    handler.assert_called_once_with("db_session", limit=10)
-
-
-@pytest.mark.unit
-def test_bind_arguments_no_db():
-    """Test binding arguments without db session."""
-    handler = MagicMock()
-    request = MagicMock(spec=Request)
-    request.path_params = {}
-
-    bind_arguments(request, None, None, handler, None)
-
-    handler.assert_called_once_with()
-
-
-@pytest.mark.unit
 def test_build_body_handler():
     """Test building a body handler."""
     from pydantic import BaseModel
@@ -146,7 +109,7 @@ def test_build_body_handler():
     handler = MagicMock(return_value={"created": True})
     get_db = MagicMock()
 
-    endpoint = build_body_handler(TestModel, handler, get_db, None)
+    endpoint = build_body_handler(TestModel, handler, get_db)
 
     assert callable(endpoint)
 
@@ -232,7 +195,7 @@ async def test_build_body_handler_execution():
     def get_db():
         return "db_session"
 
-    endpoint = build_body_handler(TestModel, mock_handler, get_db, None)
+    endpoint = build_body_handler(TestModel, mock_handler, get_db)
 
     # Create a mock request
     request = MagicMock(spec=Request)
@@ -260,7 +223,7 @@ async def test_build_body_handler_with_path_params():
     def get_db():
         return "db_session"
 
-    endpoint = build_body_handler(TestModel, mock_handler, get_db, None)
+    endpoint = build_body_handler(TestModel, mock_handler, get_db)
 
     # Create request with path params
     request = MagicMock(spec=Request)
@@ -287,7 +250,7 @@ async def test_build_body_handler_async():
     def get_db():
         return "db_session"
 
-    endpoint = build_body_handler(TestModel, async_handler, get_db, None)
+    endpoint = build_body_handler(TestModel, async_handler, get_db)
 
     request = MagicMock(spec=Request)
     request.path_params = {}
@@ -295,16 +258,3 @@ async def test_build_body_handler_async():
     result = await endpoint(data=TestModel(name="test"), request=request, db="db_session")
 
     assert result == {"created": "test"}
-
-
-@pytest.mark.unit
-def test_bind_arguments_with_data_no_qp():
-    """Test bind_arguments with data but no query params."""
-    handler = MagicMock()
-    request = MagicMock(spec=Request)
-    request.path_params = {}
-
-    bind_arguments(request, {"data": "test"}, None, handler, {"limit": 10})
-
-    # When data is present, qp should NOT be passed
-    handler.assert_called_once_with({"data": "test"})

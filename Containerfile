@@ -48,6 +48,12 @@ RUN pip install --no-cache-dir -r requirements-auth.txt
 USER 1001
 EXPOSE 8004
 
+# ── Catalog Crawler ─────────────────────────────────────────
+FROM base AS crawler
+USER root
+RUN pip install --no-cache-dir -r requirements-messaging.txt
+USER 1001
+
 # ── Catalog Enricher ────────────────────────────────────────
 FROM registry.access.redhat.com/ubi9/python-312 AS enricher
 

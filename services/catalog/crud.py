@@ -11,6 +11,8 @@ from services.shared.schemas import catalog as rs
 
 from .models import CatalogItem
 
+HTTPX_TIMEOUT = 30.0
+
 # Load configuration
 config = get_config()
 
@@ -110,13 +112,27 @@ async def get_catalog_item(item_id: UUID4, db: Session) -> rs.CatalogItemOut:
         return rs.CatalogItemOut(**cached)
 
     with Span("db_query_catalog"):
-        recipe = db.query(CatalogItem).filter(CatalogItem.id == item_id).first()
-        if not recipe:
+        item = db.query(CatalogItem).filter(CatalogItem.id == item_id).first()
+        if not item:
             raise HTTPException(404, "CatalogItem not found")
 
-        result = rs.CatalogItemOut.model_validate(recipe)
+        result = rs.CatalogItemOut.model_validate(item)
 
         # Cache for configured TTL
         cache.set_json(cache_key, result, ttl=config.cache.ttl.catalog_detail)
 
         return result
+
+
+@traced
+async def batch_get_catalog_items(
+    data: rs.BatchCatalogRequest, db: Session
+) -> rs.BatchCatalogResponse:
+    """
+    Retrieves multiple catalog items by their IDs in a single query.
+    Returns a dict mapping item ID (string) to CatalogItemOut.
+    """
+    with Span("db_batch_catalog"):
+        items = db.query(CatalogItem).filter(CatalogItem.id.in_(data.ids)).all()
+        result = {str(item.id): rs.CatalogItemOut.model_validate(item) for item in items}
+        return rs.BatchCatalogResponse(items=result)

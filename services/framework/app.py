@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import APIRouter, FastAPI
 
 from services.config import get_config, get_config_for_service
@@ -5,8 +7,15 @@ from services.framework.auth_tracing import auth_tracing_middleware
 from services.framework.helpers import make_endpoint, resolve_handler
 from services.framework.logging import log_event
 from services.framework.tracing import tracing_middleware
+from services.shared.lib.http_client import close_http_client
 
 app_config = get_config()
+
+
+@asynccontextmanager
+async def lifespan(app):
+    yield
+    await close_http_client()
 
 
 def create_microservice(service_name: str, get_db=None) -> FastAPI:
@@ -17,7 +26,12 @@ def create_microservice(service_name: str, get_db=None) -> FastAPI:
     # Load config for service (recipes, catalog, pricing, etc)
     service = get_config_for_service(service_name)
 
-    app = FastAPI(title=f"{service.name} service", version="1.0", openapi_url="/openapi.json")
+    app = FastAPI(
+        title=f"{service.name} service",
+        version="1.0",
+        openapi_url="/openapi.json",
+        lifespan=lifespan,
+    )
 
     router = APIRouter()
 

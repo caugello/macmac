@@ -328,7 +328,7 @@ async def test_delete_recipe(mock_db):
     # Delete it
     result = await delete_recipe(created.id, mock_db)
 
-    assert result["message"] == "Recipe deleted successfully"
+    assert result.success is True
 
     # Verify it's gone
     with pytest.raises(HTTPException) as exc_info:

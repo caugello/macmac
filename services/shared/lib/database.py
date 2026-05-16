@@ -14,10 +14,9 @@ Usage in service db.py:
 """
 
 import os
-from collections.abc import Generator
 
 from sqlalchemy import Engine
-from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 from services.config import get_config_for_service
 from services.shared.lib.db_pool import create_monitored_engine
@@ -87,35 +86,3 @@ def create_service_database(service_name: str) -> tuple[Engine, sessionmaker, ty
     Base = declarative_base()
 
     return engine, SessionLocal, Base
-
-
-def get_service_db_dependency(SessionLocal: sessionmaker) -> Generator[Session, None, None]:
-    """
-    FastAPI dependency for database sessions.
-
-    Provides a database session with automatic cleanup.
-    Use this in route handlers to get a database connection.
-
-    Args:
-        SessionLocal: Session factory from create_service_database()
-
-    Yields:
-        Database session
-
-    Example:
-        In main.py:
-        >>> from services.recipes.db import SessionLocal
-        >>> def get_db():
-        ...     return get_service_db_dependency(SessionLocal)
-
-        In CRUD or route handler:
-        >>> def create_item(db: Session = Depends(get_db)):
-        ...     item = Item()
-        ...     db.add(item)
-        ...     db.commit()
-    """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()

@@ -40,7 +40,7 @@ class MealPlan(BaseModel, UserOwnershipMixin, Base):
         # Composite index for efficient week range queries
         Index("ix_meal_plans_date_meal_type", "date", "meal_type"),
         # Prevent double-booking a meal slot
-        UniqueConstraint("date", "meal_type", name="uq_date_meal_type"),
+        UniqueConstraint("date", "meal_type", "user_id", name="uq_date_meal_type_user"),
         # Index on recipe_id for "where is this recipe used?" queries
         Index("ix_meal_plans_recipe_id", "recipe_id"),
         # User and group ownership indexes

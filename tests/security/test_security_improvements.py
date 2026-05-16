@@ -59,7 +59,7 @@ class TestJWTSecurity:
 
     def test_expired_token_rejected(self):
         """Test that expired tokens are rejected"""
-        from datetime import datetime, timedelta
+        from datetime import UTC, datetime, timedelta
         from uuid import uuid4
 
         import jwt
@@ -70,7 +70,7 @@ class TestJWTSecurity:
             "sub": str(uuid4()),
             "username": "testuser",
             "groups": [],
-            "exp": datetime.utcnow() - timedelta(hours=1),
+            "exp": datetime.now(UTC) - timedelta(hours=1),
         }
         expired_token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 

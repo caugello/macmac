@@ -1,6 +1,6 @@
-import httpx
 from fastapi import HTTPException
 from pydantic import UUID4
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -15,7 +15,9 @@ from services.shared.lib.authorization import (
 )
 from services.shared.lib.cache import initialize_service_cache
 from services.shared.lib.crud_helpers import apply_pagination, apply_sorting
+from services.shared.lib.http_client import service_request
 from services.shared.schemas import recipe as rs
+from services.shared.schemas.generic import DeleteResponse
 from services.shared.schemas.ingredient import IngredientOut
 
 from .models import Recipe, RecipeIngredient
@@ -27,38 +29,48 @@ config = get_config()
 cache = initialize_service_cache("recipes")
 
 
+async def batch_fetch_catalog_items(catalog_item_ids: list[UUID4]) -> dict[str, dict]:
+    """
+    Batch fetch catalog items by IDs using the catalog batch endpoint.
+    Returns dict mapping catalog_item_id (str) -> item data dict.
+    """
+    if not catalog_item_ids:
+        return {}
+
+    catalog_config = get_config_for_service("catalog")
+    catalog_url = catalog_config.url
+
+    try:
+        response = await service_request(
+            "POST",
+            f"{catalog_url}/catalog/batch",
+            json={"ids": [str(item_id) for item_id in catalog_item_ids]},
+        )
+        response.raise_for_status()
+        return response.json().get("items", {})
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching catalog items: {str(e)}"
+        ) from e
+
+
 async def validate_catalog_items(catalog_item_ids: list[UUID4]) -> dict[UUID4, str]:
     """
     Validate that catalog items exist and return their names.
     Returns dict mapping catalog_item_id -> canonical_name
     Raises HTTPException if any item doesn't exist.
     """
-    # Get catalog service URL from config
-    catalog_config = get_config_for_service("catalog")
-    catalog_url = catalog_config.url
+    items = await batch_fetch_catalog_items(catalog_item_ids)
 
-    # Fetch catalog items
     item_names = {}
-    async with httpx.AsyncClient() as client:
-        for item_id in catalog_item_ids:
-            try:
-                response = await client.get(f"{catalog_url}/catalog/{item_id}")
-                response.raise_for_status()
-                item = response.json()
-                item_names[item_id] = item.get("canonical_name") or item.get("raw_name")
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 404:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Catalog item {item_id} not found. All ingredients must exist in catalog.",
-                    ) from e
-                raise HTTPException(
-                    status_code=500, detail=f"Failed to validate catalog item {item_id}"
-                ) from e
-            except Exception as e:
-                raise HTTPException(
-                    status_code=500, detail=f"Error validating catalog items: {str(e)}"
-                ) from e
+    for item_id in catalog_item_ids:
+        item = items.get(str(item_id))
+        if not item:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Catalog item {item_id} not found. All ingredients must exist in catalog.",
+            )
+        item_names[item_id] = item.get("canonical_name") or item.get("raw_name")
 
     return item_names
 
@@ -155,8 +167,9 @@ async def list_recipes(
     """
     user_ctx = require_user_context()
 
-    # Build cache key from query params + user_id (user-specific cache)
-    cache_key = f"recipes:list:u={user_ctx.user_id}:l={limit}:o={offset}:s={search or ''}:i={ingredient or ''}:sort={sort or ''}"
+    # Build cache key from query params + user_id + group_ids (user-specific cache)
+    groups_key = ",".join(sorted(str(g) for g in user_ctx.group_ids))
+    cache_key = f"recipes:list:u={user_ctx.user_id}:g={groups_key}:l={limit}:o={offset}:s={search or ''}:i={ingredient or ''}:sort={sort or ''}"
     cached = cache.get_json(cache_key)
     if cached:
         return cached
@@ -185,43 +198,43 @@ async def list_recipes(
         # ---- PAGINATION
         total, recipes = apply_pagination(query, limit, offset)
 
-        # Fetch catalog item names for all ingredients
+        # Batch fetch all catalog item names in one call
+        all_catalog_ids = list(
+            {ing.catalog_item_id for recipe in recipes for ing in recipe.recipe_ingredients}
+        )
+        catalog_items = await batch_fetch_catalog_items(all_catalog_ids)
+
         recipe_outs = []
-        async with httpx.AsyncClient() as client:
-            catalog_config = get_config_for_service("catalog")
-            catalog_url = catalog_config.url
-
-            for recipe in recipes:
-                ingredients_out = []
-                for ing in recipe.recipe_ingredients:
-                    try:
-                        response = await client.get(f"{catalog_url}/catalog/{ing.catalog_item_id}")
-                        item = response.json()
-                        item_name = item.get("canonical_name") or item.get("raw_name")
-                    except Exception:
-                        item_name = f"Unknown ({ing.catalog_item_id})"
-
-                    ingredients_out.append(
-                        IngredientOut(
-                            catalog_item_id=ing.catalog_item_id,
-                            catalog_item_name=item_name,
-                            qty=ing.qty,
-                            unit=ing.unit,
-                        )
-                    )
-
-                recipe_outs.append(
-                    rs.RecipeOut(
-                        id=recipe.id,
-                        title=recipe.title,
-                        normalized_title=recipe.normalized_title,
-                        description=recipe.description,
-                        ingredients=ingredients_out,
-                        steps=recipe.steps,
-                        created_at=recipe.created_at,
-                        updated_at=recipe.updated_at,
+        for recipe in recipes:
+            ingredients_out = []
+            for ing in recipe.recipe_ingredients:
+                item = catalog_items.get(str(ing.catalog_item_id))
+                item_name = (
+                    (item.get("canonical_name") or item.get("raw_name"))
+                    if item
+                    else f"Unknown ({ing.catalog_item_id})"
+                )
+                ingredients_out.append(
+                    IngredientOut(
+                        catalog_item_id=ing.catalog_item_id,
+                        catalog_item_name=item_name,
+                        qty=ing.qty,
+                        unit=ing.unit,
                     )
                 )
+
+            recipe_outs.append(
+                rs.RecipeOut(
+                    id=recipe.id,
+                    title=recipe.title,
+                    normalized_title=recipe.normalized_title,
+                    description=recipe.description,
+                    ingredients=ingredients_out,
+                    steps=recipe.steps,
+                    created_at=recipe.created_at,
+                    updated_at=recipe.updated_at,
+                )
+            )
 
         # Return with metadata
         result = {
@@ -245,15 +258,13 @@ async def get_recipe(recipe_id: UUID4, db: Session) -> rs.RecipeOut:
     """
     require_user_context()
 
-    # Try cache first (cache key includes user context check later)
+    # Try cache first — cached data includes user_id/group_id for auth check
     cache_key = f"recipe:{recipe_id}"
     cached = cache.get_json(cache_key)
     if cached:
-        # Still need to verify access even if cached
-        recipe = db.query(Recipe).filter(Recipe.id == recipe_id).first()
-        if recipe:
-            # AUTHORIZATION CHECK
-            check_owner_or_group(recipe.user_id, recipe.group_id, "recipe")
+        check_owner_or_group(cached.get("_user_id"), cached.get("_group_id"), "recipe")
+        cached.pop("_user_id", None)
+        cached.pop("_group_id", None)
         return rs.RecipeOut(**cached)
 
     with Span("db_query_recipe"):
@@ -264,28 +275,26 @@ async def get_recipe(recipe_id: UUID4, db: Session) -> rs.RecipeOut:
         # AUTHORIZATION CHECK
         check_owner_or_group(recipe.user_id, recipe.group_id, "recipe")
 
-        # Fetch catalog item names
+        # Batch fetch catalog item names
+        catalog_ids = [ing.catalog_item_id for ing in recipe.recipe_ingredients]
+        catalog_items = await batch_fetch_catalog_items(catalog_ids)
+
         ingredients_out = []
-        async with httpx.AsyncClient() as client:
-            catalog_config = get_config_for_service("catalog")
-            catalog_url = catalog_config.url
-
-            for ing in recipe.recipe_ingredients:
-                try:
-                    response = await client.get(f"{catalog_url}/catalog/{ing.catalog_item_id}")
-                    item = response.json()
-                    item_name = item.get("canonical_name") or item.get("raw_name")
-                except Exception:
-                    item_name = f"Unknown ({ing.catalog_item_id})"
-
-                ingredients_out.append(
-                    IngredientOut(
-                        catalog_item_id=ing.catalog_item_id,
-                        catalog_item_name=item_name,
-                        qty=ing.qty,
-                        unit=ing.unit,
-                    )
+        for ing in recipe.recipe_ingredients:
+            item = catalog_items.get(str(ing.catalog_item_id))
+            item_name = (
+                (item.get("canonical_name") or item.get("raw_name"))
+                if item
+                else f"Unknown ({ing.catalog_item_id})"
+            )
+            ingredients_out.append(
+                IngredientOut(
+                    catalog_item_id=ing.catalog_item_id,
+                    catalog_item_name=item_name,
+                    qty=ing.qty,
+                    unit=ing.unit,
                 )
+            )
 
         result = rs.RecipeOut(
             id=recipe.id,
@@ -298,8 +307,11 @@ async def get_recipe(recipe_id: UUID4, db: Session) -> rs.RecipeOut:
             updated_at=recipe.updated_at,
         )
 
-        # Cache for configured TTL
-        cache.set_json(cache_key, result, ttl=config.cache.ttl.recipes_detail)
+        # Cache with ownership info for authorization on cache hits
+        cache_data = result.model_dump(mode="json")
+        cache_data["_user_id"] = str(recipe.user_id) if recipe.user_id else None
+        cache_data["_group_id"] = str(recipe.group_id) if recipe.group_id else None
+        cache.set_json(cache_key, cache_data, ttl=config.cache.ttl.recipes_detail)
 
         return result
 
@@ -389,4 +401,59 @@ async def delete_recipe(recipe_id: UUID4, db: Session):
         cache.delete(f"recipe:{recipe_id}")
         cache.delete_pattern("recipes:list:*")
 
-        return {"message": "Recipe deleted successfully"}
+        return DeleteResponse(success=True)
+
+
+@traced
+async def batch_get_recipes(data: rs.BatchRecipeRequest, db: Session) -> rs.BatchRecipeResponse:
+    user_ctx = require_user_context()
+
+    with Span("db_batch_recipes"):
+        recipes = (
+            db.query(Recipe)
+            .filter(
+                Recipe.id.in_(data.ids),
+                or_(
+                    Recipe.user_id == user_ctx.user_id,
+                    Recipe.group_id.in_(user_ctx.group_ids) if user_ctx.group_ids else False,
+                ),
+            )
+            .all()
+        )
+
+        all_catalog_ids = list(
+            {ing.catalog_item_id for recipe in recipes for ing in recipe.recipe_ingredients}
+        )
+        catalog_items = await batch_fetch_catalog_items(all_catalog_ids)
+
+        result = {}
+        for recipe in recipes:
+            ingredients_out = []
+            for ing in recipe.recipe_ingredients:
+                item = catalog_items.get(str(ing.catalog_item_id))
+                item_name = (
+                    (item.get("canonical_name") or item.get("raw_name"))
+                    if item
+                    else f"Unknown ({ing.catalog_item_id})"
+                )
+                ingredients_out.append(
+                    IngredientOut(
+                        catalog_item_id=ing.catalog_item_id,
+                        catalog_item_name=item_name,
+                        qty=ing.qty,
+                        unit=ing.unit,
+                    )
+                )
+
+            result[str(recipe.id)] = rs.RecipeOut(
+                id=recipe.id,
+                title=recipe.title,
+                normalized_title=recipe.normalized_title,
+                description=recipe.description,
+                ingredients=ingredients_out,
+                steps=recipe.steps,
+                created_at=recipe.created_at,
+                updated_at=recipe.updated_at,
+            )
+
+        return rs.BatchRecipeResponse(items=result)

@@ -4,7 +4,7 @@ import logging
 import sys
 import time
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from services.config import get_config
 
@@ -53,7 +53,7 @@ def log_span(event: str, **fields):
     """
     trace_id = current_trace_id.get()
     payload = {
-        "ts": datetime.utcnow().isoformat(),
+        "ts": datetime.now(UTC).isoformat(),
         "trace_id": trace_id,
         "event": event,
         **fields,
@@ -88,7 +88,7 @@ def log_event(event: str, **data):
     The current trace ID and span stack are automatically included.
     """
     payload = {
-        "ts": datetime.utcnow().isoformat(),
+        "ts": datetime.now(UTC).isoformat(),
         "event": event,
         **data,
     }

@@ -117,13 +117,62 @@ def mock_user_context():
     # Cleanup happens automatically when context var goes out of scope
 
 
+@pytest.fixture
+def mock_meal_plans_db() -> Generator[Session, None, None]:
+    """Create an in-memory SQLite database for meal plans testing."""
+    from services.meal_plans.models import Base as MealPlansBase
+
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    MealPlansBase.metadata.create_all(bind=engine)
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+        MealPlansBase.metadata.drop_all(bind=engine)
+
+
 @pytest.fixture(autouse=True)
-def mock_validate_catalog_items():
-    """Mock catalog item validation to avoid HTTP calls in unit tests."""
+def mock_meal_plans_http_calls():
+    """Mock HTTP calls in meal_plans.crud to avoid real requests."""
+
+    async def mock_validate(recipe_id):
+        return f"Test Recipe {str(recipe_id)[:8]}"
+
+    async def mock_fetch_titles(recipe_ids):
+        return {rid: f"Test Recipe {str(rid)[:8]}" for rid in recipe_ids}
+
+    with (
+        patch("services.meal_plans.crud.validate_recipe_exists", new=mock_validate),
+        patch("services.meal_plans.crud.fetch_recipe_titles", new=mock_fetch_titles),
+    ):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def mock_catalog_http_calls():
+    """Mock catalog HTTP calls to avoid real HTTP requests in unit tests."""
 
     async def mock_validate(catalog_item_ids: list[UUID4]) -> dict[UUID4, str]:
-        # Return fake catalog item names for testing
         return {item_id: f"Test Item {str(item_id)[:8]}" for item_id in catalog_item_ids}
 
-    with patch("services.recipes.crud.validate_catalog_items", new=mock_validate):
+    async def mock_batch_fetch(catalog_item_ids: list[UUID4]) -> dict[str, dict]:
+        return {
+            str(item_id): {
+                "canonical_name": f"Test Item {str(item_id)[:8]}",
+                "raw_name": f"Raw Item {str(item_id)[:8]}",
+            }
+            for item_id in catalog_item_ids
+        }
+
+    with (
+        patch("services.recipes.crud.validate_catalog_items", new=mock_validate),
+        patch("services.recipes.crud.batch_fetch_catalog_items", new=mock_batch_fetch),
+    ):
         yield

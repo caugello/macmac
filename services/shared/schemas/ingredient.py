@@ -16,12 +16,12 @@ class IngredientCreate(BaseModel):
         ...,
         gt=0,
         description="Quantity of the ingredient",
-        example=500,
+        json_schema_extra={"examples": [500]},
     )
     unit: UnitEnum = Field(
         ...,
         description="Unit of measurement",
-        example=UnitEnum.GRAM,
+        json_schema_extra={"examples": ["g"]},
     )
 
 

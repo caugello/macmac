@@ -43,7 +43,7 @@ def resolve_handler(handler_path: str):
     return getattr(module, func_name)
 
 
-def build_body_handler(request_model, handler_fn, get_db, qp_dep):
+def build_body_handler(request_model, handler_fn, get_db):
     """
     Helper to build an endpoint for routes that expect a request body.
     This handles the FastAPI dependency injection for the request body,
@@ -86,35 +86,6 @@ def build_query_handler(handler_fn, get_db, qp_dep):
     return endpoint
 
 
-def bind_arguments(request, data, db, handler_fn, qp):
-    """
-    Helper to bind arguments to a handler function.
-    This is necessary because we support both FastAPI-style dependency injection
-    and a more traditional, ordered argument list.
-    """
-    args = []
-
-    # Body for POST/PATCH only
-    if data is not None:
-        args.append(data)
-
-    # Path params always
-    for value in request.path_params.values():
-        args.append(value)
-
-    # DB session
-    if db:
-        args.append(db)
-
-    # Decide whether to forward qp
-    # If handler expects a body → DO NOT pass qp
-    # If no body → qp ARE forwarded to handler
-    if data is None and qp:
-        return handler_fn(*args, **qp)
-
-    return handler_fn(*args)
-
-
 def make_endpoint(route, handler_fn, get_db=None):
     """
     Helper to build an endpoint for a given route.
@@ -125,6 +96,6 @@ def make_endpoint(route, handler_fn, get_db=None):
     qp_dep = build_query_dependency(route) if "{" not in route.path else None
 
     if request_model:
-        return build_body_handler(request_model, handler_fn, get_db, qp_dep)
+        return build_body_handler(request_model, handler_fn, get_db)
 
     return build_query_handler(handler_fn, get_db, qp_dep)
