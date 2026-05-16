@@ -44,6 +44,10 @@ jobs:
             context: .
             containerfile: ./Containerfile
             target: enricher
+          - image: macmac-crawler
+            context: .
+            containerfile: ./Containerfile
+            target: crawler
           - image: macmac-frontend
             context: ./frontend
             containerfile: ./frontend/Dockerfile
