@@ -4,7 +4,7 @@ from services.shared.lib.db import get_db
 
 
 def catalog_db():
-    return get_db(SessionLocal)
+    yield from get_db(SessionLocal)
 
 
 app = create_microservice("catalog", catalog_db)

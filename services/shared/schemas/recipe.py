@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import UUID4, BaseModel, Field
+from pydantic import UUID4, BaseModel, ConfigDict, Field
 
 from .ingredient import Ingredient, IngredientCreate
 
@@ -41,8 +41,7 @@ class RecipeOut(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RecipeListResponse(BaseModel):
@@ -65,4 +64,12 @@ class RecipeQueryParams(BaseModel):
     offset: int = Field(0, ge=0)
     search: str | None = None
     ingredient: str | None = None
-    sort: str | None = Field(None, example="title:asc")
+    sort: str | None = Field(None, json_schema_extra={"examples": ["title:asc"]})
+
+
+class BatchRecipeRequest(BaseModel):
+    ids: list[UUID4]
+
+
+class BatchRecipeResponse(BaseModel):
+    items: dict[str, RecipeOut]

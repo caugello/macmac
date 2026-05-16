@@ -51,3 +51,15 @@ class CatalogItemListResponse(BaseModel):
     limit: int | None = None
     offset: int | None = None
     data: list[CatalogItemOut]
+
+
+class BatchCatalogRequest(BaseModel):
+    """Request for batch fetching catalog items by IDs."""
+
+    ids: list[UUID4]
+
+
+class BatchCatalogResponse(BaseModel):
+    """Response for batch fetching catalog items."""
+
+    items: dict[str, CatalogItemOut]

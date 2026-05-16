@@ -1,4 +1,6 @@
+import logging
 import uuid
+from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import Body, Depends, FastAPI, Request
@@ -12,9 +14,26 @@ from services.framework.tracing import TRACE_ID_HEADER
 from services.gateway.auth_middleware import AuthenticationMiddleware
 from services.gateway.middleware import GatewayLoggingMiddleware
 
+logger = logging.getLogger(__name__)
+
 config = get_config()
 
-app = FastAPI(title=f"{config.title} Gateway", version=config.version, redirect_slashes=False)
+HTTPX_TIMEOUT = 30.0
+
+
+@asynccontextmanager
+async def lifespan(app):
+    register_routes()
+    logger.info("Gateway routes loaded from contract.")
+    yield
+
+
+app = FastAPI(
+    title=f"{config.title} Gateway",
+    version=config.version,
+    redirect_slashes=False,
+    lifespan=lifespan,
+)
 
 # Add CORS middleware for frontend - configuration from config.yaml
 app.add_middleware(
@@ -52,7 +71,7 @@ async def forward_request(route, url, request: Request, qp, json_body=None):
     It handles query parameters, JSON bodies, and relevant headers, including a trace ID.
     Finally, it streams back the response from the upstream service.
     """
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=HTTPX_TIMEOUT) as client:
         response = await client.request(
             method=route.method.upper(),
             url=url,
@@ -163,7 +182,7 @@ def make_proxy_handler(service, route):
             headers["X-Username"] = request.state.username
             headers["X-User-Groups"] = ",".join(request.state.group_ids)
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=HTTPX_TIMEOUT) as client:
             response = await client.request(
                 method=method,
                 url=upstream_url,
@@ -217,12 +236,6 @@ def register_routes():
                 name=route.description or route.path,
                 tags=route.tags,
             )
-
-
-@app.on_event("startup")
-def startup():
-    register_routes()
-    print("Gateway routes loaded from contract.")
 
 
 @app.get("/healthz")

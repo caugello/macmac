@@ -1,6 +1,10 @@
+import logging
+
 from pydantic import UUID4
 
 from services.framework.user_context import set_user_context
+
+logger = logging.getLogger(__name__)
 
 # Custom headers for user context propagation
 USER_ID_HEADER = "X-User-ID"
@@ -21,9 +25,8 @@ async def auth_tracing_middleware(request, call_next):
         try:
             group_ids = [UUID4(g) for g in groups_str.split(",") if g]
             set_user_context(UUID4(user_id), username, group_ids)
-        except Exception:
-            # If parsing fails, skip setting user context (invalid headers)
-            pass
+        except Exception as e:
+            logger.warning("Failed to parse user context headers: %s", e)
 
     response = await call_next(request)
     return response

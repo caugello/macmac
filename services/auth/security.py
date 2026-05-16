@@ -1,7 +1,7 @@
 import logging
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import firebase_admin
 import jwt
@@ -49,13 +49,13 @@ def verify_firebase_token(id_token: str) -> dict:
 
 
 def create_access_token(user_id: UUID4, username: str, group_ids: list[UUID4]) -> str:
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {
         "sub": str(user_id),
         "username": username,
         "groups": [str(gid) for gid in group_ids],
         "exp": expire,
-        "iat": datetime.utcnow(),
+        "iat": datetime.now(UTC),
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 

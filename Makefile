@@ -1,4 +1,4 @@
-.PHONY: help test test-unit test-integration lint format clean install \
+.PHONY: help test test-unit test-integration lint format clean install crawl \
 	frontend-install frontend-test frontend-lint frontend-format frontend-build
 
 help:
@@ -25,6 +25,7 @@ help:
 	@echo "  make lint-all         Run all linters (backend + frontend)"
 	@echo "  make format-all       Format all code (backend + frontend)"
 	@echo "  make clean            Remove generated files"
+	@echo "  make crawl            Run the catalog crawler (manual trigger)"
 	@echo ""
 
 install:
@@ -64,6 +65,10 @@ clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete
 	cd frontend && rm -rf node_modules dist coverage .vite 2>/dev/null || true
+
+# Crawler (manually triggered)
+crawl:
+	podman-compose -f podman-compose-dev.yaml run --rm catalog_crawler
 
 # Frontend commands
 frontend-install:

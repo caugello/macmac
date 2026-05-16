@@ -12,10 +12,13 @@ from playwright.async_api import async_playwright
 from services.catalog.enricher.db import create_catalog_item
 from services.catalog.main import catalog_db
 from services.config import get_config, get_config_for_service, get_config_for_service_dependency
+from services.framework.logging import setup_logging
 from services.shared.constant import CATALOG_PROCESS_ENTITY_QUEUE
 from services.shared.lib.db import get_db
 from services.shared.lib.messaging_bus import MessagingBus
 from services.shared.schemas.catalog import CatalogItemCreate
+
+logger = setup_logging()
 
 # Load configuration
 config = get_config()
@@ -172,12 +175,12 @@ async def crawl_product_page(
 
             # Step 1: Visit homepage first to establish session and get cookies
             base_url = "https://www.collectandgo.be/fr"
-            print("  → Visiting homepage first")
+            logger.debug("Visiting homepage first")
 
             try:
                 home_response = await page.goto(base_url, timeout=15000, wait_until="networkidle")
                 if home_response and home_response.status == 200:
-                    print("  → Homepage loaded successfully")
+                    logger.debug("Homepage loaded successfully")
                     # Wait longer like a real user browsing
                     await asyncio.sleep(2.0)
 
@@ -188,42 +191,42 @@ async def crawl_product_page(
                     await page.evaluate("window.scrollTo({top: 800, behavior: 'smooth'})")
                     await asyncio.sleep(1.0)
                 else:
-                    print(
-                        f"  → Homepage returned status {home_response.status if home_response else 'None'}"
+                    logger.debug(
+                        f"Homepage returned status {home_response.status if home_response else 'None'}"
                     )
             except Exception as e:
-                print(f"  → Warning: Could not load homepage: {e}")
+                logger.warning(f"Could not load homepage: {e}")
 
             # Step 2: Navigate to product page (like clicking a link)
             # Wait a bit more before navigating
             await asyncio.sleep(1.5)
 
-            print("  → Navigating to product page")
+            logger.debug("Navigating to product page")
             try:
                 response = await page.goto(
                     url, timeout=15000, wait_until="domcontentloaded", referer=base_url
                 )
             except Exception as e:
-                print(f"  → Navigation error: {e}")
+                logger.error(f"Navigation error: {e}")
                 await browser.close()
                 return None, None, None, None, None, None, None
 
             if not response:
-                print(f"  → No response from {url}")
+                logger.error(f"No response from {url}")
                 await browser.close()
                 return None, None, None, None, None, None, None
 
             # Check response status
             if response.status >= 400:
-                print(f"  → HTTP {response.status} from {url}")
-                print(f"  → Response headers: {response.headers}")
+                logger.error(f"HTTP {response.status} from {url}")
+                logger.debug(f"Response headers: {response.headers}")
                 await browser.close()
                 return None, None, None, None, None, None, None
 
             # Get final URL after redirects
             final_url = page.url
             if final_url != url:
-                print(f"  → Redirected to: {final_url}")
+                logger.debug(f"Redirected to: {final_url}")
 
             # Mimic human behavior: random scroll
             await asyncio.sleep(
@@ -272,11 +275,11 @@ async def crawl_product_page(
 
                     try:
                         extracted_price = float(price_text)
-                        print(f"  → Extracted price: €{extracted_price:.2f}")
+                        logger.debug(f"Extracted price: EUR {extracted_price:.2f}")
                     except ValueError:
-                        print(f"  → Could not parse price: {repr(price_text)}")
+                        logger.warning(f"Could not parse price: {repr(price_text)}")
             except Exception as e:
-                print(f"  → Could not extract price: {e}")
+                logger.warning(f"Could not extract price: {e}")
 
             # Scroll to bottom to trigger lazy loading
             await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
@@ -291,7 +294,7 @@ async def crawl_product_page(
                     nutriscore = await nutriscore_el.get_attribute("nutri-score")
                     if nutriscore:
                         nutriscore = nutriscore.strip().upper()
-                        print(f"  → Nutri-Score: {nutriscore}")
+                        logger.debug(f"Nutri-Score: {nutriscore}")
 
                     # SVG is inside the web component's shadow DOM
                     nutriscore_svg = await page.evaluate("""() => {
@@ -304,9 +307,9 @@ async def crawl_product_page(
                         return svg ? svg.outerHTML : container.innerHTML;
                     }""")
                     if nutriscore_svg:
-                        print(f"  → Nutri-Score SVG extracted ({len(nutriscore_svg)} chars)")
+                        logger.debug(f"Nutri-Score SVG extracted ({len(nutriscore_svg)} chars)")
             except Exception as e:
-                print(f"  → Could not extract Nutri-Score: {e}")
+                logger.warning(f"Could not extract Nutri-Score: {e}")
 
             # Extract promotion end date
             promotion_until_date = None
@@ -315,15 +318,15 @@ async def crawl_product_page(
                 if promo_el:
                     promo_text = await promo_el.inner_text()
                     if promo_text:
-                        print(f"  → Promotion text: {promo_text.strip()}")
+                        logger.debug(f"Promotion text: {promo_text.strip()}")
                         match = PROMOTION_END_DATE_PATTERN.search(promo_text)
                         if match:
                             promotion_until_date = datetime.strptime(
                                 match.group(1), "%d/%m/%Y"
                             ).date()
-                            print(f"  → Promotion until: {promotion_until_date}")
+                            logger.debug(f"Promotion until: {promotion_until_date}")
             except Exception as e:
-                print(f"  → Could not extract promotion: {e}")
+                logger.warning(f"Could not extract promotion: {e}")
 
             # Get main product page HTML
             html = await page.content()
@@ -345,9 +348,9 @@ async def crawl_product_page(
                             info_link_url = final_url.rsplit("/", 1)[0] + "/" + info_href
                         else:
                             info_link_url = info_href
-                        print(f"  → Found product info link: {info_link_url}")
+                        logger.debug(f"Found product info link: {info_link_url}")
             except Exception as e:
-                print(f"  → Could not find product info link: {e}")
+                logger.warning(f"Could not find product info link: {e}")
 
             await browser.close()
             return (
@@ -361,7 +364,7 @@ async def crawl_product_page(
             )
 
     except Exception as e:
-        print(f"  → Error crawling {url}: {e}")
+        logger.error(f"Error crawling {url}: {e}")
         return None, None, None, None, None, None, None
 
 
@@ -373,12 +376,12 @@ async def crawl_nutrition_page(info_url: str, main_page_url: str) -> tuple[str |
     from urllib.parse import unquote
 
     if not info_url:
-        print("  → No product info link provided")
+        logger.debug("No product info link provided")
         return None, None
 
     info_url = unquote(info_url)
 
-    print(f"  → Crawling nutrition page: {info_url}")
+    logger.debug(f"Crawling nutrition page: {info_url}")
 
     try:
         async with async_playwright() as p:
@@ -401,8 +404,8 @@ async def crawl_nutrition_page(info_url: str, main_page_url: str) -> tuple[str |
             )
 
             if not response or response.status >= 400:
-                print(
-                    f"  → Failed to load nutrition page (status {response.status if response else 'None'})"
+                logger.error(
+                    f"Failed to load nutrition page (status {response.status if response else 'None'})"
                 )
                 await browser.close()
                 return None, None
@@ -444,17 +447,17 @@ async def crawl_nutrition_page(info_url: str, main_page_url: str) -> tuple[str |
                         ]
                     ):
                         nutrition_table_text = table_text
-                        print(f"  → Extracted nutrition table ({len(table_text)} chars)")
+                        logger.debug(f"Extracted nutrition table ({len(table_text)} chars)")
                         break
             except Exception as e:
-                print(f"  → Could not extract nutrition table: {e}")
+                logger.warning(f"Could not extract nutrition table: {e}")
 
             detailed_html = await page.content()
             await browser.close()
             return detailed_html, nutrition_table_text
 
     except Exception as e:
-        print(f"  → Error crawling nutrition page: {e}")
+        logger.error(f"Error crawling nutrition page: {e}")
         return None, None
 
 
@@ -557,7 +560,7 @@ async def extract_with_llm(
     Returns a dict with extracted fields.
     """
     if not OPENAI_API_KEY:
-        print("  → WARNING: OPENAI_API_KEY not set, skipping LLM extraction")
+        logger.warning("OPENAI_API_KEY not set, skipping LLM extraction")
         return {}
 
     client = AsyncOpenAI(api_key=OPENAI_API_KEY)
@@ -715,14 +718,16 @@ Extract product data as JSON following the rules and examples above."""
             try:
                 extracted_data["price"] = float(extracted_data["price"])
             except (ValueError, TypeError):
-                print(f"  → Invalid price value: {extracted_data.get('price')}")
+                logger.warning(f"Invalid price value: {extracted_data.get('price')}")
                 extracted_data["price"] = None
 
         if extracted_data.get("net_quantity_value") is not None:
             try:
                 extracted_data["net_quantity_value"] = float(extracted_data["net_quantity_value"])
             except (ValueError, TypeError):
-                print(f"  → Invalid quantity value: {extracted_data.get('net_quantity_value')}")
+                logger.warning(
+                    f"Invalid quantity value: {extracted_data.get('net_quantity_value')}"
+                )
                 extracted_data["net_quantity_value"] = None
 
         # Normalize unit to schema-compliant value
@@ -731,7 +736,9 @@ Extract product data as JSON following the rules and examples above."""
             if normalized_unit:
                 extracted_data["net_quantity_unit"] = normalized_unit
             else:
-                print(f"  → Invalid unit '{extracted_data['net_quantity_unit']}', setting to null")
+                logger.warning(
+                    f"Invalid unit '{extracted_data['net_quantity_unit']}', setting to null"
+                )
                 extracted_data["net_quantity_unit"] = None
 
         # Validate nutrition data types if present
@@ -754,21 +761,21 @@ Extract product data as JSON following the rules and examples above."""
                         nutrition[key] = None
 
             # Log extracted nutrition values
-            print("  → LLM extracted nutrition:")
+            logger.debug("LLM extracted nutrition:")
             for key, value in nutrition.items():
                 if value is not None:
-                    print(f"     • {key}: {value}")
+                    logger.debug(f"  {key}: {value}")
         else:
-            print("  → No nutrition data extracted by LLM")
+            logger.debug("No nutrition data extracted by LLM")
 
         return extracted_data
 
     except json.JSONDecodeError as e:
-        print(f"  → JSON decode error: {e}")
-        print(f"  → Raw response: {response.choices[0].message.content[:200]}")
+        logger.error(f"JSON decode error: {e}")
+        logger.debug(f"Raw response: {response.choices[0].message.content[:200]}")
         return {}
     except Exception as e:
-        print(f"  → Error with LLM extraction: {e}")
+        logger.error(f"Error with LLM extraction: {e}")
         return {}
 
 
@@ -789,7 +796,9 @@ async def enrich_catalog_item(
         elapsed = time.time() - batch_start_time
         if elapsed < BATCH_PAUSE:
             sleep_time = BATCH_PAUSE - elapsed
-            print(f"Batch {items_processed // BATCH_SIZE} complete. Pausing {sleep_time:.1f}s...")
+            logger.info(
+                f"Batch {items_processed // BATCH_SIZE} complete. Pausing {sleep_time:.1f}s..."
+            )
             await asyncio.sleep(sleep_time)
         batch_start_time = time.time()
 
@@ -797,12 +806,12 @@ async def enrich_catalog_item(
     if items_processed > 1:
         await asyncio.sleep(DELAY_BETWEEN_REQUESTS)
 
-    print(f"[{items_processed}] Enriching: {raw_name}")
+    logger.info(f"[{items_processed}] Enriching: {raw_name}")
 
     # Step 1: Extract quantity/unit from URL (fast, no API calls)
     url_qty, url_unit = extract_quantity_from_url(product_url)
     if url_qty:
-        print(f"  → URL extraction: {url_qty}{url_unit}")
+        logger.debug(f"URL extraction: {url_qty}{url_unit}")
 
     # Step 2: Crawl main product page with Playwright
     (
@@ -816,7 +825,7 @@ async def enrich_catalog_item(
     ) = await crawl_product_page(product_url)
 
     if not html_content:
-        print("  → Failed to crawl, using URL extraction only")
+        logger.warning("Failed to crawl, using URL extraction only")
         # Return minimal data
         return CatalogItemCreate(
             vendor_name=vendor_name,
@@ -837,10 +846,10 @@ async def enrich_catalog_item(
         final_qty, final_unit = extract_quantity_from_url(final_url)
         if final_qty and not url_qty:
             url_qty, url_unit = final_qty, final_unit
-            print(f"  → Final URL extraction: {url_qty}{url_unit}")
+            logger.debug(f"Final URL extraction: {url_qty}{url_unit}")
 
     # Step 3: Initial LLM extraction to determine if it's food
-    print("  → Determining if product is food...")
+    logger.debug("Determining if product is food...")
     extracted_data = await extract_with_llm(
         raw_name, final_url or product_url, html_content, url_qty, url_unit, extracted_price
     )
@@ -848,7 +857,7 @@ async def enrich_catalog_item(
 
     # Step 4: If it's food, crawl the nutrition info page
     if is_food:
-        print("  → Product is food, crawling nutrition page...")
+        logger.info("Product is food, crawling nutrition page...")
         detailed_html, nutrition_table_text = await crawl_nutrition_page(
             info_link_url, final_url or product_url
         )
@@ -865,10 +874,10 @@ async def enrich_catalog_item(
                     f"<!-- EXTRACTED NUTRITION TABLE -->\n{nutrition_table_text}\n\n"
                     + combined_html
                 )
-                print("  → Added nutrition table to HTML")
+                logger.debug("Added nutrition table to HTML")
 
             # Re-extract with combined HTML for nutrition data
-            print("  → Extracting nutrition data with LLM...")
+            logger.info("Extracting nutrition data with LLM...")
             extracted_data = await extract_with_llm(
                 raw_name,
                 final_url or product_url,
@@ -878,9 +887,9 @@ async def enrich_catalog_item(
                 extracted_price,
             )
         else:
-            print("  → Could not fetch nutrition page, using main page data")
+            logger.warning("Could not fetch nutrition page, using main page data")
     else:
-        print("  → Product is not food, skipping nutrition crawl")
+        logger.info("Product is not food, skipping nutrition crawl")
 
     # Step 5: Normalize extracted data (LLM data takes priority, URL data as fallback)
     canonical_name = extracted_data.get("canonical_name") or raw_name
@@ -898,18 +907,18 @@ async def enrich_catalog_item(
     # is_food already determined above in step 3
 
     # Log what we're about to save
-    print("  → Preparing to save:")
-    print(f"     • Brand: {brand}")
-    print(f"     • Category: {category}")
-    print(f"     • Is food: {is_food}")
-    print(f"     • Price: {price}")
-    print(f"     • Nutri-Score: {nutriscore or 'N/A'}")
-    print(f"     • Promotion until: {promotion_until_date or 'N/A'}")
+    logger.debug("Preparing to save:")
+    logger.debug(f"  Brand: {brand}")
+    logger.debug(f"  Category: {category}")
+    logger.debug(f"  Is food: {is_food}")
+    logger.debug(f"  Price: {price}")
+    logger.debug(f"  Nutri-Score: {nutriscore or 'N/A'}")
+    logger.debug(f"  Promotion until: {promotion_until_date or 'N/A'}")
     if nutrition:
-        print(f"     • Nutrition data: {len(nutrition)} fields")
-        print(f"     • Nutrition JSON: {json.dumps(nutrition, indent=2)}")
+        logger.debug(f"  Nutrition data: {len(nutrition)} fields")
+        logger.debug(f"  Nutrition JSON: {json.dumps(nutrition, indent=2)}")
     else:
-        print("     • Nutrition data: None")
+        logger.debug("  Nutrition data: None")
 
     # Normalize the canonical name for search
     normalized_name = None
@@ -947,17 +956,15 @@ def write_to_db(payload: dict, ch):
     Enriches the item and writes to database.
     Only processes French (/fr/) URLs to avoid duplicates.
     """
-    import traceback
-
     # Skip Dutch URLs - only process French to avoid duplicates
     product_url = payload.get("product_url", "")
     if "/nl/" in product_url:
-        print(f"⊘ Skipping Dutch URL: {payload.get('raw_name', 'unknown')}")
+        logger.warning(f"Skipping Dutch URL: {payload.get('raw_name', 'unknown')}")
         return
 
     # Only process French URLs
     if "/fr/" not in product_url:
-        print(f"⊘ Skipping non-French URL: {payload.get('raw_name', 'unknown')}")
+        logger.warning(f"Skipping non-French URL: {payload.get('raw_name', 'unknown')}")
         return
 
     # Run async enrichment in event loop
@@ -975,10 +982,10 @@ def write_to_db(payload: dict, ch):
 
         # Skip non-food items - don't store them in the catalog
         if enriched_item and not enriched_item.is_food:
-            print(
-                f"⊘ Skipping non-food item: {enriched_item.canonical_name or enriched_item.raw_name}"
+            logger.warning(
+                f"Skipping non-food item: {enriched_item.canonical_name or enriched_item.raw_name}"
             )
-            print(f"  → Category: {enriched_item.category}")
+            logger.debug(f"Category: {enriched_item.category}")
             return
 
         with get_db(catalog_db) as db:
@@ -1007,14 +1014,16 @@ def write_to_db(payload: dict, ch):
                     price_str = "N/A"
 
                 category_str = item.category or "N/A"
-                nutrition_str = "✓" if item.nutrition else "✗"
+                nutrition_str = "yes" if item.nutrition else "no"
 
-                print(f"✓ Saved: {item.canonical_name or item.raw_name}")
-                print(f"  → {qty_str} | {price_str} | {category_str} | Nutrition: {nutrition_str}")
+                logger.info(f"Saved: {item.canonical_name or item.raw_name}")
+                logger.info(
+                    f"{qty_str} | {price_str} | {category_str} | Nutrition: {nutrition_str}"
+                )
 
                 # Detailed nutrition logging
                 if item.nutrition:
-                    print("  → Nutrition values saved to DB:")
+                    logger.debug("Nutrition values saved to DB:")
                     nutrition_json = (
                         item.nutrition
                         if isinstance(item.nutrition, dict)
@@ -1022,29 +1031,30 @@ def write_to_db(payload: dict, ch):
                     )
                     for key, value in nutrition_json.items():
                         if value is not None:
-                            print(f"     • {key}: {value}")
+                            logger.debug(f"  {key}: {value}")
                 else:
-                    print("  → WARNING: No nutrition data was saved to database!")
+                    logger.warning("No nutrition data was saved to database!")
 
     except json.JSONDecodeError as e:
-        print(f"✗ JSON error for {payload.get('raw_name', 'unknown')}: {e}")
+        logger.error(f"JSON error for {payload.get('raw_name', 'unknown')}: {e}")
     except ValueError as e:
-        print(f"✗ Value error for {payload.get('raw_name', 'unknown')}: {e}")
+        logger.error(f"Value error for {payload.get('raw_name', 'unknown')}: {e}")
     except Exception as e:
-        print(f"✗ Error processing {payload.get('raw_name', 'unknown')}: {type(e).__name__}: {e}")
-        print(traceback.format_exc())
+        logger.exception(
+            f"Error processing {payload.get('raw_name', 'unknown')}: {type(e).__name__}: {e}"
+        )
     finally:
         loop.close()
 
 
 if __name__ == "__main__":
     if not OPENAI_API_KEY:
-        print("ERROR: OPENAI_API_KEY environment variable not set!")
-        print("Set it with: export OPENAI_API_KEY='sk-...'")
+        logger.error("OPENAI_API_KEY environment variable not set!")
+        logger.error("Set it with: export OPENAI_API_KEY='sk-...'")
         exit(1)
 
-    print(f"Starting enricher with OpenAI model: {OPENAI_MODEL}")
-    print(
+    logger.info(f"Starting enricher with OpenAI model: {OPENAI_MODEL}")
+    logger.info(
         f"Rate limits: {BATCH_SIZE} items/batch, {DELAY_BETWEEN_REQUESTS}s delay, {BATCH_PAUSE}s pause"
     )
 
@@ -1057,9 +1067,9 @@ if __name__ == "__main__":
             break
         except Exception as e:
             if attempt == max_retries:
-                print(f"Failed to connect to RabbitMQ after {max_retries} attempts: {e}")
+                logger.error(f"Failed to connect to RabbitMQ after {max_retries} attempts: {e}")
                 exit(1)
-            print(f"RabbitMQ not ready (attempt {attempt}/{max_retries}), retrying in 5s...")
+            logger.info(f"RabbitMQ not ready (attempt {attempt}/{max_retries}), retrying in 5s...")
             time.sleep(5)
 
     bus.declare_queue(CATALOG_PROCESS_ENTITY_QUEUE)

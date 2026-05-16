@@ -1,3 +1,5 @@
+import functools
+import inspect
 import time
 import uuid
 
@@ -46,10 +48,20 @@ def traced(fn):
     """
     Decorator to trace a function call.
     Creates a new span for the function call.
+    Handles both sync and async functions.
     """
+    if inspect.iscoroutinefunction(fn):
 
-    async def wrapper(*args, **kwargs):
+        @functools.wraps(fn)
+        async def async_wrapper(*args, **kwargs):
+            with Span(fn.__name__):
+                return await fn(*args, **kwargs)
+
+        return async_wrapper
+
+    @functools.wraps(fn)
+    def sync_wrapper(*args, **kwargs):
         with Span(fn.__name__):
-            return await fn(*args, **kwargs)
+            return fn(*args, **kwargs)
 
-    return wrapper
+    return sync_wrapper

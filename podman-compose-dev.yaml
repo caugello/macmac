@@ -284,6 +284,27 @@ services:
       catalog_migration:
         condition: service_completed_successfully
 
+  catalog_crawler:
+    hostname: catalog-crawler
+    profiles:
+      - manual
+    build:
+      context: .
+      dockerfile: Containerfile
+      target: crawler
+    image: quay.io/caugello/macmac-crawler:dev
+    working_dir: /opt/app-root/src
+    volumes:
+      - .:/opt/app-root/src
+    environment:
+      PYTHONPATH: /opt/app-root/src
+    command: python -m services.catalog.crawler.main
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - macmac_catalog
+
   catalog_enricher:
     hostname: catalog-enricher
     build:

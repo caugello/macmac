@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from './contexts/AuthContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
@@ -22,6 +22,16 @@ const queryClient = new QueryClient({
   },
 })
 
+function ProtectedLayout() {
+  return (
+    <ProtectedRoute>
+      <AppLayout>
+        <Outlet />
+      </AppLayout>
+    </ProtectedRoute>
+  )
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -29,96 +39,17 @@ function App() {
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <Landing />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/recipes"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <RecipeList />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/recipes/new"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <RecipeForm />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/recipes/:id/edit"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <RecipeForm />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/recipes/:id"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <RecipeDetail />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/catalog"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <CatalogList />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/catalog/:id"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <CatalogDetail />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/meal-plans"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <MealPlansPage />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/groups"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <Groups />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
+            <Route element={<ProtectedLayout />}>
+              <Route path="/" element={<Landing />} />
+              <Route path="/recipes" element={<RecipeList />} />
+              <Route path="/recipes/new" element={<RecipeForm />} />
+              <Route path="/recipes/:id/edit" element={<RecipeForm />} />
+              <Route path="/recipes/:id" element={<RecipeDetail />} />
+              <Route path="/catalog" element={<CatalogList />} />
+              <Route path="/catalog/:id" element={<CatalogDetail />} />
+              <Route path="/meal-plans" element={<MealPlansPage />} />
+              <Route path="/groups" element={<Groups />} />
+            </Route>
           </Routes>
         </AuthProvider>
       </BrowserRouter>

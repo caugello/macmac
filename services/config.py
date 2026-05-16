@@ -429,12 +429,19 @@ def get_config_for_vendor(vendor_name: str) -> Vendor:
     raise ValueError(f"Vendor with name {vendor_name} not found.")
 
 
+_config_cache: Config | None = None
+
+
 def get_config() -> Config:
     """
     Loads and parses the entire application configuration from the config.yaml file.
+    Results are cached after the first call.
     """
+    global _config_cache
+    if _config_cache is not None:
+        return _config_cache
+
     BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-    # TODO: make config yaml path customizable
     config_file = os.path.join(BASE_DIR, "config.yaml")
     with open(config_file) as f:
         raw_config = yaml.safe_load(f)
@@ -447,7 +454,7 @@ def get_config() -> Config:
         name: parse_vendor({"name": name, **data}) for name, data in raw_config["vendors"].items()
     }
 
-    config = Config(
+    _config_cache = Config(
         urlPrefix=raw_config["urlPrefix"],
         title=raw_config["title"],
         version=raw_config["version"],
@@ -459,4 +466,10 @@ def get_config() -> Config:
         rate_limiting=parse_rate_limit_config(raw_config["rate_limiting"]),
         gateway=parse_gateway_config(raw_config["gateway"]),
     )
-    return config
+    return _config_cache
+
+
+def reset_config_cache() -> None:
+    """Resets the config cache. Intended for testing only."""
+    global _config_cache
+    _config_cache = None

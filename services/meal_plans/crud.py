@@ -1,3 +1,4 @@
+import uuid
 from collections import defaultdict
 from datetime import date, timedelta
 
@@ -18,6 +19,7 @@ from services.shared.lib.authorization import (
 )
 from services.shared.lib.cache import initialize_service_cache
 from services.shared.lib.crud_helpers import safe_commit
+from services.shared.lib.http_client import service_request
 from services.shared.schemas import meal_plan as mp
 from services.shared.schemas.generic import DeleteResponse
 
@@ -39,42 +41,41 @@ async def validate_recipe_exists(recipe_id: UUID4) -> str:
     Returns recipe title if found, raises HTTPException if not.
     """
     recipes_config = get_config_for_service("recipes")
-    recipes_url = recipes_config.url
 
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.get(f"{recipes_url}/recipes/{recipe_id}")
-            response.raise_for_status()
-            recipe = response.json()
-            return recipe.get("title", "Unknown Recipe")
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Recipe {recipe_id} not found. Cannot schedule non-existent recipe.",
-                ) from e
+    try:
+        response = await service_request("GET", f"{recipes_config.url}/recipes/{recipe_id}")
+        response.raise_for_status()
+        recipe = response.json()
+        return recipe.get("title", "Unknown Recipe")
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
             raise HTTPException(
-                status_code=500, detail=f"Failed to validate recipe {recipe_id}"
+                status_code=400,
+                detail=f"Recipe {recipe_id} not found. Cannot schedule non-existent recipe.",
             ) from e
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error validating recipe: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"Failed to validate recipe {recipe_id}") from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error validating recipe: {str(e)}") from e
 
 
 async def fetch_recipe_titles(recipe_ids: list[UUID4]) -> dict[UUID4, str]:
-    """Batch fetch recipe titles (for list responses)"""
-    recipes_config = get_config_for_service("recipes")
-    recipes_url = recipes_config.url
+    """Batch fetch recipe titles using POST /recipes/batch"""
+    if not recipe_ids:
+        return {}
 
-    titles = {}
-    async with httpx.AsyncClient() as client:
-        for recipe_id in recipe_ids:
-            try:
-                response = await client.get(f"{recipes_url}/recipes/{recipe_id}")
-                recipe = response.json()
-                titles[recipe_id] = recipe.get("title", "Unknown")
-            except Exception:
-                titles[recipe_id] = f"Unknown ({recipe_id})"
-    return titles
+    recipes_config = get_config_for_service("recipes")
+
+    try:
+        response = await service_request(
+            "POST",
+            f"{recipes_config.url}/recipes/batch",
+            json={"ids": [str(rid) for rid in recipe_ids]},
+        )
+        response.raise_for_status()
+        items = response.json().get("items", {})
+        return {UUID4(k): v.get("title", "Unknown") for k, v in items.items()}
+    except Exception:
+        return {rid: f"Unknown ({rid})" for rid in recipe_ids}
 
 
 # ===== CRUD OPERATIONS =====
@@ -144,10 +145,9 @@ async def list_meal_plans(
     if end_date is None:
         end_date = start_date + timedelta(days=6)  # Sunday
 
-    # Build cache key from query params + user_id (user-specific cache)
-    cache_key = (
-        f"meal_plans:list:u={user_ctx.user_id}:sd={start_date}:ed={end_date}:l={limit}:o={offset}"
-    )
+    # Build cache key from query params + user_id + group_ids (user-specific cache)
+    groups_key = ",".join(sorted(str(g) for g in user_ctx.group_ids))
+    cache_key = f"meal_plans:list:u={user_ctx.user_id}:g={groups_key}:sd={start_date}:ed={end_date}:l={limit}:o={offset}"
     cached = cache.get_json(cache_key)
     if cached:
         return mp.MealPlanListResponse(**cached)
@@ -195,15 +195,13 @@ async def get_meal_plan(meal_plan_id: UUID4, db: Session) -> mp.MealPlanOut:
     """Get a single meal plan by ID with caching. Verifies user has access."""
     require_user_context()
 
-    # Try cache first
+    # Try cache first — cached data includes user_id/group_id for auth check
     cache_key = f"meal_plan:{meal_plan_id}"
     cached = cache.get_json(cache_key)
     if cached:
-        # Still need to verify access even if cached
-        meal_plan = db.query(MealPlan).filter(MealPlan.id == meal_plan_id).first()
-        if meal_plan:
-            # AUTHORIZATION CHECK
-            check_owner_or_group(meal_plan.user_id, meal_plan.group_id, "meal plan")
+        check_owner_or_group(cached.get("_user_id"), cached.get("_group_id"), "meal plan")
+        cached.pop("_user_id", None)
+        cached.pop("_group_id", None)
         return mp.MealPlanOut(**cached)
 
     with Span("db_get_meal_plan"):
@@ -230,8 +228,11 @@ async def get_meal_plan(meal_plan_id: UUID4, db: Session) -> mp.MealPlanOut:
             updated_at=meal_plan.updated_at,
         )
 
-        # Cache for configured TTL
-        cache.set_json(cache_key, result, ttl=config.cache.ttl.meal_plans_detail)
+        # Cache with ownership info for authorization on cache hits
+        cache_data = result.model_dump(mode="json")
+        cache_data["_user_id"] = str(meal_plan.user_id) if meal_plan.user_id else None
+        cache_data["_group_id"] = str(meal_plan.group_id) if meal_plan.group_id else None
+        cache.set_json(cache_key, cache_data, ttl=config.cache.ttl.meal_plans_detail)
 
         return result
 
@@ -482,22 +483,24 @@ async def generate_shopping_list(
         recipes_config = get_config_for_service("recipes")
         catalog_config = get_config_for_service("catalog")
 
-        # Step 1: Fetch all recipe details (with ingredients)
-        recipes_data = []
-        async with httpx.AsyncClient() as client:
-            for recipe_id in recipe_ids:
-                try:
-                    response = await client.get(f"{recipes_config.url}/recipes/{recipe_id}")
-                    recipes_data.append(response.json())
-                except Exception:
-                    continue  # Skip if recipe deleted
+        # Step 1: Batch fetch all recipe details (with ingredients)
+        try:
+            response = await service_request(
+                "POST",
+                f"{recipes_config.url}/recipes/batch",
+                json={"ids": [str(rid) for rid in recipe_ids]},
+            )
+            response.raise_for_status()
+            recipes_data = list(response.json().get("items", {}).values())
+        except Exception:
+            recipes_data = []
 
         # Step 2: Aggregate ingredients by catalog_item_id
         ingredient_totals = defaultdict(lambda: {"qty": 0.0, "unit": None})
 
         for recipe in recipes_data:
             for ingredient in recipe.get("ingredients", []):
-                catalog_item_id = UUID4(ingredient["catalog_item_id"])
+                catalog_item_id = uuid.UUID(ingredient["catalog_item_id"])
                 qty = ingredient["qty"]
                 unit = ingredient["unit"]
 
@@ -506,43 +509,51 @@ async def generate_shopping_list(
                 if ingredient_totals[catalog_item_id]["unit"] is None:
                     ingredient_totals[catalog_item_id]["unit"] = unit
 
-        # Step 3: Fetch catalog item details (price, name, category)
+        # Step 3: Batch fetch catalog item details (price, name, category)
+        all_catalog_ids = list(ingredient_totals.keys())
+        catalog_items = {}
+        try:
+            response = await service_request(
+                "POST",
+                f"{catalog_config.url}/catalog/batch",
+                json={"ids": [str(cid) for cid in all_catalog_ids]},
+            )
+            response.raise_for_status()
+            catalog_items = response.json().get("items", {})
+        except Exception:
+            pass
+
         shopping_items = []
         total_price = 0.0
 
-        async with httpx.AsyncClient() as client:
-            for catalog_item_id, totals in ingredient_totals.items():
-                try:
-                    response = await client.get(f"{catalog_config.url}/catalog/{catalog_item_id}")
-                    catalog_item = response.json()
-
-                    price = catalog_item.get("price")
-                    if price:
-                        total_price += price
-
-                    shopping_items.append(
-                        mp.ShoppingListItem(
-                            catalog_item_id=catalog_item_id,
-                            catalog_item_name=catalog_item.get("canonical_name")
-                            or catalog_item.get("raw_name"),
-                            total_qty=totals["qty"],
-                            unit=totals["unit"],
-                            price=price,
-                            category=catalog_item.get("category"),
-                        )
+        for catalog_item_id, totals in ingredient_totals.items():
+            catalog_item = catalog_items.get(str(catalog_item_id))
+            if catalog_item:
+                price = catalog_item.get("price")
+                if price:
+                    total_price += price
+                shopping_items.append(
+                    mp.ShoppingListItem(
+                        catalog_item_id=catalog_item_id,
+                        catalog_item_name=catalog_item.get("canonical_name")
+                        or catalog_item.get("raw_name"),
+                        total_qty=totals["qty"],
+                        unit=totals["unit"],
+                        price=price,
+                        category=catalog_item.get("category"),
                     )
-                except Exception:
-                    # Item not found - still include it
-                    shopping_items.append(
-                        mp.ShoppingListItem(
-                            catalog_item_id=catalog_item_id,
-                            catalog_item_name=f"Unknown ({catalog_item_id})",
-                            total_qty=totals["qty"],
-                            unit=totals["unit"],
-                            price=None,
-                            category=None,
-                        )
+                )
+            else:
+                shopping_items.append(
+                    mp.ShoppingListItem(
+                        catalog_item_id=catalog_item_id,
+                        catalog_item_name=f"Unknown ({catalog_item_id})",
+                        total_qty=totals["qty"],
+                        unit=totals["unit"],
+                        price=None,
+                        category=None,
                     )
+                )
 
         # Step 4: Group by category
         items_by_category = defaultdict(list)
