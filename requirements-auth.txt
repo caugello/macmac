@@ -1,0 +1,9 @@
+-r requirements-base.txt
+
+# Firebase Admin SDK (server-side token verification)
+firebase-admin==7.4.0
+
+# Firebase transitive deps
+cryptography==48.0.0
+requests==2.34.2
+requests-toolbelt==1.0.0

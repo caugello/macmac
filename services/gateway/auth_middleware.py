@@ -3,8 +3,8 @@ from pydantic import UUID4
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
-from services.auth.security import decode_access_token
 from services.framework.user_context import set_user_context
+from services.shared.lib.jwt import decode_access_token
 
 # Public routes that don't require authentication
 PUBLIC_ROUTES = {

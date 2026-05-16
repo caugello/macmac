@@ -1,6 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
+import { auth as firebaseAuth, googleProvider } from '@/lib/firebase'
 import { authApi } from '@/api/auth'
 
 interface User {
@@ -13,7 +15,7 @@ interface User {
 interface AuthContextType {
   user: User | null
   token: string | null
-  login: (username: string, password: string) => Promise<void>
+  loginWithGoogle: () => Promise<void>
   logout: () => void
   isAuthenticated: boolean
   isLoading: boolean
@@ -27,7 +29,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true)
   const navigate = useNavigate()
 
-  // Load token from localStorage on mount
   useEffect(() => {
     const storedToken = localStorage.getItem('auth_token')
     const storedUser = localStorage.getItem('auth_user')
@@ -47,21 +48,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoading(false)
   }, [])
 
-  const login = async (username: string, password: string) => {
-    try {
-      const response = await authApi.login({ username, password })
-      setToken(response.access_token)
-      setUser(response.user)
-      localStorage.setItem('auth_token', response.access_token)
-      localStorage.setItem('auth_user', JSON.stringify(response.user))
-      navigate('/recipes')
-    } catch (error) {
-      console.error('Login failed:', error)
-      throw error
-    }
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(firebaseAuth, () => {
+      // Firebase state tracked separately; internal JWT is the source of truth
+    })
+    return unsubscribe
+  }, [])
+
+  const loginWithGoogle = async () => {
+    const result = await signInWithPopup(firebaseAuth, googleProvider)
+    const idToken = await result.user.getIdToken()
+
+    const response = await authApi.login({ id_token: idToken })
+    setToken(response.access_token)
+    setUser(response.user)
+    localStorage.setItem('auth_token', response.access_token)
+    localStorage.setItem('auth_user', JSON.stringify(response.user))
+    navigate('/recipes')
   }
 
   const logout = () => {
+    signOut(firebaseAuth)
     setToken(null)
     setUser(null)
     localStorage.removeItem('auth_token')
@@ -74,7 +81,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       value={{
         user,
         token,
-        login,
+        loginWithGoogle,
         logout,
         isAuthenticated: !!token,
         isLoading,

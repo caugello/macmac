@@ -1,0 +1,30 @@
+# Development: all service deps + testing/linting tools
+-r requirements-base.txt
+-r requirements-cache.txt
+-r requirements-messaging.txt
+
+# Auth service
+firebase-admin==7.4.0
+cryptography==48.0.0
+requests==2.34.2
+requests-toolbelt==1.0.0
+
+# Enricher
+openai==1.59.5
+playwright==1.50.0
+beautifulsoup4==4.12.3
+
+# ==============================================================================
+# TESTING
+# ==============================================================================
+pytest==8.3.4
+pytest-asyncio==0.24.0
+pytest-cov==6.0.0
+pytest-mock==3.14.0
+
+# ==============================================================================
+# CODE QUALITY
+# ==============================================================================
+ruff==0.8.4
+black==26.3.1
+mypy==1.13.0

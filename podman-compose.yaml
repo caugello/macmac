@@ -16,7 +16,7 @@ services:
 
   gateway:
     hostname: gateway
-    image: quay.io/caugello/macmac-base
+    image: quay.io/caugello/macmac-gateway
     ports:
       - 8000:8000
     networks:
@@ -41,33 +41,6 @@ services:
       - redis
       - auth_api
 
-  keycloak:
-    hostname: keycloak
-    image: quay.io/keycloak/keycloak:26.1
-    ports:
-      - 8080:8080
-    networks:
-      - macmac_auth
-      - macmac_gateway
-    environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://auth-db:5432/keycloak
-      KC_DB_USERNAME: dbuser
-      KC_DB_PASSWORD: dbpass
-      KC_HOSTNAME: localhost
-      KC_HOSTNAME_STRICT: "false"
-      KC_HTTP_ENABLED: "true"
-      KC_HEALTH_ENABLED: "true"
-    command:
-      - start-dev
-      - --import-realm
-    volumes:
-      - ./openshift/keycloak-dev-realm.json:/opt/keycloak/data/import/macmac-dev-realm.json
-    depends_on:
-      - auth_db
-
   rabbitmq:
     hostname: rabbitmq
     image: docker.io/library/rabbitmq:4.1.6-management
@@ -90,7 +63,7 @@ services:
       POSTGRESQL_ADMIN_PASSWORD: admin
 
   recipes_migrate:
-    image: quay.io/caugello/macmac-base
+    image: quay.io/caugello/macmac-recipes
     depends_on:
       - recipes_db
     networks:
@@ -102,7 +75,7 @@ services:
         sleep 30 && alembic -c services/recipes/alembic.ini upgrade head
   recipes_api:
     hostname: recipes-api
-    image: quay.io/caugello/macmac-base
+    image: quay.io/caugello/macmac-recipes
     # ports:
     #   - 8001:8001
     networks:
@@ -133,7 +106,7 @@ services:
       POSTGRESQL_ADMIN_PASSWORD: admin
 
   catalog_migrate:
-    image: quay.io/caugello/macmac-base
+    image: quay.io/caugello/macmac-catalog
     depends_on:
       - catalog_db
     networks:
@@ -145,7 +118,7 @@ services:
         sleep 30 && alembic -c services/catalog/alembic.ini upgrade head
   catalog_api:
     hostname: catalog-api
-    image: quay.io/caugello/macmac-base
+    image: quay.io/caugello/macmac-catalog
     # ports:
     #   - 8002:8002
     networks:
@@ -179,7 +152,7 @@ services:
       POSTGRESQL_ADMIN_PASSWORD: admin
 
   meal_plans_migrate:
-    image: quay.io/caugello/macmac-base
+    image: quay.io/caugello/macmac-meal-plans
     depends_on:
       - meal_plans_db
     networks:
@@ -192,7 +165,7 @@ services:
 
   meal_plans_api:
     hostname: meal-plans-api
-    image: quay.io/caugello/macmac-base
+    image: quay.io/caugello/macmac-meal-plans
     # ports:
     #   - 8003:8003
     networks:
@@ -227,19 +200,8 @@ services:
       POSTGRESQL_DATABASE: auth
       POSTGRESQL_ADMIN_PASSWORD: admin
 
-  keycloak_db:
-    hostname: keycloak-db
-    image: quay.io/fedora/postgresql-16
-    networks:
-      - macmac_auth
-    environment:
-      POSTGRESQL_USER: dbuser
-      POSTGRESQL_PASSWORD: dbpass
-      POSTGRESQL_DATABASE: keycloak
-      POSTGRESQL_ADMIN_PASSWORD: admin
-
   auth_migrate:
-    image: quay.io/caugello/macmac-base
+    image: quay.io/caugello/macmac-auth
     depends_on:
       - auth_db
     networks:
@@ -252,18 +214,17 @@ services:
 
   auth_api:
     hostname: auth-api
-    image: quay.io/caugello/macmac-base
+    image: quay.io/caugello/macmac-auth
     networks:
       - macmac_auth
       - macmac_gateway
       - macmac_cache
+    volumes:
+      - ${GOOGLE_APPLICATION_CREDENTIALS}:/secrets/firebase-service-account.json:ro
     environment:
       REDIS_URL: "redis://redis:6379/0"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY:-dev-secret-change-in-production}"
-      KEYCLOAK_URL: "http://keycloak:8080"
-      KEYCLOAK_REALM: "macmac-dev"
-      KEYCLOAK_CLIENT_ID: "macmac-api"
-      KEYCLOAK_CLIENT_SECRET: "macmac-api-secret"
+      GOOGLE_APPLICATION_CREDENTIALS: "/secrets/firebase-service-account.json"
     command:
       - gunicorn
       - services.auth.main:app
@@ -274,13 +235,10 @@ services:
       - --error-logfile=-
     depends_on:
       - redis
-      - keycloak
 
   frontend:
     hostname: frontend
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: quay.io/caugello/macmac-frontend
     ports:
       - 3000:80
     networks:

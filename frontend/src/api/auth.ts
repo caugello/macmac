@@ -1,8 +1,7 @@
 import { apiClient } from './client'
 
-export interface LoginRequest {
-  username: string
-  password: string
+export interface FirebaseLoginRequest {
+  id_token: string
 }
 
 export interface User {
@@ -39,7 +38,7 @@ export interface AddMemberRequest {
 }
 
 export const authApi = {
-  login: (data: LoginRequest) =>
+  login: (data: FirebaseLoginRequest) =>
     apiClient.post<LoginResponse>('/auth/login', data).then((res) => res.data),
 
   me: () => apiClient.get<User>('/auth/me').then((res) => res.data),

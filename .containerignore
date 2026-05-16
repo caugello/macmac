@@ -1,0 +1,40 @@
+# Frontend (Python services don't need it)
+frontend/
+
+# Version control
+.git/
+.github/
+
+# Claude / IDE
+.claude/
+.vscode/
+.idea/
+
+# Python build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets
+.env
+.env.*
+*.key
+*.pem
+secrets/
+credentials.json
+
+# Documentation & config not needed in image
+docs/
+openshift/
+*.md
+Makefile
+.gitignore
+.containerignore
+podman-compose*.yaml

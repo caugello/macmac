@@ -9,10 +9,8 @@ auth:
   jwt:
     algorithm: HS256
     access_token_expire_minutes: 120
-  keycloak:
-    url: "http://keycloak:8080"
-    realm: "macmac-dev"
-    client_id: "macmac-api"
+  firebase:
+    project_id: "macmac-f8946"
 
 # Cache Configuration
 cache:
@@ -84,10 +82,10 @@ services:
       - name: login
         method: post
         path: /auth/login
-        request_model: services.shared.schemas.auth.LoginRequest
+        request_model: services.shared.schemas.auth.FirebaseLoginRequest
         response_model: services.shared.schemas.auth.LoginResponse
         handler: services.auth.crud.login
-        description: Authenticate user and return JWT token
+        description: Authenticate with Firebase ID token and return internal JWT
         tags:
           - auth
       - name: get_me
