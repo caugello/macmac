@@ -31,10 +31,13 @@ def setup_logging():
     Configure the root logger with a StreamHandler and a custom formatter.
     Also, adds a TraceIDFilter to inject trace_id into log records.
     """
+    logger = logging.getLogger(config.title)
+    if logger.handlers:
+        return logger
+
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(logging.Formatter(LOG_FORMAT))
 
-    logger = logging.getLogger(config.title)
     logger.setLevel(logging.INFO)
     logger.addHandler(handler)
     logger.addFilter(TraceIDFilter())

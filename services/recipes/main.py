@@ -4,7 +4,8 @@ from services.shared.lib.db import get_db
 
 
 def recipes_db():
-    yield from get_db(SessionLocal)
+    with get_db(SessionLocal) as db:
+        yield db
 
 
 app = create_microservice("recipes", recipes_db)

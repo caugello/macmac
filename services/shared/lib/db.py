@@ -1,3 +1,7 @@
+from contextlib import contextmanager
+
+
+@contextmanager
 def get_db(SessionLocal):
     """
     Get a database session.
