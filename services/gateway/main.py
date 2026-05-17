@@ -1,4 +1,5 @@
 import logging
+import os
 import uuid
 from contextlib import asynccontextmanager
 
@@ -6,6 +7,7 @@ import httpx
 from fastapi import Body, Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from services.config import get_config
 from services.framework.logging import log_event
@@ -38,7 +40,11 @@ app = FastAPI(
 # Add CORS middleware for frontend - configuration from config.yaml
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=config.gateway.cors.allowed_origins,
+    allow_origins=(
+        os.getenv("CORS_ORIGINS", "").split(",")
+        if os.getenv("CORS_ORIGINS")
+        else config.gateway.cors.allowed_origins
+    ),
     allow_credentials=config.gateway.cors.allow_credentials,
     allow_methods=config.gateway.cors.allow_methods,
     allow_headers=config.gateway.cors.allow_headers,
@@ -49,6 +55,19 @@ app.add_middleware(
 app.add_middleware(RateLimitMiddleware, calls=100, period=60)
 
 app.add_middleware(GatewayLoggingMiddleware)
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(AuthenticationMiddleware)
 
 

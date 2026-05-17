@@ -1,13 +1,14 @@
 import gzip
 import io
 import time
-import xml.etree.ElementTree as ET
 from collections.abc import Iterable
 from urllib.parse import unquote
 
+import defusedxml.ElementTree as ET
 from playwright.sync_api import sync_playwright
 
 from services.config import Vendor, get_config
+from services.shared.lib.url_validator import validate_url
 from services.shared.schemas.vendor import VendorCatalogItem, VendorXMLSource
 
 config = get_config()
@@ -74,6 +75,7 @@ def fetch_xml_playwright(url: str, page) -> str | None:
     Uses page.request.get() to fetch raw content without browser rendering.
     """
     try:
+        validate_url(url)
         response = page.request.get(url)
         if response.status >= 400:
             print(f"Error fetching {url}: HTTP {response.status}")
@@ -110,6 +112,7 @@ def fetch_products_for_vendor(vendor: Vendor) -> Iterable[VendorCatalogItem]:
             )
 
             print(f"  → Fetching sitemap: {vendor.url}")
+            validate_url(vendor.url)
             sitemap = fetch_xml_playwright(vendor.url, page)
             if not sitemap:
                 browser.close()

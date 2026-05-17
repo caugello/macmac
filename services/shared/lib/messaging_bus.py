@@ -14,7 +14,16 @@ class MessagingBus:
         self.channel = self.connection.channel()
 
     def declare_queue(self, name: str, durable: bool = True):
-        self.channel.queue_declare(queue=name, durable=durable)
+        dlx_name = f"{name}.dlx"
+        dlq_name = f"{name}.dlq"
+        self.channel.exchange_declare(exchange=dlx_name, exchange_type="direct", durable=durable)
+        self.channel.queue_declare(queue=dlq_name, durable=durable)
+        self.channel.queue_bind(queue=dlq_name, exchange=dlx_name, routing_key=name)
+        self.channel.queue_declare(
+            queue=name,
+            durable=durable,
+            arguments={"x-dead-letter-exchange": dlx_name, "x-dead-letter-routing-key": name},
+        )
 
     def consume(self, queue: str, callback: Callable[[dict, Any], None]):
         """

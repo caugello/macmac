@@ -37,7 +37,6 @@ async def create_catalog_item(data: rs.CatalogItemCreate, db: Session):
             net_quantity_unit=data.net_quantity_unit,
             product_url=data.product_url,
             is_food=data.is_food,
-            # Enhanced fields from LLM extraction
             price=data.price,
             currency=data.currency,
             category=data.category,

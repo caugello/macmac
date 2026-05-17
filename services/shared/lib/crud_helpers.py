@@ -16,36 +16,23 @@ from sqlalchemy import asc, desc
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Query, Session
 
+SORTABLE_FIELDS: dict[str, set[str]] = {
+    "CatalogItem": {
+        "vendor_name",
+        "raw_name",
+        "canonical_name",
+        "brand",
+        "price",
+        "category",
+        "created_at",
+        "updated_at",
+    },
+    "Recipe": {"title", "created_at", "updated_at"},
+    "MealPlan": {"date", "meal_type", "created_at", "updated_at"},
+}
+
 
 def apply_sorting(query: Query, model_class: type, sort_param: str | None) -> Query:
-    """
-    Apply field:asc or field:desc sorting to a SQLAlchemy query.
-
-    Replaces the common 15-line try/except sorting pattern with a single function call.
-
-    Args:
-        query: SQLAlchemy query to apply sorting to
-        model_class: Model class (e.g., Recipe, CatalogItem) to get field from
-        sort_param: Sort parameter in format "field:direction" (e.g., "title:asc", "created_at:desc")
-                    None or empty string means no sorting
-
-    Returns:
-        Query with sorting applied (or original query if sort_param is None/empty)
-
-    Raises:
-        HTTPException(400): If sort parameter is invalid (wrong format, invalid field, invalid direction)
-
-    Example:
-        >>> from services.recipes.models import Recipe
-        >>> query = db.query(Recipe)
-        >>> query = apply_sorting(query, Recipe, "title:asc")
-        >>> # Equivalent to: query.order_by(asc(Recipe.title))
-
-    Common usage in list endpoints:
-        >>> query = db.query(Recipe).filter(...)
-        >>> query = apply_sorting(query, Recipe, sort)
-        >>> items = query.offset(offset).limit(limit).all()
-    """
     if not sort_param:
         return query
 
@@ -53,16 +40,15 @@ def apply_sorting(query: Query, model_class: type, sort_param: str | None) -> Qu
         field, direction = sort_param.split(":")
         direction = direction.lower()
 
-        # Get field from model
-        if not hasattr(model_class, field):
+        allowed = SORTABLE_FIELDS.get(model_class.__name__, set())
+        if field not in allowed:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid sort field '{field}'. Field does not exist on {model_class.__name__}",
+                detail=f"Invalid sort field '{field}'. Allowed fields: {', '.join(sorted(allowed))}",
             )
 
         field_obj = getattr(model_class, field)
 
-        # Apply sorting direction
         if direction == "asc":
             return query.order_by(asc(field_obj))
         elif direction == "desc":
@@ -74,6 +60,8 @@ def apply_sorting(query: Query, model_class: type, sort_param: str | None) -> Qu
         raise HTTPException(
             status_code=400, detail="Invalid sort value. Use format 'field:asc' or 'field:desc'"
         ) from e
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Sort error: {str(e)}") from e
 

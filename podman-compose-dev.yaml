@@ -6,9 +6,9 @@ services:
     image: docker.io/library/redis:7-alpine
     ports:
       - 6379:6379
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-devpassword}
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-devpassword}", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -18,7 +18,9 @@ services:
     image: docker.io/library/rabbitmq:4.1.6-management
     ports:
       - 5672:5672
-      - 15672:15672
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-macmac}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-devpassword}
     entrypoint: ["/bin/bash", "-c", "echo 'dev-cookie' > /var/lib/rabbitmq/.erlang.cookie && chmod 400 /var/lib/rabbitmq/.erlang.cookie && exec docker-entrypoint.sh rabbitmq-server"]
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
@@ -199,6 +201,7 @@ services:
       AUTH_DATABASE_URL: "postgresql+psycopg2://dbuser:dbpass@auth-db:5432/auth"
       JWT_SECRET_KEY: "dev-secret-key-change-in-production-min-32-chars"
       GOOGLE_APPLICATION_CREDENTIALS: "/secrets/firebase-service-account.json"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-devpassword}
     ports:
       - 8004:8004
     command: uvicorn services.auth.main:app --reload --reload-dir services --reload-dir config.yaml --host 0.0.0.0 --port 8004
@@ -222,7 +225,7 @@ services:
       PYTHONPATH: /opt/app-root/src
       ENVIRONMENT: "development"
       JWT_SECRET_KEY: "dev-secret-key-change-in-production-min-32-chars"
-      # Redis config from config.yaml (host: redis, port: 6379, db: 0)
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-devpassword}
     ports:
       - 8000:8000
     command: uvicorn services.gateway.main:app --reload --reload-dir services --reload-dir config.yaml --host 0.0.0.0 --port 8000
@@ -251,7 +254,7 @@ services:
     environment:
       PYTHONPATH: /opt/app-root/src
       RECIPES_DATABASE_URL: "postgresql+psycopg2://dbuser:dbpass@recipes-db:5432/recipes"
-      # Redis config from config.yaml (host: redis, port: 6379, db: 0)
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-devpassword}
     ports:
       - 8001:8001
     command: uvicorn services.recipes.main:app --reload --reload-dir services --reload-dir config.yaml --host 0.0.0.0 --port 8001
@@ -274,7 +277,7 @@ services:
     environment:
       PYTHONPATH: /opt/app-root/src
       CATALOG_DATABASE_URL: "postgresql+psycopg2://dbuser:dbpass@catalog-db:5432/catalog"
-      # Redis config from config.yaml (host: redis, port: 6379, db: 0)
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-devpassword}
     ports:
       - 8002:8002
     command: uvicorn services.catalog.main:app --reload --reload-dir services --reload-dir config.yaml --host 0.0.0.0 --port 8002
@@ -339,7 +342,7 @@ services:
     environment:
       PYTHONPATH: /opt/app-root/src
       MEAL_PLANS_DATABASE_URL: "postgresql+psycopg2://dbuser:dbpass@meal-plans-db:5432/meal_plans"
-      # Redis config from config.yaml (host: redis, port: 6379, db: 0)
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-devpassword}
     ports:
       - 8003:8003
     command: uvicorn services.meal_plans.main:app --reload --reload-dir services --reload-dir config.yaml --host 0.0.0.0 --port 8003
