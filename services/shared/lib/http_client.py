@@ -7,6 +7,7 @@ import httpx
 
 from services.framework.logging import current_trace_id
 from services.framework.tracing import TRACE_ID_HEADER
+from services.framework.user_context import get_user_context
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +30,14 @@ async def close_http_client():
         _http_client = None
 
 
-def trace_headers() -> dict[str, str]:
-    return {TRACE_ID_HEADER: current_trace_id.get()}
+def context_headers() -> dict[str, str]:
+    headers: dict[str, str] = {TRACE_ID_HEADER: current_trace_id.get()}
+    ctx = get_user_context()
+    if ctx:
+        headers["X-User-ID"] = str(ctx.user_id)
+        headers["X-Username"] = ctx.username
+        headers["X-User-Groups"] = ",".join(str(g) for g in ctx.group_ids)
+    return headers
 
 
 class CircuitBreaker:
@@ -74,7 +81,7 @@ async def service_request(method: str, url: str, retries: int = 1, **kwargs) -> 
     if not breaker.can_proceed():
         raise httpx.ConnectError(f"Circuit open for {host}")
 
-    kwargs.setdefault("headers", {}).update(trace_headers())
+    kwargs.setdefault("headers", {}).update(context_headers())
     client = get_http_client()
 
     last_exc: httpx.ConnectError | httpx.TimeoutException | None = None
