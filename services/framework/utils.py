@@ -17,19 +17,24 @@ def build_query_dependency(route):
     """
     Generate a FastAPI dependency for extracting query params dynamically.
     This enables ?limit=&offset=&search= etc to be passed to CRUD functions.
+    Only includes params declared in the route's query_params config.
     """
+    param_names = set(route.query_params.keys()) if route.query_params else set()
 
-    # Build dependency function with parameters dynamically
     def query_dep(
         limit: int = Query(None, ge=0, description="Max results"),
         offset: int = Query(0, ge=0, description="Result offset index"),
         search: str = Query(None, description="Search text"),
+        sort: str = Query(None, description="Sort field"),
+        category: str = Query(None, description="Filter by category"),
     ):
-        # Returned dict becomes **kwargs to the CRUD handler
-        return {
+        all_params = {
             "limit": limit or 100,
             "offset": offset,
             "search": search,
+            "sort": sort,
+            "category": category,
         }
+        return {k: v for k, v in all_params.items() if k in param_names}
 
     return query_dep

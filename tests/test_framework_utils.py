@@ -27,44 +27,55 @@ def test_import_from_string_invalid():
 def test_build_query_dependency():
     """Test building query dependency function."""
     route = MagicMock()
-    route.query_params = ["limit", "offset", "search"]
+    route.query_params = {"limit": {}, "offset": {}, "search": {}}
 
     query_dep = build_query_dependency(route)
 
     assert callable(query_dep)
 
-    # Test calling the dependency
     result = query_dep(limit=20, offset=10, search="test")
     assert result["limit"] == 20
     assert result["offset"] == 10
     assert result["search"] == "test"
+    assert "category" not in result
 
 
 @pytest.mark.unit
 def test_build_query_dependency_defaults():
     """Test query dependency with default values."""
     route = MagicMock()
-    route.query_params = ["limit", "offset"]
+    route.query_params = {"limit": {}, "offset": {}}
 
     query_dep = build_query_dependency(route)
 
-    # Test with defaults
     result = query_dep(limit=None, offset=0, search=None)
     assert result["limit"] == 100  # Default limit
     assert result["offset"] == 0
-    assert result["search"] is None
+    assert "search" not in result
+
+
+@pytest.mark.unit
+def test_build_query_dependency_with_category():
+    """Test query dependency includes category only when declared."""
+    route = MagicMock()
+    route.query_params = {"limit": {}, "offset": {}, "search": {}, "category": {}}
+
+    query_dep = build_query_dependency(route)
+
+    result = query_dep(limit=20, offset=0, search=None, category="Dairy & Eggs")
+    assert result["category"] == "Dairy & Eggs"
+    assert result["limit"] == 20
 
 
 @pytest.mark.unit
 def test_build_query_dependency_no_query_params():
-    """Test building dependency when route has no query_params attribute."""
-    route = MagicMock(spec=[])  # Route without query_params attribute
+    """Test building dependency when route has no query_params."""
+    route = MagicMock()
+    route.query_params = {}
 
     query_dep = build_query_dependency(route)
 
     assert callable(query_dep)
 
-    # Should still work with default behavior
     result = query_dep(limit=50, offset=5, search="query")
-    assert result["limit"] == 50
-    assert result["offset"] == 5
+    assert result == {}

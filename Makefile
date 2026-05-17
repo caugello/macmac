@@ -1,4 +1,5 @@
-.PHONY: help test test-unit test-integration lint format clean install crawl \
+.PHONY: help test test-unit test-integration lint format clean install crawl enricher-stop \
+	catalog-backup catalog-restore \
 	frontend-install frontend-test frontend-lint frontend-format frontend-build
 
 help:
@@ -26,6 +27,9 @@ help:
 	@echo "  make format-all       Format all code (backend + frontend)"
 	@echo "  make clean            Remove generated files"
 	@echo "  make crawl            Run the catalog crawler (manual trigger)"
+	@echo "  make enricher-stop    Stop the catalog enricher"
+	@echo "  make catalog-backup   Backup catalog DB to backups/catalog.dump"
+	@echo "  make catalog-restore  Restore catalog DB from backups/catalog.dump"
 	@echo ""
 
 install:
@@ -69,6 +73,21 @@ clean:
 # Crawler (manually triggered)
 crawl:
 	podman-compose -f podman-compose-dev.yaml --profile manual run --rm --no-deps catalog_crawler
+
+# Enricher management
+enricher-stop:
+	podman-compose -f podman-compose-dev.yaml stop catalog_enricher
+
+# Catalog DB backup/restore
+catalog-backup:
+	podman-compose -f podman-compose-dev.yaml exec catalog_db pg_dump -U dbuser -d catalog -Fc -f /tmp/catalog.dump
+	podman cp macmac_catalog_db_1:/tmp/catalog.dump backups/catalog.dump
+	@echo "Backup saved to backups/catalog.dump"
+
+catalog-restore:
+	podman cp backups/catalog.dump macmac_catalog_db_1:/tmp/catalog.dump
+	podman-compose -f podman-compose-dev.yaml exec catalog_db pg_restore -U dbuser -d catalog --clean --if-exists /tmp/catalog.dump
+	@echo "Restored from backups/catalog.dump"
 
 # Frontend commands
 frontend-install:

@@ -9,8 +9,8 @@ from typing import Any
 from openai import AsyncOpenAI
 from playwright.async_api import async_playwright
 
+from services.catalog.db import SessionLocal
 from services.catalog.enricher.db import create_catalog_item
-from services.catalog.main import catalog_db
 from services.config import get_config, get_config_for_service, get_config_for_service_dependency
 from services.framework.logging import setup_logging
 from services.shared.constant import CATALOG_PROCESS_ENTITY_QUEUE
@@ -132,12 +132,21 @@ def extract_quantity_from_url(url: str) -> tuple[float | None, str | None]:
 
 async def crawl_product_page(
     url: str,
-) -> tuple[str | None, str | None, float | None, str | None, str | None, str | None, date | None]:
+) -> tuple[
+    str | None,
+    str | None,
+    float | None,
+    str | None,
+    str | None,
+    str | None,
+    date | None,
+    str | None,
+]:
     """
     Crawl product page using Playwright with anti-detection measures.
     Mimics real browser behavior to bypass WAF/bot detection.
-    Returns (html_content, final_url, extracted_price, info_link_url, nutriscore, nutriscore_svg, promotion_until_date)
-    or (None, None, None, None, None, None, None) if failed.
+    Returns (html_content, final_url, extracted_price, info_link_url, nutriscore, nutriscore_svg, promotion_until_date, image_url)
+    or (None, None, None, None, None, None, None, None) if failed.
     """
     from urllib.parse import unquote
 
@@ -209,19 +218,19 @@ async def crawl_product_page(
             except Exception as e:
                 logger.error(f"Navigation error: {e}")
                 await browser.close()
-                return None, None, None, None, None, None, None
+                return None, None, None, None, None, None, None, None
 
             if not response:
                 logger.error(f"No response from {url}")
                 await browser.close()
-                return None, None, None, None, None, None, None
+                return None, None, None, None, None, None, None, None
 
             # Check response status
             if response.status >= 400:
                 logger.error(f"HTTP {response.status} from {url}")
                 logger.debug(f"Response headers: {response.headers}")
                 await browser.close()
-                return None, None, None, None, None, None, None
+                return None, None, None, None, None, None, None, None
 
             # Get final URL after redirects
             final_url = page.url
@@ -311,6 +320,22 @@ async def crawl_product_page(
             except Exception as e:
                 logger.warning(f"Could not extract Nutri-Score: {e}")
 
+            # Extract product image URL
+            image_url = None
+            try:
+                img_el = await page.query_selector("#productMainImage")
+                if img_el:
+                    image_url = await img_el.get_attribute("src")
+                    if image_url:
+                        if image_url.startswith("//"):
+                            image_url = "https:" + image_url
+                        elif image_url.startswith("/"):
+                            base = final_url.split("/")[0] + "//" + final_url.split("/")[2]
+                            image_url = base + image_url
+                        logger.info(f"Product image: {image_url}")
+            except Exception as e:
+                logger.warning(f"Could not extract product image: {e}")
+
             # Extract promotion end date
             promotion_until_date = None
             try:
@@ -361,6 +386,7 @@ async def crawl_product_page(
                 nutriscore,
                 nutriscore_svg,
                 promotion_until_date,
+                image_url,
             )
 
     except Exception as e:
@@ -822,6 +848,7 @@ async def enrich_catalog_item(
         nutriscore,
         nutriscore_svg,
         promotion_until_date,
+        image_url,
     ) = await crawl_product_page(product_url)
 
     if not html_content:
@@ -839,6 +866,7 @@ async def enrich_catalog_item(
             nutriscore=nutriscore,
             nutriscore_svg=nutriscore_svg,
             promotion_until_date=promotion_until_date,
+            image_url=image_url,
         )
 
     # If redirected, try extracting quantity from final URL too
@@ -947,6 +975,7 @@ async def enrich_catalog_item(
         nutriscore=nutriscore,
         nutriscore_svg=nutriscore_svg,
         promotion_until_date=promotion_until_date,
+        image_url=image_url,
     )
 
 
@@ -988,7 +1017,7 @@ def write_to_db(payload: dict, ch):
             logger.debug(f"Category: {enriched_item.category}")
             return
 
-        with get_db(catalog_db) as db:
+        with get_db(SessionLocal) as db:
             if enriched_item:
                 item = create_catalog_item(enriched_item, db)
 

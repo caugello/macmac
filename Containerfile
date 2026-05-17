@@ -49,9 +49,25 @@ USER 1001
 EXPOSE 8004
 
 # ── Catalog Crawler ─────────────────────────────────────────
-FROM base AS crawler
+FROM registry.access.redhat.com/ubi9/python-312 AS crawler
+
 USER root
-RUN pip install --no-cache-dir -r requirements-messaging.txt
+RUN dnf install -y \
+    libpq-devel gcc \
+    alsa-lib atk at-spi2-atk cups-libs libdrm mesa-libgbm \
+    gtk3 libX11 libXcomposite libXdamage libXext libXfixes libXrandr \
+    libxkbcommon pango cairo dbus-libs nss nspr libxshmfence \
+    gstreamer1 gstreamer1-plugins-base \
+    harfbuzz libwebp libjpeg-turbo libpng enchant2 \
+    && dnf clean all && rm -rf /var/cache/dnf
+
+WORKDIR /opt/app-root/src
+COPY requirements-base.txt requirements-messaging.txt requirements-crawler.txt ./
+RUN pip install --no-cache-dir -r requirements-crawler.txt
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
+RUN mkdir -p /opt/playwright-browsers && playwright install chromium
+
+COPY . .
 USER 1001
 
 # ── Catalog Enricher ────────────────────────────────────────

@@ -96,3 +96,4 @@ credentials.json
 # Logs may contain sensitive data
 *.log
 logs/
+backups/

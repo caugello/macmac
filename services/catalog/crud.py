@@ -42,6 +42,10 @@ async def create_catalog_item(data: rs.CatalogItemCreate, db: Session):
             currency=data.currency,
             category=data.category,
             nutrition=data.nutrition,
+            nutriscore=data.nutriscore,
+            nutriscore_svg=data.nutriscore_svg,
+            promotion_until_date=data.promotion_until_date,
+            image_url=data.image_url,
         )
 
         with safe_commit(db, f"CatalogItem '{data.product_url}' already exists"):
@@ -61,13 +65,16 @@ async def list_catalog_items(
     offset: int = 0,
     search: str | None = None,
     sort: str | None = None,
+    category: str | None = None,
 ):
     """
     Lists catalog items with optional filtering, searching, and sorting.
     Caches results for 5 minutes.
     """
     # Build cache key from query params
-    cache_key = f"catalog:list:l={limit}:o={offset}:s={search or ''}:sort={sort or ''}"
+    cache_key = (
+        f"catalog:list:l={limit}:o={offset}:s={search or ''}:sort={sort or ''}:c={category or ''}"
+    )
     cached = cache.get_json(cache_key)
     if cached:
         return cached
@@ -79,6 +86,10 @@ async def list_catalog_items(
         if search:
             s = f"%{search.lower()}%"
             query = query.filter(CatalogItem.normalized_name.ilike(s))
+
+        # ---- CATEGORY FILTER
+        if category:
+            query = query.filter(CatalogItem.category == category)
 
         # ---- SORTING
         query = apply_sorting(query, CatalogItem, sort)
@@ -97,6 +108,26 @@ async def list_catalog_items(
         # Cache for configured TTL
         cache.set_json(cache_key, result, ttl=config.cache.ttl.catalog_list)
 
+        return result
+
+
+@traced
+async def list_catalog_categories(db: Session) -> rs.CatalogCategoriesResponse:
+    cache_key = "catalog:categories"
+    cached = cache.get_json(cache_key)
+    if cached:
+        return rs.CatalogCategoriesResponse(**cached)
+
+    with Span("db_list_catalog_categories"):
+        rows = (
+            db.query(CatalogItem.category)
+            .filter(CatalogItem.category.isnot(None))
+            .distinct()
+            .order_by(CatalogItem.category)
+            .all()
+        )
+        result = rs.CatalogCategoriesResponse(categories=[r[0] for r in rows])
+        cache.set_json(cache_key, result, ttl=config.cache.ttl.catalog_list)
         return result
 
 

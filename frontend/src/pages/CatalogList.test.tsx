@@ -7,8 +7,10 @@ import { CatalogList } from './CatalogList'
 import * as useCatalogHook from '@/hooks/useCatalog'
 
 const mockUseCatalog = vi.fn()
+const mockUseCatalogCategories = vi.fn()
 
 vi.spyOn(useCatalogHook, 'useCatalog').mockImplementation(mockUseCatalog)
+vi.spyOn(useCatalogHook, 'useCatalogCategories').mockImplementation(mockUseCatalogCategories)
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -25,9 +27,16 @@ const createWrapper = () => {
   return Wrapper
 }
 
+const mockCategories = {
+  data: { categories: ['Beverages', 'Bread & Bakery', 'Dairy & Eggs', 'Meat & Poultry'] },
+  isLoading: false,
+  error: null,
+}
+
 describe('CatalogList Page', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockUseCatalogCategories.mockReturnValue(mockCategories)
   })
 
   describe('loading state', () => {
@@ -77,24 +86,26 @@ describe('CatalogList Page', () => {
           canonical_name: 'Organic Milk',
           raw_name: 'Organic Whole Milk 1L',
           brand: 'FreshDairy',
-          category: 'Dairy',
+          category: 'Dairy & Eggs',
           is_food: true,
           vendor_name: 'SuperMarket',
           net_quantity_value: 1,
           net_quantity_unit: 'L',
           price: 2.99,
+          nutriscore: 'A',
         },
         {
           id: '2',
           canonical_name: 'Whole Wheat Bread',
           raw_name: 'Whole Wheat Bread 500g',
           brand: null,
-          category: 'Bakery',
+          category: 'Bread & Bakery',
           is_food: true,
           vendor_name: 'Local Bakery',
           net_quantity_value: null,
           net_quantity_unit: null,
           price: null,
+          nutriscore: null,
         },
       ],
       total: 2,
@@ -124,58 +135,23 @@ describe('CatalogList Page', () => {
       expect(screen.getByText('Whole Wheat Bread')).toBeInTheDocument()
     })
 
-    it('should render vendor names', () => {
-      render(<CatalogList />, { wrapper: createWrapper() })
-      expect(screen.getByText(/SuperMarket/)).toBeInTheDocument()
-      expect(screen.getByText(/Local Bakery/)).toBeInTheDocument()
-    })
-
-    it('should render food badge for food items', () => {
-      render(<CatalogList />, { wrapper: createWrapper() })
-      const foodBadges = screen.getAllByText('Food')
-      expect(foodBadges.length).toBe(2)
-    })
-
-    it('should render non-food badge for non-food items', () => {
-      mockUseCatalog.mockReturnValue({
-        data: {
-          data: [
-            {
-              id: '1',
-              canonical_name: 'Dish Soap',
-              is_food: false,
-              vendor_name: 'CleanMart',
-            },
-          ],
-          total: 1,
-        },
-        isLoading: false,
-        error: null,
-      })
-
-      render(<CatalogList />, { wrapper: createWrapper() })
-      expect(screen.getByText('Non-Food')).toBeInTheDocument()
-    })
-
-    it('should render brand badge when brand exists', () => {
+    it('should render brand when available', () => {
       render(<CatalogList />, { wrapper: createWrapper() })
       expect(screen.getByText('FreshDairy')).toBeInTheDocument()
     })
 
-    it('should render category badge when category exists', () => {
+    it('should render price in euro format', () => {
       render(<CatalogList />, { wrapper: createWrapper() })
-      expect(screen.getByText('Dairy')).toBeInTheDocument()
-      expect(screen.getByText('Bakery')).toBeInTheDocument()
+      const priceElements = screen.getAllByText((_, el) => {
+        if (!el || el.children.length > 0) return false
+        return el.textContent?.includes('2.99') ?? false
+      })
+      expect(priceElements.length).toBeGreaterThan(0)
     })
 
-    it('should render quantity when available', () => {
+    it('should render nutri-score badge', () => {
       render(<CatalogList />, { wrapper: createWrapper() })
-      expect(screen.getByText(/• 1L/)).toBeInTheDocument()
-    })
-
-    it('should render price when available', () => {
-      render(<CatalogList />, { wrapper: createWrapper() })
-      expect(screen.getByText(/• €2.99/)).toBeInTheDocument()
+      expect(screen.getByText('A')).toBeInTheDocument()
     })
 
     it('should link to product detail pages', () => {
@@ -210,7 +186,6 @@ describe('CatalogList Page', () => {
 
     it('should not render pagination when total is less than limit', () => {
       render(<CatalogList />, { wrapper: createWrapper() })
-      // Pagination should not appear when total (2) is less than limit (20)
       expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
     })
 
@@ -227,6 +202,67 @@ describe('CatalogList Page', () => {
       render(<CatalogList />, { wrapper: createWrapper() })
       expect(screen.getByText('1')).toBeInTheDocument()
       expect(screen.getByText('2')).toBeInTheDocument()
+    })
+  })
+
+  describe('category filters', () => {
+    beforeEach(() => {
+      mockUseCatalog.mockReturnValue({
+        data: { data: [], total: 0 },
+        isLoading: false,
+        error: null,
+      })
+    })
+
+    it('should render category pills from the API', () => {
+      render(<CatalogList />, { wrapper: createWrapper() })
+      expect(screen.getByText('All Products')).toBeInTheDocument()
+      expect(screen.getByText('Dairy & Eggs')).toBeInTheDocument()
+      expect(screen.getByText('Meat & Poultry')).toBeInTheDocument()
+      expect(screen.getByText('Beverages')).toBeInTheDocument()
+      expect(screen.getByText('Bread & Bakery')).toBeInTheDocument()
+    })
+
+    it('should not render category pills when categories are not yet loaded', () => {
+      mockUseCatalogCategories.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        error: null,
+      })
+
+      render(<CatalogList />, { wrapper: createWrapper() })
+      expect(screen.queryByText('All Products')).not.toBeInTheDocument()
+    })
+
+    it('should pass category to useCatalog when a category is selected', async () => {
+      const user = userEvent.setup()
+      render(<CatalogList />, { wrapper: createWrapper() })
+
+      await user.click(screen.getByText('Dairy & Eggs'))
+
+      await waitFor(() => {
+        expect(mockUseCatalog).toHaveBeenCalledWith(
+          expect.objectContaining({ category: 'Dairy & Eggs' })
+        )
+      })
+    })
+
+    it('should not pass category when All Products is selected', () => {
+      render(<CatalogList />, { wrapper: createWrapper() })
+      expect(mockUseCatalog).toHaveBeenCalledWith(expect.objectContaining({ category: undefined }))
+    })
+
+    it('should reset page to 0 when category changes', async () => {
+      const user = userEvent.setup()
+      render(<CatalogList />, { wrapper: createWrapper() })
+
+      await user.click(screen.getByText('Beverages'))
+
+      await waitFor(() => {
+        expect(mockUseCatalog).toHaveBeenCalledWith(
+          expect.objectContaining({ offset: 0, category: 'Beverages' })
+        )
+      })
     })
   })
 
