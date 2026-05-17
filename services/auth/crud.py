@@ -1,14 +1,15 @@
 import logging
+import uuid
 
 from fastapi import HTTPException
-from pydantic import UUID4
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from services.framework.tracing import traced
 from services.framework.user_context import require_user_context
 from services.shared.schemas import auth as auth_schemas
 
-from .models import Group, User
+from .models import Group, GroupInvitation, User
 from .security import create_access_token, verify_firebase_token
 
 logger = logging.getLogger(__name__)
@@ -54,6 +55,15 @@ async def login(data: auth_schemas.FirebaseLoginRequest, db: Session) -> auth_sc
         user.email = email
         db.commit()
 
+    pending_count = (
+        db.query(GroupInvitation)
+        .filter(
+            func.lower(GroupInvitation.email) == email.lower(),
+            GroupInvitation.status == "pending",
+        )
+        .count()
+    )
+
     group_ids = [group.id for group in user.groups]
     token = create_access_token(user.id, user.username, group_ids)
 
@@ -65,23 +75,34 @@ async def login(data: auth_schemas.FirebaseLoginRequest, db: Session) -> auth_sc
             username=user.username,
             email=user.email,
             groups=group_ids,
+            pending_invitations=pending_count,
         ),
     )
 
 
 @traced
-async def get_current_user(db: Session, path_params: dict) -> auth_schemas.UserOut:
+async def get_current_user(db: Session) -> auth_schemas.UserOut:
     user_ctx = require_user_context()
 
     user = db.query(User).filter(User.id == user_ctx.user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    pending_count = (
+        db.query(GroupInvitation)
+        .filter(
+            func.lower(GroupInvitation.email) == user.email.lower(),
+            GroupInvitation.status == "pending",
+        )
+        .count()
+    )
+
     return auth_schemas.UserOut(
         id=user.id,
         username=user.username,
         email=user.email,
         groups=[group.id for group in user.groups],
+        pending_invitations=pending_count,
     )
 
 
@@ -89,78 +110,245 @@ async def get_current_user(db: Session, path_params: dict) -> auth_schemas.UserO
 async def create_group(data: auth_schemas.GroupCreate, db: Session) -> auth_schemas.GroupOut:
     user_ctx = require_user_context()
 
+    user = db.query(User).filter(User.id == user_ctx.user_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found — please log in again")
+
     group = Group(
         name=data.name,
-        owner_id=user_ctx.user_id,
+        owner_id=user.id,
     )
     db.add(group)
     db.commit()
     db.refresh(group)
 
-    user = db.query(User).filter(User.id == user_ctx.user_id).first()
-    if user:
-        user.groups.append(group)
-        db.commit()
+    user.groups.append(group)
+    db.commit()
 
+    return _group_out(group)
+
+
+def _group_out(group: Group) -> auth_schemas.GroupOut:
     return auth_schemas.GroupOut(
         id=group.id,
         name=group.name,
         owner_id=group.owner_id,
         member_count=len(group.members),
+        members=[
+            auth_schemas.GroupMember(id=m.id, username=m.username, email=m.email)
+            for m in group.members
+        ],
     )
 
 
 @traced
-async def list_groups(db: Session, query_params: dict) -> auth_schemas.GroupListResponse:
+async def list_groups(
+    db: Session, limit: int = 20, offset: int = 0, search: str | None = None, **kwargs
+) -> auth_schemas.GroupListResponse:
     user_ctx = require_user_context()
 
     user = db.query(User).filter(User.id == user_ctx.user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    groups = [
-        auth_schemas.GroupOut(
-            id=group.id,
-            name=group.name,
-            owner_id=group.owner_id,
-            member_count=len(group.members),
-        )
-        for group in user.groups
-    ]
+    all_groups = user.groups
+    if search:
+        search_lower = search.lower()
+        all_groups = [g for g in all_groups if search_lower in g.name.lower()]
 
-    return auth_schemas.GroupListResponse(total=len(groups), data=groups)
+    groups = [_group_out(group) for group in all_groups[offset : offset + limit]]
+
+    return auth_schemas.GroupListResponse(total=len(all_groups), data=groups)
 
 
 @traced
-async def add_user_to_group(data: auth_schemas.AddMemberRequest, path_params: dict, db: Session):
+async def invite_user_to_group(group_id: str, data: auth_schemas.InviteMemberRequest, db: Session):
     user_ctx = require_user_context()
-    group_id = UUID4(path_params["group_id"])
+    group_id = uuid.UUID(group_id)
 
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
 
     if group.owner_id != user_ctx.user_id:
-        raise HTTPException(status_code=403, detail="Only group owner can add members")
+        raise HTTPException(status_code=403, detail="Only group owner can invite members")
 
-    user_to_add = db.query(User).filter(User.username == data.username).first()
-    if not user_to_add:
-        raise HTTPException(status_code=404, detail=f"User '{data.username}' not found")
-
-    if user_to_add in group.members:
+    existing_user = db.query(User).filter(func.lower(User.email) == data.email.lower()).first()
+    if existing_user and existing_user in group.members:
         raise HTTPException(status_code=400, detail="User is already a member of this group")
 
-    group.members.append(user_to_add)
-    db.commit()
+    existing_invite = (
+        db.query(GroupInvitation)
+        .filter(
+            GroupInvitation.group_id == group_id,
+            func.lower(GroupInvitation.email) == data.email.lower(),
+            GroupInvitation.status == "pending",
+        )
+        .first()
+    )
+    if existing_invite:
+        raise HTTPException(
+            status_code=400, detail="An invitation is already pending for this email"
+        )
 
-    return {"message": f"User '{data.username}' added to group '{group.name}'"}
+    invitation = GroupInvitation(
+        group_id=group_id,
+        email=data.email.lower(),
+        invited_by=user_ctx.user_id,
+        status="pending",
+    )
+    db.add(invitation)
+    db.commit()
+    db.refresh(invitation)
+
+    return {"message": f"Invitation sent to '{data.email}'", "invitation_id": str(invitation.id)}
 
 
 @traced
-async def remove_user_from_group(path_params: dict, db: Session):
+async def list_my_invitations(
+    db: Session, limit: int = 20, offset: int = 0, **kwargs
+) -> auth_schemas.InvitationListResponse:
     user_ctx = require_user_context()
-    group_id = UUID4(path_params["group_id"])
-    user_id = UUID4(path_params["user_id"])
+
+    user = db.query(User).filter(User.id == user_ctx.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    query = db.query(GroupInvitation).filter(
+        func.lower(GroupInvitation.email) == user.email.lower(),
+        GroupInvitation.status == "pending",
+    )
+    total = query.count()
+    invitations = query.offset(offset).limit(limit).all()
+
+    data = []
+    for inv in invitations:
+        data.append(
+            auth_schemas.InvitationOut(
+                id=inv.id,
+                group_id=inv.group_id,
+                group_name=inv.group.name,
+                email=inv.email,
+                invited_by=inv.invited_by,
+                inviter_name=inv.inviter.username,
+                status=inv.status,
+                created_at=inv.created_at,
+            )
+        )
+
+    return auth_schemas.InvitationListResponse(total=total, data=data)
+
+
+@traced
+async def respond_to_invitation(
+    invitation_id: str, data: auth_schemas.InvitationActionRequest, db: Session
+):
+    user_ctx = require_user_context()
+    invitation_id = uuid.UUID(invitation_id)
+
+    invitation = db.query(GroupInvitation).filter(GroupInvitation.id == invitation_id).first()
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+
+    user = db.query(User).filter(User.id == user_ctx.user_id).first()
+    if not user or user.email.lower() != invitation.email.lower():
+        raise HTTPException(status_code=403, detail="This invitation is not for you")
+
+    if invitation.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Invitation already {invitation.status}")
+
+    if data.action == "accept":
+        group = db.query(Group).filter(Group.id == invitation.group_id).first()
+        if not group:
+            raise HTTPException(status_code=404, detail="Group no longer exists")
+        group.members.append(user)
+        invitation.status = "accepted"
+    else:
+        invitation.status = "declined"
+
+    db.commit()
+
+    return {
+        "message": (
+            f"Invitation {data.action}d" if data.action == "decline" else "Invitation accepted"
+        )
+    }
+
+
+@traced
+async def list_group_invitations(
+    group_id: str, db: Session, **kwargs
+) -> auth_schemas.InvitationListResponse:
+    user_ctx = require_user_context()
+    group_id = uuid.UUID(group_id)
+
+    group = db.query(Group).filter(Group.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    if group.owner_id != user_ctx.user_id:
+        raise HTTPException(status_code=403, detail="Only group owner can view invitations")
+
+    query = db.query(GroupInvitation).filter(
+        GroupInvitation.group_id == group_id,
+        GroupInvitation.status == "pending",
+    )
+    total = query.count()
+    invitations = query.all()
+
+    data = []
+    for inv in invitations:
+        data.append(
+            auth_schemas.InvitationOut(
+                id=inv.id,
+                group_id=inv.group_id,
+                group_name=inv.group.name,
+                email=inv.email,
+                invited_by=inv.invited_by,
+                inviter_name=inv.inviter.username,
+                status=inv.status,
+                created_at=inv.created_at,
+            )
+        )
+
+    return auth_schemas.InvitationListResponse(total=total, data=data)
+
+
+@traced
+async def cancel_invitation(group_id: str, invitation_id: str, db: Session):
+    user_ctx = require_user_context()
+    group_id = uuid.UUID(group_id)
+    invitation_id = uuid.UUID(invitation_id)
+
+    group = db.query(Group).filter(Group.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    if group.owner_id != user_ctx.user_id:
+        raise HTTPException(status_code=403, detail="Only group owner can cancel invitations")
+
+    invitation = (
+        db.query(GroupInvitation)
+        .filter(GroupInvitation.id == invitation_id, GroupInvitation.group_id == group_id)
+        .first()
+    )
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+
+    if invitation.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Invitation already {invitation.status}")
+
+    db.delete(invitation)
+    db.commit()
+
+    return {"message": "Invitation cancelled"}
+
+
+@traced
+async def remove_user_from_group(group_id: str, user_id: str, db: Session):
+    user_ctx = require_user_context()
+    group_id = uuid.UUID(group_id)
+    user_id = uuid.UUID(user_id)
 
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
@@ -186,3 +374,48 @@ async def remove_user_from_group(path_params: dict, db: Session):
     db.commit()
 
     return {"message": f"User removed from group '{group.name}'"}
+
+
+@traced
+async def leave_group(group_id: str, db: Session):
+    user_ctx = require_user_context()
+    group_id = uuid.UUID(group_id)
+
+    group = db.query(Group).filter(Group.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    if group.owner_id == user_ctx.user_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Group owner cannot leave. Delete the group instead.",
+        )
+
+    user = db.query(User).filter(User.id == user_ctx.user_id).first()
+    if not user or user not in group.members:
+        raise HTTPException(status_code=400, detail="You are not a member of this group")
+
+    group.members.remove(user)
+    db.commit()
+
+    return {"message": f"You left group '{group.name}'"}
+
+
+@traced
+async def delete_group(group_id: str, db: Session):
+    user_ctx = require_user_context()
+    group_id = uuid.UUID(group_id)
+
+    group = db.query(Group).filter(Group.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    if group.owner_id != user_ctx.user_id:
+        raise HTTPException(status_code=403, detail="Only group owner can delete the group")
+
+    db.query(GroupInvitation).filter(GroupInvitation.group_id == group_id).delete()
+    group.members.clear()
+    db.delete(group)
+    db.commit()
+
+    return {"message": f"Group '{group.name}' deleted"}

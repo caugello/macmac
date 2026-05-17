@@ -9,6 +9,7 @@ export interface User {
   username: string
   email: string
   groups: string[]
+  pending_invitations: number
 }
 
 export interface LoginResponse {
@@ -21,11 +22,18 @@ export interface GroupCreate {
   name: string
 }
 
+export interface GroupMember {
+  id: string
+  username: string
+  email: string
+}
+
 export interface Group {
   id: string
   name: string
   owner_id: string | null
   member_count: number
+  members: GroupMember[]
 }
 
 export interface GroupListResponse {
@@ -33,8 +41,28 @@ export interface GroupListResponse {
   data: Group[]
 }
 
-export interface AddMemberRequest {
-  username: string
+export interface InviteMemberRequest {
+  email: string
+}
+
+export interface Invitation {
+  id: string
+  group_id: string
+  group_name: string
+  email: string
+  invited_by: string
+  inviter_name: string
+  status: string
+  created_at: string
+}
+
+export interface InvitationListResponse {
+  total: number
+  data: Invitation[]
+}
+
+export interface InvitationActionRequest {
+  action: 'accept' | 'decline'
 }
 
 export const authApi = {
@@ -48,9 +76,29 @@ export const authApi = {
 
   listGroups: () => apiClient.get<GroupListResponse>('/auth/groups').then((res) => res.data),
 
-  addMember: (groupId: string, data: AddMemberRequest) =>
-    apiClient.post(`/auth/groups/${groupId}/members`, data).then((res) => res.data),
+  inviteMember: (groupId: string, data: InviteMemberRequest) =>
+    apiClient.post(`/auth/groups/${groupId}/invitations`, data).then((res) => res.data),
+
+  listInvitations: () =>
+    apiClient.get<InvitationListResponse>('/auth/invitations').then((res) => res.data),
+
+  respondToInvitation: (invitationId: string, data: InvitationActionRequest) =>
+    apiClient.post(`/auth/invitations/${invitationId}`, data).then((res) => res.data),
+
+  listGroupInvitations: (groupId: string) =>
+    apiClient
+      .get<InvitationListResponse>(`/auth/groups/${groupId}/invitations`)
+      .then((res) => res.data),
+
+  cancelInvitation: (groupId: string, invitationId: string) =>
+    apiClient.delete(`/auth/groups/${groupId}/invitations/${invitationId}`).then((res) => res.data),
 
   removeMember: (groupId: string, userId: string) =>
     apiClient.delete(`/auth/groups/${groupId}/members/${userId}`).then((res) => res.data),
+
+  leaveGroup: (groupId: string) =>
+    apiClient.post(`/auth/groups/${groupId}/leave`).then((res) => res.data),
+
+  deleteGroup: (groupId: string) =>
+    apiClient.delete(`/auth/groups/${groupId}`).then((res) => res.data),
 }

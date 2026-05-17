@@ -1,4 +1,4 @@
-import re
+from datetime import datetime
 
 from pydantic import UUID4, BaseModel, EmailStr, Field, field_validator
 
@@ -16,6 +16,7 @@ class UserOut(BaseModel):
     username: str
     email: EmailStr
     groups: list[UUID4]
+    pending_invitations: int = 0
 
     model_config = {"from_attributes": True}
 
@@ -36,11 +37,18 @@ class GroupCreate(BaseModel):
     @field_validator("name")
     @classmethod
     def validate_name(cls, v: str) -> str:
-        # Trim whitespace
         v = v.strip()
         if not v:
             raise ValueError("Group name cannot be empty")
         return v
+
+
+class GroupMember(BaseModel):
+    """A member within a group"""
+
+    id: UUID4
+    username: str
+    email: str
 
 
 class GroupOut(BaseModel):
@@ -50,6 +58,7 @@ class GroupOut(BaseModel):
     name: str
     owner_id: UUID4 | None
     member_count: int
+    members: list[GroupMember] = []
 
     model_config = {"from_attributes": True}
 
@@ -61,19 +70,40 @@ class GroupListResponse(BaseModel):
     data: list[GroupOut]
 
 
-class AddMemberRequest(BaseModel):
-    """Request to add a member to a group"""
+class InviteMemberRequest(BaseModel):
+    """Request to invite a user to a group by email"""
 
-    username: str = Field(..., min_length=3, max_length=50, description="Username to add")
+    email: EmailStr = Field(..., description="Email of the user to invite")
 
-    @field_validator("username")
-    @classmethod
-    def validate_username(cls, v: str) -> str:
-        if not re.match(r"^[a-zA-Z0-9._-]+$", v):
-            raise ValueError(
-                "Username can only contain letters, numbers, dots, underscores, and hyphens"
-            )
-        return v.lower()
+
+class InvitationOut(BaseModel):
+    """Response model for a single invitation"""
+
+    id: UUID4
+    group_id: UUID4
+    group_name: str
+    email: EmailStr
+    invited_by: UUID4
+    inviter_name: str
+    status: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class InvitationListResponse(BaseModel):
+    """Response for listing invitations"""
+
+    total: int
+    data: list[InvitationOut]
+
+
+class InvitationActionRequest(BaseModel):
+    """Request to accept or decline an invitation"""
+
+    action: str = Field(
+        ..., pattern=r"^(accept|decline)$", description="Either 'accept' or 'decline'"
+    )
 
 
 class UserContext(BaseModel):

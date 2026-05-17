@@ -17,9 +17,9 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 from services.auth.security import create_access_token  # noqa: E402
 from services.shared.lib.jwt import decode_access_token  # noqa: E402
 from services.shared.schemas.auth import (  # noqa: E402
-    AddMemberRequest,
     FirebaseLoginRequest,
     GroupCreate,
+    InviteMemberRequest,
 )
 
 
@@ -104,14 +104,13 @@ class TestInputValidation:
         group = GroupCreate(name="  My Group  ")
         assert group.name == "My Group"
 
-    def test_add_member_username_validation(self):
-        """Test add member username validation"""
-        request = AddMemberRequest(username="valid_user")
-        assert request.username == "valid_user"
+    def test_invite_member_email_validation(self):
+        """Test invite member email validation"""
+        request = InviteMemberRequest(email="user@example.com")
+        assert request.email == "user@example.com"
 
-        with pytest.raises(ValidationError) as exc:
-            AddMemberRequest(username="invalid user!")
-        assert "can only contain" in str(exc.value).lower()
+        with pytest.raises(ValidationError):
+            InviteMemberRequest(email="not-an-email")
 
 
 class TestRateLimiting:

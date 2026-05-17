@@ -152,7 +152,9 @@ def make_proxy_handler(service, route):
         # --- JSON body only for methods that accept payload ---
         json_body = None
         if method in ("POST", "PUT", "PATCH"):
-            json_body = await request.json()
+            body = await request.body()
+            if body:
+                json_body = await request.json()
 
         # --- Forward headers, strip body-sensitive and user-context ones ---
         # User-context headers (X-User-ID, X-Username, X-User-Groups) are

@@ -27,7 +27,7 @@ class User(BaseModel, Base):
 
     __tablename__ = "users"
 
-    username = Column(String(100), unique=True, nullable=False, index=True)
+    username = Column(String(100), nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
 
     firebase_uid = Column(String(255), unique=True, nullable=True, index=True)
@@ -37,11 +37,6 @@ class User(BaseModel, Base):
     # Relationships
     groups = relationship("Group", secondary=user_groups, back_populates="members")
     owned_groups = relationship("Group", back_populates="owner", foreign_keys="Group.owner_id")
-
-    __table_args__ = (
-        Index("ix_users_username", "username"),
-        Index("ix_users_email", "email"),
-    )
 
 
 class Group(BaseModel, Base):
@@ -61,3 +56,27 @@ class Group(BaseModel, Base):
     owner = relationship("User", back_populates="owned_groups", foreign_keys=[owner_id])
 
     __table_args__ = (Index("ix_groups_owner_id", "owner_id"),)
+
+
+class GroupInvitation(BaseModel, Base):
+    """Pending invitation to join a group"""
+
+    __tablename__ = "group_invitations"
+
+    group_id = Column(
+        UUID(as_uuid=True), ForeignKey("groups.id", ondelete="CASCADE"), nullable=False
+    )
+    email = Column(String(255), nullable=False)
+    invited_by = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    status = Column(String(20), nullable=False, default="pending")
+
+    group = relationship("Group")
+    inviter = relationship("User", foreign_keys=[invited_by])
+
+    __table_args__ = (
+        Index("ix_group_invitations_email", "email"),
+        Index("ix_group_invitations_group_id", "group_id"),
+        Index("ix_group_invitations_status", "status"),
+    )
