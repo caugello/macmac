@@ -302,8 +302,6 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-    networks:
-      - macmac_catalog
 
   catalog_enricher:
     hostname: catalog-enricher

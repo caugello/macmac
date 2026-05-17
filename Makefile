@@ -68,7 +68,7 @@ clean:
 
 # Crawler (manually triggered)
 crawl:
-	podman-compose -f podman-compose-dev.yaml run --rm catalog_crawler
+	podman-compose -f podman-compose-dev.yaml --profile manual run --rm --no-deps catalog_crawler
 
 # Frontend commands
 frontend-install:
