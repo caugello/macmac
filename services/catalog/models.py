@@ -35,4 +35,5 @@ class CatalogItem(BaseModel, Base):
     __table_args__ = (
         Index("ix_catalog_normalized_name", "normalized_name"),
         Index("ix_catalog_product_url", "product_url", unique=True),
+        Index("ix_catalog_category", "category"),
     )

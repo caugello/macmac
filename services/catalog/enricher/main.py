@@ -3,6 +3,7 @@ import json
 import os
 import re
 import time
+from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
 
@@ -17,6 +18,19 @@ from services.shared.constant import CATALOG_PROCESS_ENTITY_QUEUE
 from services.shared.lib.db import get_db
 from services.shared.lib.messaging_bus import MessagingBus
 from services.shared.schemas.catalog import CatalogItemCreate
+
+
+@dataclass
+class CrawlResult:
+    html_content: str | None = None
+    final_url: str | None = None
+    extracted_price: float | None = None
+    info_link_url: str | None = None
+    nutriscore: str | None = None
+    nutriscore_svg: str | None = None
+    promotion_until_date: date | None = None
+    image_url: str | None = None
+
 
 logger = setup_logging()
 
@@ -130,23 +144,10 @@ def extract_quantity_from_url(url: str) -> tuple[float | None, str | None]:
     return None, None
 
 
-async def crawl_product_page(
-    url: str,
-) -> tuple[
-    str | None,
-    str | None,
-    float | None,
-    str | None,
-    str | None,
-    str | None,
-    date | None,
-    str | None,
-]:
+async def crawl_product_page(url: str) -> CrawlResult:
     """
     Crawl product page using Playwright with anti-detection measures.
     Mimics real browser behavior to bypass WAF/bot detection.
-    Returns (html_content, final_url, extracted_price, info_link_url, nutriscore, nutriscore_svg, promotion_until_date, image_url)
-    or (None, None, None, None, None, None, None, None) if failed.
     """
     from urllib.parse import unquote
 
@@ -218,19 +219,19 @@ async def crawl_product_page(
             except Exception as e:
                 logger.error(f"Navigation error: {e}")
                 await browser.close()
-                return None, None, None, None, None, None, None, None
+                return CrawlResult()
 
             if not response:
                 logger.error(f"No response from {url}")
                 await browser.close()
-                return None, None, None, None, None, None, None, None
+                return CrawlResult()
 
             # Check response status
             if response.status >= 400:
                 logger.error(f"HTTP {response.status} from {url}")
                 logger.debug(f"Response headers: {response.headers}")
                 await browser.close()
-                return None, None, None, None, None, None, None, None
+                return CrawlResult()
 
             # Get final URL after redirects
             final_url = page.url
@@ -378,20 +379,20 @@ async def crawl_product_page(
                 logger.warning(f"Could not find product info link: {e}")
 
             await browser.close()
-            return (
-                html,
-                final_url,
-                extracted_price,
-                info_link_url,
-                nutriscore,
-                nutriscore_svg,
-                promotion_until_date,
-                image_url,
+            return CrawlResult(
+                html_content=html,
+                final_url=final_url,
+                extracted_price=extracted_price,
+                info_link_url=info_link_url,
+                nutriscore=nutriscore,
+                nutriscore_svg=nutriscore_svg,
+                promotion_until_date=promotion_until_date,
+                image_url=image_url,
             )
 
     except Exception as e:
         logger.error(f"Error crawling {url}: {e}")
-        return None, None, None, None, None, None, None
+        return CrawlResult()
 
 
 async def crawl_nutrition_page(info_url: str, main_page_url: str) -> tuple[str | None, str | None]:
@@ -840,20 +841,10 @@ async def enrich_catalog_item(
         logger.debug(f"URL extraction: {url_qty}{url_unit}")
 
     # Step 2: Crawl main product page with Playwright
-    (
-        html_content,
-        final_url,
-        extracted_price,
-        info_link_url,
-        nutriscore,
-        nutriscore_svg,
-        promotion_until_date,
-        image_url,
-    ) = await crawl_product_page(product_url)
+    crawl = await crawl_product_page(product_url)
 
-    if not html_content:
+    if not crawl.html_content:
         logger.warning("Failed to crawl, using URL extraction only")
-        # Return minimal data
         return CatalogItemCreate(
             vendor_name=vendor_name,
             raw_name=raw_name,
@@ -861,25 +852,27 @@ async def enrich_catalog_item(
             is_food=True,
             net_quantity_value=url_qty,
             net_quantity_unit=url_unit,
-            price=extracted_price,
+            price=crawl.extracted_price,
             currency="EUR",
-            nutriscore=nutriscore,
-            nutriscore_svg=nutriscore_svg,
-            promotion_until_date=promotion_until_date,
-            image_url=image_url,
+            nutriscore=crawl.nutriscore,
+            nutriscore_svg=crawl.nutriscore_svg,
+            promotion_until_date=crawl.promotion_until_date,
+            image_url=crawl.image_url,
         )
 
     # If redirected, try extracting quantity from final URL too
-    if final_url and final_url != product_url:
-        final_qty, final_unit = extract_quantity_from_url(final_url)
+    if crawl.final_url and crawl.final_url != product_url:
+        final_qty, final_unit = extract_quantity_from_url(crawl.final_url)
         if final_qty and not url_qty:
             url_qty, url_unit = final_qty, final_unit
             logger.debug(f"Final URL extraction: {url_qty}{url_unit}")
 
+    effective_url = crawl.final_url or product_url
+
     # Step 3: Initial LLM extraction to determine if it's food
     logger.debug("Determining if product is food...")
     extracted_data = await extract_with_llm(
-        raw_name, final_url or product_url, html_content, url_qty, url_unit, extracted_price
+        raw_name, effective_url, crawl.html_content, url_qty, url_unit, crawl.extracted_price
     )
     is_food = extracted_data.get("is_food", True)
 
@@ -887,16 +880,14 @@ async def enrich_catalog_item(
     if is_food:
         logger.info("Product is food, crawling nutrition page...")
         detailed_html, nutrition_table_text = await crawl_nutrition_page(
-            info_link_url, final_url or product_url
+            crawl.info_link_url, effective_url
         )
 
         if detailed_html:
-            # Combine main HTML with detailed info
             combined_html = (
-                html_content + "\n\n<!-- DETAILED PRODUCT INFO PAGE -->\n" + detailed_html
+                crawl.html_content + "\n\n<!-- DETAILED PRODUCT INFO PAGE -->\n" + detailed_html
             )
 
-            # Add nutrition table prominently if extracted
             if nutrition_table_text:
                 combined_html = (
                     f"<!-- EXTRACTED NUTRITION TABLE -->\n{nutrition_table_text}\n\n"
@@ -904,15 +895,14 @@ async def enrich_catalog_item(
                 )
                 logger.debug("Added nutrition table to HTML")
 
-            # Re-extract with combined HTML for nutrition data
             logger.info("Extracting nutrition data with LLM...")
             extracted_data = await extract_with_llm(
                 raw_name,
-                final_url or product_url,
+                effective_url,
                 combined_html,
                 url_qty,
                 url_unit,
-                extracted_price,
+                crawl.extracted_price,
             )
         else:
             logger.warning("Could not fetch nutrition page, using main page data")
@@ -924,39 +914,33 @@ async def enrich_catalog_item(
     brand = extracted_data.get("brand")
     category = extracted_data.get("category")
 
-    # Use LLM-extracted quantity if available, otherwise fall back to URL extraction
     net_quantity_value = extracted_data.get("net_quantity_value") or url_qty
     net_quantity_unit = extracted_data.get("net_quantity_unit") or url_unit
 
-    # Use extracted price if LLM didn't find one
-    price = extracted_data.get("price") or extracted_price
+    price = extracted_data.get("price") or crawl.extracted_price
     currency = extracted_data.get("currency", "EUR")
     nutrition = extracted_data.get("nutrition")
-    # is_food already determined above in step 3
 
-    # Log what we're about to save
     logger.debug("Preparing to save:")
     logger.debug(f"  Brand: {brand}")
     logger.debug(f"  Category: {category}")
     logger.debug(f"  Is food: {is_food}")
     logger.debug(f"  Price: {price}")
-    logger.debug(f"  Nutri-Score: {nutriscore or 'N/A'}")
-    logger.debug(f"  Promotion until: {promotion_until_date or 'N/A'}")
+    logger.debug(f"  Nutri-Score: {crawl.nutriscore or 'N/A'}")
+    logger.debug(f"  Promotion until: {crawl.promotion_until_date or 'N/A'}")
     if nutrition:
         logger.debug(f"  Nutrition data: {len(nutrition)} fields")
         logger.debug(f"  Nutrition JSON: {json.dumps(nutrition, indent=2)}")
     else:
         logger.debug("  Nutrition data: None")
 
-    # Normalize the canonical name for search
     normalized_name = None
     if canonical_name:
         normalized_name = (
             canonical_name.lower().replace(" ", "_").replace("-", "_").replace("'", "").strip("_")
         )
 
-    # Use final URL after redirect (from crawl_product_page)
-    final_product_url = final_url if final_url else product_url
+    final_product_url = crawl.final_url or product_url
 
     return CatalogItemCreate(
         vendor_name=vendor_name,
@@ -972,10 +956,10 @@ async def enrich_catalog_item(
         currency=currency,
         category=category,
         nutrition=nutrition,
-        nutriscore=nutriscore,
-        nutriscore_svg=nutriscore_svg,
-        promotion_until_date=promotion_until_date,
-        image_url=image_url,
+        nutriscore=crawl.nutriscore,
+        nutriscore_svg=crawl.nutriscore_svg,
+        promotion_until_date=crawl.promotion_until_date,
+        image_url=crawl.image_url,
     )
 
 

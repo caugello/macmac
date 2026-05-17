@@ -87,7 +87,8 @@ catalog-backup:
 catalog-restore:
 	podman cp backups/catalog.dump macmac_catalog_db_1:/tmp/catalog.dump
 	podman-compose -f podman-compose-dev.yaml exec catalog_db pg_restore -U dbuser -d catalog --clean --if-exists /tmp/catalog.dump
-	@echo "Restored from backups/catalog.dump"
+	podman exec macmac_redis_1 redis-cli --scan --pattern "catalog:*" | xargs -r podman exec -i macmac_redis_1 redis-cli DEL
+	@echo "Restored from backups/catalog.dump (cache cleared)"
 
 # Frontend commands
 frontend-install:
