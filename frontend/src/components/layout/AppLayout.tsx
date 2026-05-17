@@ -11,6 +11,9 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
       <Navbar />
       <main className="pb-16 md:pb-0">{children}</main>
       <BottomNav />
+      <footer className="hidden md:block fixed bottom-2 right-3">
+        <span className="text-[10px] text-on-surface-variant/40">v{__APP_VERSION__}</span>
+      </footer>
     </div>
   )
 }
