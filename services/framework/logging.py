@@ -85,14 +85,23 @@ class Span:
         log_span(f"span_end_{self.name}", name=self.name, duration_ms=duration)
 
 
+def sanitize_log_value(value: str) -> str:
+    if not isinstance(value, str):
+        return value
+    return value.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+
+
 def log_event(event: str, **data):
     """
     Logs a structured event with additional data.
     The current trace ID and span stack are automatically included.
     """
+    sanitized_data = {
+        k: sanitize_log_value(v) if isinstance(v, str) else v for k, v in data.items()
+    }
     payload = {
         "ts": datetime.now(UTC).isoformat(),
         "event": event,
-        **data,
+        **sanitized_data,
     }
     logger.info(json.dumps(payload))

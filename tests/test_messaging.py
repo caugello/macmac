@@ -36,7 +36,22 @@ def test_declare_queue(mock_pika):
     bus = MessagingBus("amqp://localhost")
     bus.declare_queue("test_queue", durable=True)
 
-    mock_channel.queue_declare.assert_called_once_with(queue="test_queue", durable=True)
+    mock_channel.exchange_declare.assert_called_once_with(
+        exchange="test_queue.dlx", exchange_type="direct", durable=True
+    )
+    mock_channel.queue_bind.assert_called_once_with(
+        queue="test_queue.dlq", exchange="test_queue.dlx", routing_key="test_queue"
+    )
+    assert mock_channel.queue_declare.call_count == 2
+    mock_channel.queue_declare.assert_any_call(queue="test_queue.dlq", durable=True)
+    mock_channel.queue_declare.assert_any_call(
+        queue="test_queue",
+        durable=True,
+        arguments={
+            "x-dead-letter-exchange": "test_queue.dlx",
+            "x-dead-letter-routing-key": "test_queue",
+        },
+    )
 
 
 @pytest.mark.unit

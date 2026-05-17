@@ -106,6 +106,10 @@ class InvitationActionRequest(BaseModel):
     )
 
 
+class LogoutRequest(BaseModel):
+    access_token: str = Field(..., min_length=1)
+
+
 class UserContext(BaseModel):
     """User context for authenticated requests"""
 

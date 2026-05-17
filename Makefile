@@ -81,14 +81,18 @@ enricher-stop:
 # Catalog DB backup/restore
 catalog-backup:
 	podman-compose -f podman-compose-dev.yaml exec catalog_db pg_dump -U dbuser -d catalog -Fc -f /tmp/catalog.dump
-	podman cp macmac_catalog_db_1:/tmp/catalog.dump backups/catalog.dump
-	@echo "Backup saved to backups/catalog.dump"
+	podman cp macmac_catalog_db_1:/tmp/catalog.dump backups/catalog.dump.tmp
+	gzip -c backups/catalog.dump.tmp > backups/catalog.dump.gz
+	rm -f backups/catalog.dump.tmp
+	@echo "Backup saved to backups/catalog.dump.gz"
 
 catalog-restore:
-	podman cp backups/catalog.dump macmac_catalog_db_1:/tmp/catalog.dump
+	gunzip -c backups/catalog.dump.gz > backups/catalog.dump.tmp
+	podman cp backups/catalog.dump.tmp macmac_catalog_db_1:/tmp/catalog.dump
+	rm -f backups/catalog.dump.tmp
 	podman-compose -f podman-compose-dev.yaml exec catalog_db pg_restore -U dbuser -d catalog --clean --if-exists /tmp/catalog.dump
-	podman exec macmac_redis_1 redis-cli --scan --pattern "catalog:*" | xargs -r podman exec -i macmac_redis_1 redis-cli DEL
-	@echo "Restored from backups/catalog.dump (cache cleared)"
+	podman exec macmac_redis_1 redis-cli -a $${REDIS_PASSWORD:-devpassword} --no-auth-warning --scan --pattern "catalog:*" | xargs -r podman exec -i macmac_redis_1 redis-cli -a $${REDIS_PASSWORD:-devpassword} --no-auth-warning DEL
+	@echo "Restored from backups/catalog.dump.gz (cache cleared)"
 
 # Frontend commands
 frontend-install:

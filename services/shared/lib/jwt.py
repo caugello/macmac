@@ -26,9 +26,36 @@ if len(SECRET_KEY) < 32:
     if os.getenv("ENVIRONMENT") != "development":
         sys.exit(1)
 
+ALLOWED_ALGORITHMS = ["HS256"]
 ALGORITHM = config.auth.jwt.algorithm
+if ALGORITHM not in ALLOWED_ALGORITHMS:
+    logger.critical(
+        f"Configured JWT algorithm '{ALGORITHM}' is not in allowed list: {ALLOWED_ALGORITHMS}"
+    )
+    sys.exit(1)
+
 ACCESS_TOKEN_EXPIRE_MINUTES = config.auth.jwt.access_token_expire_minutes
+
+_revoked_tokens: set[str] = set()
+
+
+def revoke_token(jti: str) -> None:
+    _revoked_tokens.add(jti)
+
+
+def is_token_revoked(jti: str) -> bool:
+    return jti in _revoked_tokens
 
 
 def decode_access_token(token: str) -> dict:
-    return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    payload = jwt.decode(
+        token,
+        SECRET_KEY,
+        algorithms=ALLOWED_ALGORITHMS,
+        issuer="macmac-auth",
+        audience="macmac-api",
+    )
+    jti = payload.get("jti")
+    if jti and is_token_revoked(jti):
+        raise jwt.InvalidTokenError("Token has been revoked")
+    return payload

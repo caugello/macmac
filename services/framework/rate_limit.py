@@ -4,6 +4,7 @@ Falls back to in-memory storage if Redis is unavailable.
 """
 
 import logging
+import os
 import time
 from collections import defaultdict
 from collections.abc import Callable
@@ -38,6 +39,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 host=cache_cfg.host,
                 port=cache_cfg.port,
                 db=cache_cfg.db,
+                password=os.getenv("REDIS_PASSWORD"),
                 socket_timeout=cache_cfg.socket_timeout,
                 socket_connect_timeout=cache_cfg.socket_connect_timeout,
                 decode_responses=True,

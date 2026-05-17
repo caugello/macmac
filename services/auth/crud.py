@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from services.framework.tracing import traced
 from services.framework.user_context import require_user_context
+from services.shared.lib.jwt import decode_access_token, revoke_token
 from services.shared.schemas import auth as auth_schemas
 
 from .models import Group, GroupInvitation, User
@@ -419,3 +420,18 @@ async def delete_group(group_id: str, db: Session):
     db.commit()
 
     return {"message": f"Group '{group.name}' deleted"}
+
+
+@traced
+async def logout(data: auth_schemas.LogoutRequest, db: Session):
+    try:
+        payload = decode_access_token(data.access_token)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid token") from None
+
+    jti = payload.get("jti")
+    if not jti:
+        raise HTTPException(status_code=400, detail="Token missing jti claim")
+
+    revoke_token(jti)
+    return {"message": "Successfully logged out"}

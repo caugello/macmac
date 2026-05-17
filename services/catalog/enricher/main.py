@@ -17,6 +17,7 @@ from services.framework.logging import setup_logging
 from services.shared.constant import CATALOG_PROCESS_ENTITY_QUEUE
 from services.shared.lib.db import get_db
 from services.shared.lib.messaging_bus import MessagingBus
+from services.shared.lib.url_validator import validate_url
 from services.shared.schemas.catalog import CatalogItemCreate
 
 
@@ -153,6 +154,7 @@ async def crawl_product_page(url: str) -> CrawlResult:
 
     # Decode URL to handle special characters properly
     url = unquote(url)
+    validate_url(url)
 
     try:
         async with async_playwright() as p:
@@ -488,6 +490,22 @@ async def crawl_nutrition_page(info_url: str, main_page_url: str) -> tuple[str |
         return None, None
 
 
+def sanitize_for_llm(text: str, max_length: int = 50000) -> str:
+    patterns = [
+        r"(?i)ignore\s+(previous|all|above|prior)\s+instructions",
+        r"(?i)system\s*:",
+        r"(?i)assistant\s*:",
+        r"(?i)user\s*:",
+        r"<\|im_start\|>",
+        r"<\|im_end\|>",
+        r"(?i)you\s+are\s+now",
+        r"(?i)new\s+instructions?\s*:",
+    ]
+    for pattern in patterns:
+        text = re.sub(pattern, "[FILTERED]", text)
+    return text[:max_length]
+
+
 def preprocess_html(html_content: str) -> str:
     """
     Extract relevant sections from HTML and remove noise.
@@ -593,7 +611,7 @@ async def extract_with_llm(
     client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
     # Preprocess HTML to focus on relevant sections
-    processed_html = preprocess_html(html_content) if html_content else ""
+    processed_html = sanitize_for_llm(preprocess_html(html_content)) if html_content else ""
 
     # Mention extracted data in the prompt so LLM doesn't waste tokens on it
     extracted_hint = ""
@@ -1037,11 +1055,12 @@ def write_to_db(payload: dict, ch):
                 # Detailed nutrition logging
                 if item.nutrition:
                     logger.debug("Nutrition values saved to DB:")
-                    nutrition_json = (
-                        item.nutrition
-                        if isinstance(item.nutrition, dict)
-                        else json.loads(item.nutrition)
-                    )
+                    if isinstance(item.nutrition, dict):
+                        nutrition_json = item.nutrition
+                    elif hasattr(item.nutrition, "model_dump"):
+                        nutrition_json = item.nutrition.model_dump(exclude_none=True)
+                    else:
+                        nutrition_json = json.loads(item.nutrition)
                     for key, value in nutrition_json.items():
                         if value is not None:
                             logger.debug(f"  {key}: {value}")

@@ -8,7 +8,7 @@ tmpDir: /tmp
 auth:
   jwt:
     algorithm: HS256
-    access_token_expire_minutes: 120
+    access_token_expire_minutes: 30
   firebase:
     project_id: "macmac-f8946"
 
@@ -43,6 +43,21 @@ rate_limiting:
     "/auth/":
       calls: 20
       period: 60
+    "/api/v1/recipes":
+      calls: 20
+      period: 60
+    "/api/v1/catalog":
+      calls: 20
+      period: 60
+    "/api/v1/meal-plans":
+      calls: 20
+      period: 60
+    "/auth/groups":
+      calls: 10
+      period: 60
+    "/auth/groups/.*/invitations":
+      calls: 5
+      period: 300
 
 # Gateway Configuration
 gateway:
@@ -86,6 +101,14 @@ services:
         response_model: services.shared.schemas.auth.LoginResponse
         handler: services.auth.crud.login
         description: Authenticate with Firebase ID token and return internal JWT
+        tags:
+          - auth
+      - name: logout
+        method: post
+        path: /auth/logout
+        request_model: services.shared.schemas.auth.LogoutRequest
+        handler: services.auth.crud.logout
+        description: Revoke an access token (logout)
         tags:
           - auth
       - name: get_me
@@ -324,7 +347,7 @@ services:
       - name: crawler
         title: Crawler
         version: 0.1.0
-        url: "amqp://guest:guest@rabbitmq:5672/%2F"
+        url: "amqp://macmac:devpassword@rabbitmq:5672/%2F"
   meal_plans:
     name: meal_plans
     title: Meal Plans API
