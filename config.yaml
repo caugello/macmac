@@ -113,12 +113,43 @@ services:
         description: List user's groups
         tags:
           - groups
-      - name: add_member
+      - name: list_group_invitations
+        method: get
+        path: /auth/groups/{group_id}/invitations
+        response_model: services.shared.schemas.auth.InvitationListResponse
+        handler: services.auth.crud.list_group_invitations
+        description: List pending invitations for a group (owner only)
+        tags:
+          - groups
+      - name: invite_member
         method: post
-        path: /auth/groups/{group_id}/members
-        request_model: services.shared.schemas.auth.AddMemberRequest
-        handler: services.auth.crud.add_user_to_group
-        description: Add user to group
+        path: /auth/groups/{group_id}/invitations
+        request_model: services.shared.schemas.auth.InviteMemberRequest
+        handler: services.auth.crud.invite_user_to_group
+        description: Invite a user to a group by email
+        tags:
+          - groups
+      - name: cancel_invitation
+        method: delete
+        path: /auth/groups/{group_id}/invitations/{invitation_id}
+        handler: services.auth.crud.cancel_invitation
+        description: Cancel a pending invitation (owner only)
+        tags:
+          - groups
+      - name: list_my_invitations
+        method: get
+        path: /auth/invitations
+        response_model: services.shared.schemas.auth.InvitationListResponse
+        handler: services.auth.crud.list_my_invitations
+        description: List pending invitations for the current user
+        tags:
+          - groups
+      - name: respond_to_invitation
+        method: post
+        path: /auth/invitations/{invitation_id}
+        request_model: services.shared.schemas.auth.InvitationActionRequest
+        handler: services.auth.crud.respond_to_invitation
+        description: Accept or decline an invitation
         tags:
           - groups
       - name: remove_member
@@ -126,6 +157,20 @@ services:
         path: /auth/groups/{group_id}/members/{user_id}
         handler: services.auth.crud.remove_user_from_group
         description: Remove user from group
+        tags:
+          - groups
+      - name: leave_group
+        method: post
+        path: /auth/groups/{group_id}/leave
+        handler: services.auth.crud.leave_group
+        description: Leave a group (non-owner)
+        tags:
+          - groups
+      - name: delete_group
+        method: delete
+        path: /auth/groups/{group_id}
+        handler: services.auth.crud.delete_group
+        description: Delete a group (owner only)
         tags:
           - groups
 

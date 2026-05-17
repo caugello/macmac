@@ -112,16 +112,44 @@ describe('authApi', () => {
     })
   })
 
-  describe('addMember', () => {
-    it('should call POST /auth/groups/:id/members with username', async () => {
-      const mockResponse = { data: { success: true } }
+  describe('inviteMember', () => {
+    it('should call POST /auth/groups/:id/invitations with email', async () => {
+      const mockResponse = { data: { message: 'Invitation sent', invitation_id: 'inv-1' } }
 
       vi.mocked(apiClient.post).mockResolvedValue(mockResponse)
 
-      const result = await authApi.addMember('group-123', { username: 'newuser' })
+      const result = await authApi.inviteMember('group-123', { email: 'user@example.com' })
 
-      expect(apiClient.post).toHaveBeenCalledWith('/auth/groups/group-123/members', {
-        username: 'newuser',
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/groups/group-123/invitations', {
+        email: 'user@example.com',
+      })
+      expect(result).toEqual(mockResponse.data)
+    })
+  })
+
+  describe('listInvitations', () => {
+    it('should call GET /auth/invitations', async () => {
+      const mockResponse = { data: { total: 0, data: [] } }
+
+      vi.mocked(apiClient.get).mockResolvedValue(mockResponse)
+
+      const result = await authApi.listInvitations()
+
+      expect(apiClient.get).toHaveBeenCalledWith('/auth/invitations')
+      expect(result).toEqual(mockResponse.data)
+    })
+  })
+
+  describe('respondToInvitation', () => {
+    it('should call POST /auth/invitations/:id with action', async () => {
+      const mockResponse = { data: { message: 'Invitation accepted' } }
+
+      vi.mocked(apiClient.post).mockResolvedValue(mockResponse)
+
+      const result = await authApi.respondToInvitation('inv-1', { action: 'accept' })
+
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/invitations/inv-1', {
+        action: 'accept',
       })
       expect(result).toEqual(mockResponse.data)
     })

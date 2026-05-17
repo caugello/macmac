@@ -118,6 +118,27 @@ def mock_user_context():
 
 
 @pytest.fixture
+def mock_auth_db() -> Generator[Session, None, None]:
+    """Create an in-memory SQLite database for auth testing."""
+    from services.auth.db import Base as AuthBase
+
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    AuthBase.metadata.create_all(bind=engine)
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+        AuthBase.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture
 def mock_meal_plans_db() -> Generator[Session, None, None]:
     """Create an in-memory SQLite database for meal plans testing."""
     from services.meal_plans.models import Base as MealPlansBase
