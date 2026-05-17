@@ -12,7 +12,7 @@ const mockRecipes = {
 }
 
 vi.mock('@/hooks/useRecipes', () => ({
-  useRecipes: () => ({ data: mockRecipes }),
+  useRecipes: () => ({ data: mockRecipes, isLoading: false, error: null }),
 }))
 
 vi.mock('@/components/shared/SearchBar', () => ({
@@ -81,6 +81,15 @@ describe('RecipeSelectorModal Component', () => {
 
       const closeButton = screen.getByText('close').closest('button')!
       await user.click(closeButton)
+      expect(onClose).toHaveBeenCalled()
+    })
+
+    it('should call onClose when backdrop is clicked', async () => {
+      const user = userEvent.setup()
+      render(<RecipeSelectorModal onSelect={onSelect} onClose={onClose} />)
+
+      const backdrop = screen.getByText('Select Recipe').closest('.flex.flex-col')!.parentElement!
+      await user.click(backdrop)
       expect(onClose).toHaveBeenCalled()
     })
   })

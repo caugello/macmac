@@ -41,7 +41,6 @@ export const MealSlot = ({ date, mealType, mealPlan }: MealSlotProps) => {
             <p className="text-label-md font-semibold text-on-surface truncate">
               {mealPlan.recipe_title || 'Untitled'}
             </p>
-            <p className="text-label-sm text-on-surface-variant">Ready to cook</p>
           </div>
           <button
             onClick={handleDelete}

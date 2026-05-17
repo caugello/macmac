@@ -2,7 +2,6 @@ import uuid
 from collections import defaultdict
 from datetime import date, timedelta
 
-import httpx
 from fastapi import HTTPException
 from pydantic import UUID4
 from sqlalchemy import and_, delete, or_
@@ -32,30 +31,7 @@ config = get_config()
 cache = initialize_service_cache("meal_plans")
 
 
-# ===== HELPER: VALIDATE RECIPES =====
-
-
-async def validate_recipe_exists(recipe_id: UUID4) -> str:
-    """
-    Validate recipe exists in recipes service.
-    Returns recipe title if found, raises HTTPException if not.
-    """
-    recipes_config = get_config_for_service("recipes")
-
-    try:
-        response = await service_request("GET", f"{recipes_config.url}/recipes/{recipe_id}")
-        response.raise_for_status()
-        recipe = response.json()
-        return recipe.get("title", "Unknown Recipe")
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code == 404:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Recipe {recipe_id} not found. Cannot schedule non-existent recipe.",
-            ) from e
-        raise HTTPException(status_code=500, detail=f"Failed to validate recipe {recipe_id}") from e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error validating recipe: {str(e)}") from e
+# ===== HELPER: FETCH RECIPE TITLES =====
 
 
 async def fetch_recipe_titles(recipe_ids: list[UUID4]) -> dict[UUID4, str]:
@@ -87,8 +63,9 @@ async def create_meal_plan(data: mp.MealPlanCreate, db: Session) -> mp.MealPlanO
     user_ctx = require_user_context()
 
     with Span("db_create_meal_plan"):
-        # Validate recipe exists
-        recipe_title = await validate_recipe_exists(data.recipe_id)
+        # Fetch recipe title (don't block creation if recipes service has issues)
+        titles = await fetch_recipe_titles([data.recipe_id])
+        recipe_title = titles.get(data.recipe_id, "Unknown Recipe")
 
         # Automatic sharing: if user has groups, share with first group
         group_id = user_ctx.group_ids[0] if user_ctx.group_ids else None
@@ -212,11 +189,8 @@ async def get_meal_plan(meal_plan_id: UUID4, db: Session) -> mp.MealPlanOut:
         # AUTHORIZATION CHECK
         check_owner_or_group(meal_plan.user_id, meal_plan.group_id, "meal plan")
 
-        # Fetch recipe title
-        try:
-            recipe_title = await validate_recipe_exists(meal_plan.recipe_id)
-        except Exception:
-            recipe_title = f"Unknown ({meal_plan.recipe_id})"
+        titles = await fetch_recipe_titles([meal_plan.recipe_id])
+        recipe_title = titles.get(meal_plan.recipe_id, f"Unknown ({meal_plan.recipe_id})")
 
         result = mp.MealPlanOut(
             id=meal_plan.id,
@@ -254,9 +228,7 @@ async def update_meal_plan(
         # AUTHORIZATION CHECK: only owner can update
         check_owner_only(meal_plan.user_id, "update")
 
-        # Validate new recipe if provided
         if data.recipe_id is not None:
-            await validate_recipe_exists(data.recipe_id)
             meal_plan.recipe_id = data.recipe_id
 
         if data.date is not None:

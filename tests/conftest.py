@@ -163,16 +163,10 @@ def mock_meal_plans_db() -> Generator[Session, None, None]:
 def mock_meal_plans_http_calls():
     """Mock HTTP calls in meal_plans.crud to avoid real requests."""
 
-    async def mock_validate(recipe_id):
-        return f"Test Recipe {str(recipe_id)[:8]}"
-
     async def mock_fetch_titles(recipe_ids):
         return {rid: f"Test Recipe {str(rid)[:8]}" for rid in recipe_ids}
 
-    with (
-        patch("services.meal_plans.crud.validate_recipe_exists", new=mock_validate),
-        patch("services.meal_plans.crud.fetch_recipe_titles", new=mock_fetch_titles),
-    ):
+    with patch("services.meal_plans.crud.fetch_recipe_titles", new=mock_fetch_titles):
         yield
 
 
