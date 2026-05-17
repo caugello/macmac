@@ -118,19 +118,20 @@ def fetch_products_for_vendor(vendor: Vendor) -> Iterable[VendorCatalogItem]:
             sources = list(parse_sitemap_sources(sitemap)) or []
             print(f"  → Found {len(sources)} product sitemap(s)")
 
+            all_products: list[VendorCatalogItem] = []
             for source in sources:
                 if not source or not source.url:
                     continue
 
                 time.sleep(DELAY_BETWEEN_REQUESTS)
-                products = fetch_xml_playwright(source.url, page)
-                if not products:
+                products_xml = fetch_xml_playwright(source.url, page)
+                if not products_xml:
                     continue
 
-                browser.close()
-                return parse_vendor_catalog_item_xml(products, vendor)
+                all_products.extend(parse_vendor_catalog_item_xml(products_xml, vendor))
 
             browser.close()
+            return all_products
     except Exception as e:
         print(f"Error fetching products for vendor {vendor.name}: {e}")
         return []

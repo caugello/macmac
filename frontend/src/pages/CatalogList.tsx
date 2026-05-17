@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCatalog, useCatalogCategories } from '@/hooks/useCatalog'
+import { NutriscoreBadge } from '@/components/catalog/NutriscoreBadge'
+import { ProductImage } from '@/components/catalog/ProductImage'
 import { SearchBar } from '@/components/shared/SearchBar'
 import { Pagination } from '@/components/shared/Pagination'
 import { Icon } from '@/components/ui/icon'
@@ -108,34 +110,17 @@ export const CatalogList = () => {
                 <div className="bg-surface-container-lowest wireframe-border rounded-lg overflow-hidden card-hover-shadow flex flex-col h-full">
                   {/* Image area with nutri-score badge */}
                   <div className="aspect-square relative overflow-hidden">
-                    {item.image_url ? (
-                      <div className="w-full h-full bg-surface-container-low flex items-center justify-center p-3 group-hover:scale-105 transition-transform duration-500">
-                        <img
-                          src={item.image_url}
-                          alt={item.canonical_name || item.raw_name}
-                          className="max-w-full max-h-full object-contain"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-surface-container-low to-surface-container flex items-center justify-center group-hover:scale-105 transition-transform duration-500">
-                        <Icon name="inventory_2" size={48} className="text-outline-variant/30" />
-                      </div>
-                    )}
+                    <ProductImage
+                      src={item.image_url}
+                      alt={item.canonical_name || item.raw_name}
+                      className="group-hover:scale-105 transition-transform duration-500"
+                    />
                     {item.nutriscore && (
-                      <span
-                        className={cn(
-                          'absolute top-2 left-2 w-7 h-7 flex items-center justify-center font-bold text-xs rounded-lg',
-                          {
-                            'bg-nutri-a text-white': item.nutriscore.toLowerCase() === 'a',
-                            'bg-nutri-b text-white': item.nutriscore.toLowerCase() === 'b',
-                            'bg-nutri-c text-black': item.nutriscore.toLowerCase() === 'c',
-                            'bg-nutri-d text-white': item.nutriscore.toLowerCase() === 'd',
-                            'bg-nutri-e text-white': item.nutriscore.toLowerCase() === 'e',
-                          }
-                        )}
-                      >
-                        {item.nutriscore.toUpperCase()}
-                      </span>
+                      <NutriscoreBadge
+                        score={item.nutriscore}
+                        size="sm"
+                        className="absolute top-2 left-2"
+                      />
                     )}
                     {item.promotion_until_date && (
                       <span className="absolute top-2 right-2 bg-primary-container text-on-primary-container text-[10px] font-bold px-2 py-0.5 rounded-full">

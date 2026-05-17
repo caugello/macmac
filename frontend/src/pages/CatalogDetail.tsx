@@ -1,8 +1,9 @@
 import { useParams, Link } from 'react-router-dom'
 import { useCatalogItem } from '@/hooks/useCatalog'
+import { NutriscoreBadge } from '@/components/catalog/NutriscoreBadge'
+import { ProductImage } from '@/components/catalog/ProductImage'
 import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/ui/icon'
-import { cn } from '@/lib/utils'
 
 export const CatalogDetail = () => {
   const { id } = useParams<{ id: string }>()
@@ -45,18 +46,12 @@ export const CatalogDetail = () => {
       </Link>
 
       {/* Hero image */}
-      <div className="bg-surface-container-lowest rounded-lg overflow-hidden wireframe-border relative mb-6">
-        {item.image_url ? (
-          <img
-            src={item.image_url}
-            alt={item.canonical_name || item.raw_name}
-            className="w-full aspect-square md:aspect-[4/3] object-contain"
-          />
-        ) : (
-          <div className="w-full aspect-square md:aspect-[4/3] bg-gradient-to-br from-surface-container-low to-surface-container flex items-center justify-center">
-            <Icon name="inventory_2" size={80} className="text-outline-variant/20" />
-          </div>
-        )}
+      <div className="bg-surface-container-lowest rounded-lg overflow-hidden wireframe-border relative mb-6 aspect-square md:aspect-[4/3]">
+        <ProductImage
+          src={item.image_url}
+          alt={item.canonical_name || item.raw_name}
+          iconSize={80}
+        />
       </div>
 
       {/* Product header */}
@@ -64,20 +59,7 @@ export const CatalogDetail = () => {
         {/* Nutri-Score badge */}
         {item.nutriscore && (
           <div className="flex items-center gap-2 mb-3">
-            <span
-              className={cn(
-                'w-9 h-9 flex items-center justify-center font-bold text-lg rounded-lg',
-                {
-                  'bg-nutri-a text-white': item.nutriscore.toLowerCase() === 'a',
-                  'bg-nutri-b text-white': item.nutriscore.toLowerCase() === 'b',
-                  'bg-nutri-c text-black': item.nutriscore.toLowerCase() === 'c',
-                  'bg-nutri-d text-white': item.nutriscore.toLowerCase() === 'd',
-                  'bg-nutri-e text-white': item.nutriscore.toLowerCase() === 'e',
-                }
-              )}
-            >
-              {item.nutriscore.toUpperCase()}
-            </span>
+            <NutriscoreBadge score={item.nutriscore} size="lg" />
             <span className="text-label-sm text-on-surface-variant uppercase tracking-wider">
               Nutri-Score
             </span>
