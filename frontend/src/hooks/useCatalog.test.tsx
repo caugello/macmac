@@ -2,7 +2,7 @@ import React from 'react'
 import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { useCatalog, useCatalogItem } from './useCatalog'
+import { useCatalog, useCatalogCategories, useCatalogItem } from './useCatalog'
 import { catalogApi } from '../api/catalog'
 
 vi.mock('../api/catalog')
@@ -48,6 +48,23 @@ describe('useCatalog', () => {
   })
 })
 
+describe('useCatalogCategories', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should fetch catalog categories', async () => {
+    const mockData = { categories: ['Beverages', 'Dairy & Eggs'] }
+    vi.mocked(catalogApi.categories).mockResolvedValue(mockData)
+
+    const { result } = renderHook(() => useCatalogCategories(), { wrapper: createWrapper() })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(catalogApi.categories).toHaveBeenCalled()
+    expect(result.current.data).toEqual(mockData)
+  })
+})
+
 describe('useCatalogItem', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -72,6 +89,7 @@ describe('useCatalogItem', () => {
       nutriscore: null,
       nutriscore_svg: null,
       promotion_until_date: null,
+      image_url: null,
       created_at: '',
       updated_at: '',
     }

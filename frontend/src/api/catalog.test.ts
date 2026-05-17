@@ -57,6 +57,21 @@ describe('catalogApi', () => {
     })
   })
 
+  describe('categories', () => {
+    it('should call GET /catalog/categories', async () => {
+      const mockResponse = {
+        data: { categories: ['Beverages', 'Dairy & Eggs', 'Meat & Poultry'] },
+      }
+
+      vi.mocked(apiClient.get).mockResolvedValue(mockResponse)
+
+      const result = await catalogApi.categories()
+
+      expect(apiClient.get).toHaveBeenCalledWith('/catalog/categories')
+      expect(result).toEqual(mockResponse.data)
+    })
+  })
+
   describe('get', () => {
     it('should call GET /catalog/:id', async () => {
       const mockItem = {

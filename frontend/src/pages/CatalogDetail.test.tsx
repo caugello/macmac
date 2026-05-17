@@ -79,13 +79,14 @@ describe('CatalogDetail Page', () => {
       raw_name: 'Organic Whole Milk 1L',
       normalized_name: 'organic milk',
       brand: 'FreshDairy',
-      category: 'Dairy',
+      category: 'Dairy & Eggs',
       is_food: true,
       vendor_name: 'SuperMarket',
       net_quantity_value: 1,
       net_quantity_unit: 'L',
       price: 2.99,
       product_url: 'https://example.com/product',
+      nutriscore: 'A',
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-02T00:00:00Z',
     }
@@ -100,8 +101,7 @@ describe('CatalogDetail Page', () => {
 
     it('should render product name', () => {
       render(<CatalogDetail />, { wrapper: createWrapper() })
-      // Should appear in heading and details section
-      expect(screen.getAllByText('Organic Milk').length).toBeGreaterThan(0)
+      expect(screen.getByText('Organic Milk')).toBeInTheDocument()
     })
 
     it('should use raw_name when canonical_name is missing', () => {
@@ -112,17 +112,18 @@ describe('CatalogDetail Page', () => {
       })
 
       render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.getAllByText('Organic Whole Milk 1L').length).toBeGreaterThan(0)
+      expect(screen.getByText('Organic Whole Milk 1L')).toBeInTheDocument()
     })
 
     it('should render vendor name', () => {
       render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText('SuperMarket')).toBeInTheDocument()
+      expect(screen.getAllByText(/SuperMarket/).length).toBeGreaterThan(0)
     })
 
-    it('should render price', () => {
-      render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText('€2.99')).toBeInTheDocument()
+    it('should render price with euro symbol', () => {
+      const { container } = render(<CatalogDetail />, { wrapper: createWrapper() })
+      expect(container.textContent).toContain('2.99')
+      expect(container.textContent).toContain('€')
     })
 
     it('should not render price when price is missing', () => {
@@ -136,28 +137,12 @@ describe('CatalogDetail Page', () => {
       expect(container.textContent).not.toContain('€')
     })
 
-    it('should render food badge', () => {
-      render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText('Food')).toBeInTheDocument()
-    })
-
-    it('should render non-food badge for non-food items', () => {
-      mockUseCatalogItem.mockReturnValue({
-        data: { ...mockProduct, is_food: false },
-        isLoading: false,
-        error: null,
-      })
-
-      render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText('Non-Food')).toBeInTheDocument()
-    })
-
-    it('should render brand badge', () => {
+    it('should render brand', () => {
       render(<CatalogDetail />, { wrapper: createWrapper() })
       expect(screen.getByText('FreshDairy')).toBeInTheDocument()
     })
 
-    it('should not render brand badge when brand is missing', () => {
+    it('should not render brand when missing', () => {
       mockUseCatalogItem.mockReturnValue({
         data: { ...mockProduct, brand: null },
         isLoading: false,
@@ -168,58 +153,53 @@ describe('CatalogDetail Page', () => {
       expect(screen.queryByText('FreshDairy')).not.toBeInTheDocument()
     })
 
-    it('should render category badge', () => {
+    it('should render nutri-score badge with label', () => {
       render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText('Dairy')).toBeInTheDocument()
+      expect(screen.getByText('A')).toBeInTheDocument()
+      expect(screen.getByText('Nutri-Score')).toBeInTheDocument()
     })
 
-    it('should render raw name in details', () => {
-      render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText('Raw Name')).toBeInTheDocument()
-      expect(screen.getAllByText('Organic Whole Milk 1L').length).toBeGreaterThan(0)
-    })
-
-    it('should render canonical name in details', () => {
-      render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText('Canonical Name')).toBeInTheDocument()
-      expect(screen.getAllByText('Organic Milk').length).toBeGreaterThan(0)
-    })
-
-    it('should not render canonical name section when missing', () => {
+    it('should not render nutri-score when missing', () => {
       mockUseCatalogItem.mockReturnValue({
-        data: { ...mockProduct, canonical_name: null },
+        data: { ...mockProduct, nutriscore: null },
         isLoading: false,
         error: null,
       })
 
       render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.queryByText('Canonical Name')).not.toBeInTheDocument()
+      expect(screen.queryByText('Nutri-Score')).not.toBeInTheDocument()
     })
 
-    it('should render normalized name', () => {
+    it('should render category in product details', () => {
       render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText('Normalized Name')).toBeInTheDocument()
-      expect(screen.getByText('organic milk')).toBeInTheDocument()
+      expect(screen.getByText('Category')).toBeInTheDocument()
+      expect(screen.getByText('Dairy & Eggs')).toBeInTheDocument()
     })
 
-    it('should not render normalized name section when missing', () => {
+    it('should render food type in product details', () => {
+      render(<CatalogDetail />, { wrapper: createWrapper() })
+      expect(screen.getByText('Type')).toBeInTheDocument()
+      expect(screen.getByText('Food')).toBeInTheDocument()
+    })
+
+    it('should render Non-Food for non-food items', () => {
       mockUseCatalogItem.mockReturnValue({
-        data: { ...mockProduct, normalized_name: null },
+        data: { ...mockProduct, is_food: false },
         isLoading: false,
         error: null,
       })
 
       render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.queryByText('Normalized Name')).not.toBeInTheDocument()
+      expect(screen.getByText('Non-Food')).toBeInTheDocument()
     })
 
-    it('should render quantity', () => {
+    it('should render weight in product details', () => {
       render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText('Quantity')).toBeInTheDocument()
+      expect(screen.getByText('Weight')).toBeInTheDocument()
       expect(screen.getByText('1 L')).toBeInTheDocument()
     })
 
-    it('should not render quantity section when missing', () => {
+    it('should not render weight when missing', () => {
       mockUseCatalogItem.mockReturnValue({
         data: { ...mockProduct, net_quantity_value: null },
         isLoading: false,
@@ -227,7 +207,7 @@ describe('CatalogDetail Page', () => {
       })
 
       render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.queryByText('Quantity')).not.toBeInTheDocument()
+      expect(screen.queryByText('Weight')).not.toBeInTheDocument()
     })
 
     it('should render product URL link', () => {
@@ -238,20 +218,37 @@ describe('CatalogDetail Page', () => {
       expect(link).toHaveAttribute('rel', 'noopener noreferrer')
     })
 
-    it('should render creation date', () => {
-      render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText(/Added:/)).toBeInTheDocument()
-    })
-
-    it('should render update date', () => {
-      render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText(/Last updated:/)).toBeInTheDocument()
-    })
-
     it('should render back button', () => {
       render(<CatalogDetail />, { wrapper: createWrapper() })
-      const backButton = screen.getByText('Back to Catalog').closest('a')
-      expect(backButton).toHaveAttribute('href', '/catalog')
+      const backLink = screen.getByText('Back to Catalog').closest('a')
+      expect(backLink).toHaveAttribute('href', '/catalog')
+    })
+
+    it('should render Add to List button', () => {
+      render(<CatalogDetail />, { wrapper: createWrapper() })
+      expect(screen.getByText('Add to List')).toBeInTheDocument()
+    })
+
+    it('should render Product Details section', () => {
+      render(<CatalogDetail />, { wrapper: createWrapper() })
+      expect(screen.getByText('Product Details')).toBeInTheDocument()
+    })
+
+    it('should show raw name in details when it differs from canonical', () => {
+      render(<CatalogDetail />, { wrapper: createWrapper() })
+      expect(screen.getByText('Raw Name')).toBeInTheDocument()
+      expect(screen.getByText('Organic Whole Milk 1L')).toBeInTheDocument()
+    })
+
+    it('should not show raw name row when canonical equals raw', () => {
+      mockUseCatalogItem.mockReturnValue({
+        data: { ...mockProduct, canonical_name: 'Organic Whole Milk 1L' },
+        isLoading: false,
+        error: null,
+      })
+
+      render(<CatalogDetail />, { wrapper: createWrapper() })
+      expect(screen.queryByText('Raw Name')).not.toBeInTheDocument()
     })
   })
 
@@ -288,7 +285,7 @@ describe('CatalogDetail Page', () => {
 
     it('should render nutrition section', () => {
       render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText('Nutritional Information (per 100g)')).toBeInTheDocument()
+      expect(screen.getByText('Nutritional Values (100g)')).toBeInTheDocument()
     })
 
     it('should render energy value', () => {
@@ -297,61 +294,22 @@ describe('CatalogDetail Page', () => {
       expect(screen.getByText('100 kcal')).toBeInTheDocument()
     })
 
-    it('should render protein value', () => {
-      render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText('Protein')).toBeInTheDocument()
-      expect(screen.getByText('10g')).toBeInTheDocument()
-    })
-
-    it('should render carbs value', () => {
-      render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText('Carbohydrates')).toBeInTheDocument()
-      expect(screen.getByText('5g')).toBeInTheDocument()
-    })
-
-    it('should render sugars value', () => {
-      render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText('Sugars')).toBeInTheDocument()
-      expect(screen.getByText('3g')).toBeInTheDocument()
-    })
-
     it('should render fat value', () => {
       render(<CatalogDetail />, { wrapper: createWrapper() })
       expect(screen.getByText('Fat')).toBeInTheDocument()
       expect(screen.getByText('2g')).toBeInTheDocument()
     })
 
-    it('should render saturated fat value', () => {
+    it('should render carbs value', () => {
       render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText('Saturated Fat')).toBeInTheDocument()
-      expect(screen.getByText('1g')).toBeInTheDocument()
+      expect(screen.getByText('Carbs')).toBeInTheDocument()
+      expect(screen.getByText('5g')).toBeInTheDocument()
     })
 
-    it('should not render fiber when value is 0 (falsy)', () => {
+    it('should render protein value', () => {
       render(<CatalogDetail />, { wrapper: createWrapper() })
-      // fiber_g is 0, which is falsy, so it won't render
-      expect(screen.queryByText('Fiber')).not.toBeInTheDocument()
-    })
-
-    it('should render fiber value when not zero', () => {
-      mockUseCatalogItem.mockReturnValue({
-        data: {
-          ...mockProductWithNutrition,
-          nutrition: { ...mockProductWithNutrition.nutrition, fiber_g: 7 },
-        },
-        isLoading: false,
-        error: null,
-      })
-
-      render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText('Fiber')).toBeInTheDocument()
-      expect(screen.getByText('7g')).toBeInTheDocument()
-    })
-
-    it('should render salt value', () => {
-      render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText('Salt')).toBeInTheDocument()
-      expect(screen.getByText('0.1g')).toBeInTheDocument()
+      expect(screen.getByText('Protein')).toBeInTheDocument()
+      expect(screen.getByText('10g')).toBeInTheDocument()
     })
 
     it('should render serving size', () => {
@@ -367,7 +325,7 @@ describe('CatalogDetail Page', () => {
       })
 
       render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.queryByText('Nutritional Information (per 100g)')).not.toBeInTheDocument()
+      expect(screen.queryByText('Nutritional Values (100g)')).not.toBeInTheDocument()
     })
 
     it('should not render serving size when missing', () => {

@@ -76,6 +76,7 @@ export interface CatalogItemCreate {
   nutriscore?: string
   nutriscore_svg?: string
   promotion_until_date?: string
+  image_url?: string
 }
 
 export interface NutritionData {
@@ -108,6 +109,7 @@ export interface CatalogItemOut {
   nutriscore: string | null
   nutriscore_svg: string | null
   promotion_until_date: string | null
+  image_url: string | null
   created_at: string
   updated_at: string
 }
@@ -117,6 +119,10 @@ export interface CatalogItemListResponse {
   limit: number | null
   offset: number | null
   data: CatalogItemOut[]
+}
+
+export interface CatalogCategoriesResponse {
+  categories: string[]
 }
 
 export interface DeleteResponse {

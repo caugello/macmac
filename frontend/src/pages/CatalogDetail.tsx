@@ -1,7 +1,6 @@
 import { useParams, Link } from 'react-router-dom'
 import { useCatalogItem } from '@/hooks/useCatalog'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Icon } from '@/components/ui/icon'
 import { cn } from '@/lib/utils'
 
@@ -35,28 +34,39 @@ export const CatalogDetail = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-12 pt-6 pb-12">
-      <Button
-        variant="ghost"
-        asChild
-        className="text-on-surface-variant hover:text-on-surface hover:bg-surface-variant mb-6"
+    <div className="max-w-3xl mx-auto px-4 md:px-12 pt-6 pb-12">
+      {/* Back navigation */}
+      <Link
+        to="/catalog"
+        className="inline-flex items-center gap-2 text-on-surface-variant hover:text-on-surface transition-colors mb-6"
       >
-        <Link to="/catalog">
-          <Icon name="arrow_back" size={16} className="mr-2" />
-          Back to Catalog
-        </Link>
-      </Button>
+        <Icon name="arrow_back" size={20} />
+        <span className="text-label-md">Back to Catalog</span>
+      </Link>
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        {/* Image hero */}
-        <div className="md:col-span-7 bg-surface-container-lowest rounded-lg overflow-hidden wireframe-border relative card-hover-shadow">
-          <div className="w-full h-80 md:h-[480px] bg-gradient-to-br from-surface-container-low to-surface-container flex items-center justify-center">
+      {/* Hero image */}
+      <div className="bg-surface-container-lowest rounded-lg overflow-hidden wireframe-border relative mb-6">
+        {item.image_url ? (
+          <img
+            src={item.image_url}
+            alt={item.canonical_name || item.raw_name}
+            className="w-full aspect-square md:aspect-[4/3] object-contain"
+          />
+        ) : (
+          <div className="w-full aspect-square md:aspect-[4/3] bg-gradient-to-br from-surface-container-low to-surface-container flex items-center justify-center">
             <Icon name="inventory_2" size={80} className="text-outline-variant/20" />
           </div>
-          {item.nutriscore && (
+        )}
+      </div>
+
+      {/* Product header */}
+      <div className="mb-6">
+        {/* Nutri-Score badge */}
+        {item.nutriscore && (
+          <div className="flex items-center gap-2 mb-3">
             <span
               className={cn(
-                'absolute top-4 right-4 px-4 py-2 rounded-full font-bold text-headline-md shadow-sm',
+                'w-9 h-9 flex items-center justify-center font-bold text-lg rounded-lg',
                 {
                   'bg-nutri-a text-white': item.nutriscore.toLowerCase() === 'a',
                   'bg-nutri-b text-white': item.nutriscore.toLowerCase() === 'b',
@@ -68,192 +78,144 @@ export const CatalogDetail = () => {
             >
               {item.nutriscore.toUpperCase()}
             </span>
-          )}
-        </div>
-
-        {/* Price/actions */}
-        <div className="md:col-span-5 flex flex-col gap-4">
-          <div className="flex gap-2 flex-wrap">
-            <Badge
-              className={
-                item.is_food ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'
-              }
-            >
-              {item.is_food ? 'Food' : 'Non-Food'}
-            </Badge>
-            {item.brand && <Badge variant="outline">{item.brand}</Badge>}
-            {item.category && <Badge className="bg-muted text-foreground">{item.category}</Badge>}
-          </div>
-          <p className="text-on-surface-variant">{item.vendor_name}</p>
-          <h1 className="text-headline-lg font-heading font-bold">
-            {item.canonical_name || item.raw_name}
-          </h1>
-          {item.price && (
-            <p className="text-headline-xl font-heading font-bold text-primary">
-              &euro;{item.price.toFixed(2)}
-            </p>
-          )}
-          {item.promotion_until_date && (
-            <div className="inline-flex items-center gap-2 bg-error-container text-on-error-container px-3 py-1 rounded-full text-label-sm font-semibold w-fit">
-              <Icon name="schedule" size={16} />
-              Promo until {new Date(item.promotion_until_date).toLocaleDateString()}
-            </div>
-          )}
-          {item.net_quantity_value && item.net_quantity_unit && (
-            <div className="text-on-surface-variant">
-              <span className="text-label-sm">Quantity</span>
-              <p>
-                {item.net_quantity_value} {item.net_quantity_unit}
-              </p>
-            </div>
-          )}
-          <div className="flex gap-3 mt-auto">
-            <Button className="flex-1 h-12">Add to List</Button>
-            <Button variant="outline" asChild className="flex-1 h-12 border-outline-variant">
-              <a href={item.product_url} target="_blank" rel="noopener noreferrer">
-                View on Vendor Site <Icon name="open_in_new" size={16} className="ml-2" />
-              </a>
-            </Button>
-          </div>
-        </div>
-
-        {/* Nutrition grid */}
-        {item.nutrition && (
-          <div className="md:col-span-8 bg-surface-container-low rounded-lg wireframe-border p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Icon name="nutrition" size={24} className="text-primary" />
-              <h2 className="text-headline-md font-heading font-semibold">
-                Nutritional Information (per 100g)
-              </h2>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {item.nutrition.energy_kcal && (
-                <div className="p-4 wireframe-border rounded-lg bg-surface">
-                  <span className="block text-label-sm text-on-surface-variant uppercase tracking-wider">
-                    Energy
-                  </span>
-                  <span className="text-headline-md font-heading font-semibold">
-                    {item.nutrition.energy_kcal} kcal
-                  </span>
-                </div>
-              )}
-              {item.nutrition.protein_g && (
-                <div className="p-4 wireframe-border rounded-lg bg-surface">
-                  <span className="block text-label-sm text-on-surface-variant uppercase tracking-wider">
-                    Protein
-                  </span>
-                  <span className="text-headline-md font-heading font-semibold">
-                    {item.nutrition.protein_g}g
-                  </span>
-                </div>
-              )}
-              {item.nutrition.carbs_g && (
-                <div className="p-4 wireframe-border rounded-lg bg-surface">
-                  <span className="block text-label-sm text-on-surface-variant uppercase tracking-wider">
-                    Carbohydrates
-                  </span>
-                  <span className="text-headline-md font-heading font-semibold">
-                    {item.nutrition.carbs_g}g
-                  </span>
-                </div>
-              )}
-              {item.nutrition.sugars_g !== undefined && (
-                <div className="p-4 wireframe-border rounded-lg bg-surface">
-                  <span className="block text-label-sm text-on-surface-variant uppercase tracking-wider">
-                    Sugars
-                  </span>
-                  <span className="text-headline-md font-heading font-semibold">
-                    {item.nutrition.sugars_g}g
-                  </span>
-                </div>
-              )}
-              {item.nutrition.fat_g && (
-                <div className="p-4 wireframe-border rounded-lg bg-surface">
-                  <span className="block text-label-sm text-on-surface-variant uppercase tracking-wider">
-                    Fat
-                  </span>
-                  <span className="text-headline-md font-heading font-semibold">
-                    {item.nutrition.fat_g}g
-                  </span>
-                </div>
-              )}
-              {item.nutrition.saturated_fat_g !== undefined && (
-                <div className="p-4 wireframe-border rounded-lg bg-surface">
-                  <span className="block text-label-sm text-on-surface-variant uppercase tracking-wider">
-                    Saturated Fat
-                  </span>
-                  <span className="text-headline-md font-heading font-semibold">
-                    {item.nutrition.saturated_fat_g}g
-                  </span>
-                </div>
-              )}
-              {item.nutrition.fiber_g && (
-                <div className="p-4 wireframe-border rounded-lg bg-surface">
-                  <span className="block text-label-sm text-on-surface-variant uppercase tracking-wider">
-                    Fiber
-                  </span>
-                  <span className="text-headline-md font-heading font-semibold">
-                    {item.nutrition.fiber_g}g
-                  </span>
-                </div>
-              )}
-              {item.nutrition.salt_g !== undefined && (
-                <div className="p-4 wireframe-border rounded-lg bg-surface">
-                  <span className="block text-label-sm text-on-surface-variant uppercase tracking-wider">
-                    Salt
-                  </span>
-                  <span className="text-headline-md font-heading font-semibold">
-                    {item.nutrition.salt_g}g
-                  </span>
-                </div>
-              )}
-            </div>
-            {item.nutrition.serving_size && (
-              <p className="text-label-sm text-on-surface-variant mt-4">
-                Serving size: {item.nutrition.serving_size}
-              </p>
-            )}
+            <span className="text-label-sm text-on-surface-variant uppercase tracking-wider">
+              Nutri-Score
+            </span>
           </div>
         )}
 
-        {/* Product details */}
-        <div
-          className={cn(
-            item.nutrition ? 'md:col-span-4' : 'md:col-span-12',
-            'dashed-outline p-6 rounded-lg'
+        {/* Brand */}
+        {item.brand && <p className="text-on-surface-variant text-label-md mb-1">{item.brand}</p>}
+
+        {/* Product title */}
+        <h1 className="text-headline-lg font-heading font-bold mb-1">
+          {item.canonical_name || item.raw_name}
+        </h1>
+
+        {/* Vendor & weight */}
+        <p className="text-on-surface-variant text-body-md">
+          {item.vendor_name}
+          {item.net_quantity_value && item.net_quantity_unit && (
+            <span>
+              &nbsp;&middot;&nbsp;{item.net_quantity_value}
+              {item.net_quantity_unit}
+            </span>
           )}
-        >
-          <h3 className="text-label-md text-primary uppercase tracking-wider mb-4 font-semibold">
-            Product Details
-          </h3>
-          <div className="space-y-3">
-            <div className="flex justify-between border-b border-outline-variant pb-2">
-              <span className="text-label-sm text-on-surface-variant">Raw Name</span>
-              <span className="text-on-surface text-right">{item.raw_name}</span>
-            </div>
-            {item.canonical_name && (
-              <div className="flex justify-between border-b border-outline-variant pb-2">
-                <span className="text-label-sm text-on-surface-variant">Canonical Name</span>
-                <span className="text-on-surface text-right">{item.canonical_name}</span>
+        </p>
+
+        {/* Price */}
+        {item.price && (
+          <p className="text-headline-md font-heading font-bold mt-3">
+            {item.price.toFixed(2)}&nbsp;&euro;
+            <span className="text-body-md font-normal text-on-surface-variant"> / unit</span>
+          </p>
+        )}
+
+        {/* Promo alert */}
+        {item.promotion_until_date && (
+          <div className="inline-flex items-center gap-2 bg-error-container text-on-error-container px-3 py-1.5 rounded-full text-label-sm font-semibold mt-3">
+            <Icon name="schedule" size={16} />
+            Promo until {new Date(item.promotion_until_date).toLocaleDateString()}
+          </div>
+        )}
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex gap-3 mb-8">
+        <Button className="flex-1 h-12 gap-2">
+          <Icon name="shopping_basket" size={20} />
+          Add to List
+        </Button>
+        <Button variant="outline" asChild className="flex-1 h-12 gap-2 border-outline-variant">
+          <a href={item.product_url} target="_blank" rel="noopener noreferrer">
+            <Icon name="open_in_new" size={18} />
+            View on Vendor Site
+          </a>
+        </Button>
+      </div>
+
+      {/* Nutritional Values */}
+      {item.nutrition && (
+        <section className="border-t border-outline-variant pt-6 mb-6">
+          <h2 className="text-headline-md font-heading font-semibold mb-4">
+            Nutritional Values (100g)
+          </h2>
+          <div className="grid grid-cols-2 gap-3">
+            {item.nutrition.energy_kcal != null && (
+              <div className="bg-surface-container-lowest wireframe-border rounded-lg p-4">
+                <span className="block text-label-sm text-on-surface-variant mb-1">Energy</span>
+                <span className="text-headline-md font-heading font-semibold">
+                  {item.nutrition.energy_kcal} kcal
+                </span>
               </div>
             )}
-            {item.normalized_name && (
-              <div className="flex justify-between border-b border-outline-variant pb-2">
-                <span className="text-label-sm text-on-surface-variant">Normalized Name</span>
-                <span className="text-on-surface text-right font-mono text-sm">
-                  {item.normalized_name}
+            {item.nutrition.fat_g != null && (
+              <div className="bg-surface-container-lowest wireframe-border rounded-lg p-4">
+                <span className="block text-label-sm text-on-surface-variant mb-1">Fat</span>
+                <span className="text-headline-md font-heading font-semibold">
+                  {item.nutrition.fat_g}g
+                </span>
+              </div>
+            )}
+            {item.nutrition.carbs_g != null && (
+              <div className="bg-surface-container-lowest wireframe-border rounded-lg p-4">
+                <span className="block text-label-sm text-on-surface-variant mb-1">Carbs</span>
+                <span className="text-headline-md font-heading font-semibold">
+                  {item.nutrition.carbs_g}g
+                </span>
+              </div>
+            )}
+            {item.nutrition.protein_g != null && (
+              <div className="bg-surface-container-lowest wireframe-border rounded-lg p-4">
+                <span className="block text-label-sm text-on-surface-variant mb-1">Protein</span>
+                <span className="text-headline-md font-heading font-semibold">
+                  {item.nutrition.protein_g}g
                 </span>
               </div>
             )}
           </div>
-        </div>
-      </div>
+          {item.nutrition.serving_size && (
+            <p className="text-label-sm text-on-surface-variant mt-3">
+              Serving size: {item.nutrition.serving_size}
+            </p>
+          )}
+        </section>
+      )}
 
-      {/* Dates */}
-      <div className="text-label-sm text-on-surface-variant mt-6">
-        <p>Added: {new Date(item.created_at).toLocaleDateString()}</p>
-        <p>Last updated: {new Date(item.updated_at).toLocaleDateString()}</p>
-      </div>
+      {/* Product Details */}
+      <section className="border-t border-outline-variant pt-6">
+        <h2 className="text-headline-md font-heading font-semibold mb-4">Product Details</h2>
+        <ul className="divide-y divide-outline-variant">
+          {item.net_quantity_value && item.net_quantity_unit && (
+            <li className="flex justify-between py-3">
+              <span className="text-on-surface-variant">Weight</span>
+              <span className="font-semibold text-right">
+                {item.net_quantity_value} {item.net_quantity_unit}
+              </span>
+            </li>
+          )}
+          {item.category && (
+            <li className="flex justify-between py-3">
+              <span className="text-on-surface-variant">Category</span>
+              <span className="font-semibold text-right">{item.category}</span>
+            </li>
+          )}
+          <li className="flex justify-between py-3">
+            <span className="text-on-surface-variant">Type</span>
+            <span className="font-semibold text-right">{item.is_food ? 'Food' : 'Non-Food'}</span>
+          </li>
+          <li className="flex justify-between py-3">
+            <span className="text-on-surface-variant">Vendor</span>
+            <span className="font-semibold text-right">{item.vendor_name}</span>
+          </li>
+          {item.canonical_name && item.canonical_name !== item.raw_name && (
+            <li className="flex justify-between py-3">
+              <span className="text-on-surface-variant">Raw Name</span>
+              <span className="font-semibold text-right max-w-[60%]">{item.raw_name}</span>
+            </li>
+          )}
+        </ul>
+      </section>
     </div>
   )
 }

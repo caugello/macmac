@@ -24,6 +24,7 @@ def create_catalog_item(data: rs.CatalogItemCreate, db: Session):
         nutriscore=data.nutriscore,
         nutriscore_svg=data.nutriscore_svg,
         promotion_until_date=data.promotion_until_date,
+        image_url=data.image_url,
     )
 
     db.add(item)

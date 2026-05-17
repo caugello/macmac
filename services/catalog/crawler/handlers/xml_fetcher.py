@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 from collections.abc import Iterable
 from urllib.parse import unquote
 
-import httpx
+from playwright.sync_api import sync_playwright
 
 from services.config import Vendor, get_config
 from services.shared.schemas.vendor import VendorCatalogItem, VendorXMLSource
@@ -68,63 +68,69 @@ def parse_sitemap_sources(xml_content: str) -> Iterable[VendorXMLSource]:
             continue
 
 
-def fetch_xml(url: str, client: httpx.Client) -> str | None:
+def fetch_xml_playwright(url: str, page) -> str | None:
     """
-    Fetches XML content from a given URL, handling gzipped content if necessary.
-    Uses an existing client session to maintain cookies across requests.
+    Fetches XML content from a URL using Playwright to bypass anti-bot.
+    Uses page.request.get() to fetch raw content without browser rendering.
     """
     try:
-        response = client.get(url)
-        response.raise_for_status()
+        response = page.request.get(url)
+        if response.status >= 400:
+            print(f"Error fetching {url}: HTTP {response.status}")
+            return None
 
+        body = response.body()
+
+        # Try gzip decompression; if it fails, content was already decompressed
         if url.endswith(".gz"):
-            gzipped_file = io.BytesIO(response.content)
-            with gzip.open(gzipped_file, "rt", encoding="utf-8") as f:
-                xml_content = f.read()
-        else:
-            xml_content = response.text
+            try:
+                with gzip.open(io.BytesIO(body), "rt", encoding="utf-8") as f:
+                    return f.read()
+            except gzip.BadGzipFile:
+                return body.decode("utf-8")
 
-        return xml_content
-
-    except httpx.RequestError as e:
+        return body.decode("utf-8")
+    except Exception as e:
         print(f"Error fetching xml from {url}: {e}")
         return None
 
 
-def warm_up_session(client: httpx.Client, base_url: str) -> None:
-    """Visit the homepage first to establish cookies and a valid session."""
-    try:
-        print(f"  → Warming up session on {base_url}")
-        response = client.get(base_url)
-        if response.status_code == 200:
-            print("  → Session established")
-        time.sleep(DELAY_BETWEEN_REQUESTS)
-    except httpx.RequestError as e:
-        print(f"  → Warning: could not warm up session: {e}")
-
-
 def fetch_products_for_vendor(vendor: Vendor) -> Iterable[VendorCatalogItem]:
     try:
-        with httpx.Client(
-            headers=HEADERS,
-            follow_redirects=True,
-            timeout=30.0,
-        ) as client:
-            base_url = vendor.url.rsplit("/", 1)[0]
-            warm_up_session(client, base_url)
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(
+                user_agent=HEADERS["User-Agent"],
+                locale="fr-BE",
+                timezone_id="Europe/Brussels",
+            )
+            page = context.new_page()
+            page.add_init_script(
+                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
+            )
 
-            sitemap = fetch_xml(vendor.url, client)
-            sources = parse_sitemap_sources(sitemap) or []
+            print(f"  → Fetching sitemap: {vendor.url}")
+            sitemap = fetch_xml_playwright(vendor.url, page)
+            if not sitemap:
+                browser.close()
+                return []
+
+            sources = list(parse_sitemap_sources(sitemap)) or []
+            print(f"  → Found {len(sources)} product sitemap(s)")
+
             for source in sources:
                 if not source or not source.url:
                     continue
 
                 time.sleep(DELAY_BETWEEN_REQUESTS)
-                products = fetch_xml(source.url, client)
+                products = fetch_xml_playwright(source.url, page)
                 if not products:
                     continue
 
+                browser.close()
                 return parse_vendor_catalog_item_xml(products, vendor)
+
+            browser.close()
     except Exception as e:
         print(f"Error fetching products for vendor {vendor.name}: {e}")
         return []

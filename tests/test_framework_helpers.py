@@ -137,6 +137,7 @@ def test_make_endpoint_with_request_model():
     route = MagicMock(spec=Route)
     route.request_model = TestModel
     route.path = "/items"
+    route.query_params = {}
 
     handler = MagicMock()
     get_db = MagicMock()
@@ -169,6 +170,7 @@ def test_make_endpoint_with_path_params():
     route = MagicMock(spec=Route)
     route.request_model = None
     route.path = "/items/{item_id}"
+    route.query_params = {}
 
     handler = AsyncMock()
     handler.__name__ = "get_item"

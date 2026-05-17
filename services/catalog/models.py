@@ -31,6 +31,7 @@ class CatalogItem(BaseModel, Base):
     nutriscore = Column(String)
     nutriscore_svg = Column(Text)
     promotion_until_date = Column(Date)
+    image_url = Column(String)
     __table_args__ = (
         Index("ix_catalog_normalized_name", "normalized_name"),
         Index("ix_catalog_product_url", "product_url", unique=True),

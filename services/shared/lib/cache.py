@@ -17,6 +17,12 @@ from pydantic import BaseModel
 logger = logging.getLogger(__name__)
 
 
+def _json_default(obj: Any) -> Any:
+    if isinstance(obj, BaseModel):
+        return obj.model_dump()
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+
 class CacheConfig:
     """Cache configuration for different environments."""
 
@@ -162,7 +168,7 @@ class RedisCache:
             if isinstance(value, BaseModel):
                 json_value = value.model_dump_json()
             else:
-                json_value = json.dumps(value)
+                json_value = json.dumps(value, default=_json_default)
             return self.set(key, json_value, ttl)
         except (TypeError, ValueError) as e:
             logger.warning(f"Failed to serialize value for key {key}: {e}")

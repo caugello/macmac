@@ -28,6 +28,7 @@ class CatalogItemCreate(BaseModel):
     nutriscore: str | None = None
     nutriscore_svg: str | None = None
     promotion_until_date: date | None = None
+    image_url: str | None = None
 
 
 class CatalogItemOut(CatalogItemCreate):
@@ -51,6 +52,12 @@ class CatalogItemListResponse(BaseModel):
     limit: int | None = None
     offset: int | None = None
     data: list[CatalogItemOut]
+
+
+class CatalogCategoriesResponse(BaseModel):
+    """Response for listing distinct catalog categories."""
+
+    categories: list[str]
 
 
 class BatchCatalogRequest(BaseModel):

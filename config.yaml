@@ -293,8 +293,18 @@ services:
             type: str
             default: null
             example: "title:asc"
+          category:
+            type: str
+            default: null
         tags:
           - catalog
+      - name: list_catalog_categories
+        method: get
+        path: /catalog/categories
+        handler: services.catalog.crud.list_catalog_categories
+        response_model: services.shared.schemas.catalog.CatalogCategoriesResponse
+        description: List distinct catalog categories
+        tags: [catalog]
       - name: get_catalog_item
         method: get
         path: /catalog/{item_id}

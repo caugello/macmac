@@ -93,7 +93,7 @@ def make_endpoint(route, handler_fn, get_db=None):
     and then calls the actual handler function with the correct arguments.
     """
     request_model = route.request_model
-    qp_dep = build_query_dependency(route) if "{" not in route.path else None
+    qp_dep = build_query_dependency(route) if route.query_params else None
 
     if request_model:
         return build_body_handler(request_model, handler_fn, get_db)
