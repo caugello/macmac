@@ -19,7 +19,7 @@ describe('Login Page', () => {
     it('should render login page with Google sign-in button', () => {
       render(<Login />)
 
-      expect(screen.getByText('Welcome to your digital pantry.')).toBeInTheDocument()
+      expect(screen.getByText('AI-powered meal planning. Real store prices.')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /sign in with google/i })).toBeInTheDocument()
     })
 
