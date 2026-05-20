@@ -11,13 +11,13 @@ describe('Landing Page', () => {
   describe('rendering', () => {
     it('should render hero section', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText(/Your Digital/i)).toBeInTheDocument()
-      expect(screen.getAllByText(/Pantry/i).length).toBeGreaterThan(0)
+      expect(screen.getByText(/AI reads every product/i)).toBeInTheDocument()
+      expect(screen.getByText(/Your meal plan writes its own shopping list/i)).toBeInTheDocument()
     })
 
     it('should render hero description', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText(/A warm, organized space for your family/i)).toBeInTheDocument()
+      expect(screen.getByText(/MacMac crawls real store catalogs/i)).toBeInTheDocument()
     })
 
     it('should render Get Started Free button', () => {
@@ -33,64 +33,66 @@ describe('Landing Page', () => {
   })
 
   describe('features section', () => {
-    it('should render Smart Meal Plans feature', () => {
+    it('should render Meal plans feature', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText('Smart Meal Plans')).toBeInTheDocument()
+      expect(screen.getByText('Meal plans that know your store')).toBeInTheDocument()
     })
 
-    it('should render Smart Grocery Lists feature', () => {
+    it('should render Shopping lists feature', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText('Smart Grocery Lists')).toBeInTheDocument()
+      expect(screen.getByText('Shopping lists with real prices')).toBeInTheDocument()
       expect(
-        screen.getByText(/Automatically generated shopping lists with real-time prices/i)
+        screen.getByText(/One click turns a week of meals into a priced, sorted shopping list/i)
       ).toBeInTheDocument()
     })
 
-    it('should render Reduce Food Waste feature', () => {
+    it('should render Buy what you need feature', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText('Reduce Food Waste')).toBeInTheDocument()
-      expect(screen.getByText(/Plan smarter, waste less/i)).toBeInTheDocument()
+      expect(screen.getByText('Buy what you need, use what you buy')).toBeInTheDocument()
+      expect(
+        screen.getByText(/Precise quantities calculated from your recipes/i)
+      ).toBeInTheDocument()
     })
 
-    it('should render Nutrition Tracking feature', () => {
+    it('should render Nutri-Score feature', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText('Nutrition Tracking')).toBeInTheDocument()
-      expect(screen.getByText(/Monitor your nutrition intake/i)).toBeInTheDocument()
+      expect(screen.getByText('Nutri-Score on every product')).toBeInTheDocument()
+      expect(screen.getByText(/AI extracts nutritional data/i)).toBeInTheDocument()
     })
   })
 
   describe('how it works section', () => {
-    it('should render How MacMac Works heading', () => {
+    it('should render How It Works heading', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText(/How/)).toBeInTheDocument()
-      expect(screen.getByText(/Works/)).toBeInTheDocument()
+      expect(screen.getByText(/How the/i)).toBeInTheDocument()
+      expect(screen.getByText(/AI pipeline/i)).toBeInTheDocument()
     })
 
     it('should render step 1', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText('1. Browse Recipes')).toBeInTheDocument()
-      expect(screen.getByText(/Browse your collection or create new recipes/i)).toBeInTheDocument()
+      expect(screen.getByText('1. Add your recipes')).toBeInTheDocument()
+      expect(screen.getByText(/Build your family collection/i)).toBeInTheDocument()
     })
 
     it('should render step 2', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText('2. Plan Your Week')).toBeInTheDocument()
-      expect(screen.getByText(/Drag recipes into your weekly meal calendar/i)).toBeInTheDocument()
+      expect(screen.getByText('2. Plan your meals')).toBeInTheDocument()
+      expect(screen.getByText(/Drag recipes into your weekly calendar/i)).toBeInTheDocument()
     })
 
     it('should render step 3', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText('3. Get Smart Lists')).toBeInTheDocument()
+      expect(screen.getByText('3. AI does the math')).toBeInTheDocument()
       expect(
-        screen.getByText(/Auto-generated shopping lists aggregated by category/i)
+        screen.getByText(/MacMac matches every ingredient to real store products/i)
       ).toBeInTheDocument()
     })
 
     it('should render step 4', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText('4. Cook & Enjoy')).toBeInTheDocument()
+      expect(screen.getByText('4. Shop with confidence')).toBeInTheDocument()
       expect(
-        screen.getByText(/Follow step-by-step instructions and enjoy delicious homemade meals/i)
+        screen.getByText(/Walk into the store knowing exactly what to buy/i)
       ).toBeInTheDocument()
     })
   })
@@ -98,13 +100,12 @@ describe('Landing Page', () => {
   describe('CTA section', () => {
     it('should render CTA heading', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText(/Digital Pantry/i)).toBeInTheDocument()
-      expect(screen.getByText(/Awaits/i)).toBeInTheDocument()
+      expect(screen.getByText(/Your store is already/i)).toBeInTheDocument()
     })
 
     it('should render CTA description', () => {
       renderWithRouter(<Landing />)
-      expect(screen.getByText(/Start your meal planning journey today/i)).toBeInTheDocument()
+      expect(screen.getByText(/AI has read every product/i)).toBeInTheDocument()
     })
   })
 

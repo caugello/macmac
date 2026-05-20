@@ -34,15 +34,15 @@ export const Login: React.FC = () => {
         <div className="absolute bottom-24 right-12 w-48 h-48 rounded-full border-2 border-dashed border-white/10" />
         <div className="relative text-white max-w-md space-y-6 animate-enter">
           <h2 className="text-4xl font-heading font-bold leading-tight">
-            Plan smarter,
+            AI-powered
             <br />
-            cook better,
+            meal planning
             <br />
-            waste less.
+            with real prices.
           </h2>
           <p className="text-white/70 text-lg leading-relaxed">
-            Your family&apos;s recipes, meal plans, and shopping lists — all in one warm, organized
-            space.
+            Recipes, meal plans, and shopping lists built on a live product catalog — priced,
+            scored, and sorted before you reach the store.
           </p>
           <div className="flex items-center gap-3 pt-4">
             <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
@@ -70,7 +70,7 @@ export const Login: React.FC = () => {
           <div className="mb-8">
             <h1 className="text-headline-xl font-heading font-bold text-center">MacMac</h1>
             <p className="text-body-lg text-on-surface-variant text-center mt-2">
-              Welcome to your digital pantry.
+              AI-powered meal planning. Real store prices.
             </p>
           </div>
 
