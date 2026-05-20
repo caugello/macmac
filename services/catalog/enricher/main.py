@@ -7,7 +7,15 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
 
-from openai import AsyncOpenAI
+from openai import (
+    APIConnectionError,
+    APITimeoutError,
+    AsyncOpenAI,
+    AuthenticationError,
+    BadRequestError,
+    InternalServerError,
+    RateLimitError,
+)
 from playwright.async_api import async_playwright
 
 from services.catalog.db import SessionLocal
@@ -50,6 +58,8 @@ DELAY_BETWEEN_REQUESTS = (
 )
 PAGE_TIMEOUT = catalog_config.enricher.page_timeout if catalog_config.enricher else 15000
 BATCH_PAUSE = catalog_config.enricher.batch_pause if catalog_config.enricher else 60
+MAX_RETRIES = catalog_config.enricher.max_retries if catalog_config.enricher else 3
+RETRY_BACKOFF = catalog_config.enricher.retry_backoff if catalog_config.enricher else 2.0
 
 # Global counters for rate limiting
 items_processed = 0
@@ -61,6 +71,40 @@ URL_QTY_PATTERN = re.compile(r"-(\d+(?:[.,]\d+)?)(g|kg|ml|l|cl)(?:-|$)", re.IGNO
 
 # Regex for extracting promotion end date from text like "1+1 GRATUIT du 06/05/2026 au inclus 19/05/2026"
 PROMOTION_END_DATE_PATTERN = re.compile(r"au\s+inclus\s+(\d{2}/\d{2}/\d{4})")
+
+
+class PermanentCrawlError(Exception):
+    """Non-retryable crawl failure (e.g. HTTP 404)."""
+
+
+async def async_retry(
+    coro_func,
+    *args,
+    max_retries: int = MAX_RETRIES,
+    backoff: float = RETRY_BACKOFF,
+    retryable_exceptions: tuple = (Exception,),
+    non_retryable_exceptions: tuple = (),
+    label: str = "operation",
+    **kwargs,
+):
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            return await coro_func(*args, **kwargs)
+        except non_retryable_exceptions:
+            raise
+        except retryable_exceptions as e:
+            last_error = e
+            if attempt < max_retries - 1:
+                wait = backoff * (2**attempt)
+                logger.warning(
+                    f"{label} failed (attempt {attempt + 1}/{max_retries}), "
+                    f"retrying in {wait:.1f}s: {e}"
+                )
+                await asyncio.sleep(wait)
+            else:
+                logger.error(f"{label} failed after {max_retries} attempts: {e}")
+    raise last_error
 
 
 def normalize_unit(unit: str | None) -> str | None:
@@ -145,263 +189,316 @@ def extract_quantity_from_url(url: str) -> tuple[float | None, str | None]:
     return None, None
 
 
+CHROMIUM_ARGS = ["--disable-dev-shm-usage", "--no-sandbox"]
+
+
+async def _crawl_product_page_once(url: str) -> CrawlResult:
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True, args=CHROMIUM_ARGS)
+
+        context = await browser.new_context(
+            viewport={"width": 1440, "height": 900},
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+            locale="fr-BE",
+            timezone_id="Europe/Brussels",
+            color_scheme="light",
+            extra_http_headers={
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "fr-BE,fr;q=0.9",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Connection": "keep-alive",
+            },
+        )
+
+        page = await context.new_page()
+
+        await page.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', {
+                get: () => undefined
+            });
+        """)
+
+        base_url = "https://www.collectandgo.be/fr"
+        logger.debug("Visiting homepage first")
+
+        try:
+            home_response = await page.goto(base_url, timeout=15000, wait_until="networkidle")
+            if home_response and home_response.status == 200:
+                logger.debug("Homepage loaded successfully")
+                await asyncio.sleep(2.0)
+                await page.evaluate("window.scrollTo({top: 400, behavior: 'smooth'})")
+                await asyncio.sleep(1.0)
+                await page.evaluate("window.scrollTo({top: 800, behavior: 'smooth'})")
+                await asyncio.sleep(1.0)
+            else:
+                logger.debug(
+                    f"Homepage returned status {home_response.status if home_response else 'None'}"
+                )
+        except Exception as e:
+            logger.warning(f"Could not load homepage: {e}")
+
+        await asyncio.sleep(1.5)
+
+        logger.debug("Navigating to product page")
+        response = await page.goto(
+            url, timeout=15000, wait_until="domcontentloaded", referer=base_url
+        )
+
+        if not response:
+            await browser.close()
+            raise RuntimeError(f"No response from {url}")
+
+        if response.status == 404:
+            await browser.close()
+            raise PermanentCrawlError(f"HTTP 404 from {url}")
+
+        if response.status in (429, 502, 503):
+            await browser.close()
+            raise RuntimeError(f"HTTP {response.status} from {url}")
+
+        if response.status >= 400:
+            await browser.close()
+            raise PermanentCrawlError(f"HTTP {response.status} from {url}")
+
+        final_url = page.url
+        if final_url != url:
+            logger.debug(f"Redirected to: {final_url}")
+
+        await asyncio.sleep(0.5 + (asyncio.get_event_loop().time() % 1))
+
+        await page.evaluate("""
+            window.scrollTo({
+                top: document.body.scrollHeight / 3,
+                behavior: 'smooth'
+            });
+        """)
+        await asyncio.sleep(0.3)
+
+        await page.wait_for_timeout(1500)
+
+        extracted_price = None
+        try:
+            await page.wait_for_selector(
+                'span.price-per-unit, [class*="price"]', timeout=3000, state="visible"
+            )
+
+            price_element = await page.query_selector("span.price-per-unit")
+            if price_element:
+                price_text = await price_element.inner_text()
+                price_text = (
+                    price_text.strip()
+                    .replace("\n", "")
+                    .replace("\r", "")
+                    .replace("€", "")
+                    .replace(" ", "")
+                    .replace(",", ".")
+                )
+
+                price_text = re.sub(r"/[a-z]+$", "", price_text)
+
+                try:
+                    extracted_price = float(price_text)
+                    logger.debug(f"Extracted price: EUR {extracted_price:.2f}")
+                except ValueError:
+                    logger.warning(f"Could not parse price: {repr(price_text)}")
+        except Exception as e:
+            logger.warning(f"Could not extract price: {e}")
+
+        await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+        await asyncio.sleep(0.5)
+
+        nutriscore = None
+        nutriscore_svg = None
+        try:
+            nutriscore_el = await page.query_selector("dsce-product-score")
+            if nutriscore_el:
+                nutriscore = await nutriscore_el.get_attribute("nutri-score")
+                if nutriscore:
+                    nutriscore = nutriscore.strip().upper()
+                    logger.debug(f"Nutri-Score: {nutriscore}")
+
+                nutriscore_svg = await page.evaluate("""() => {
+                    const el = document.querySelector('dsce-product-score');
+                    if (!el) return null;
+                    const root = el.shadowRoot || el;
+                    const container = root.querySelector('div > div.nutri-score > div');
+                    if (!container) return null;
+                    const svg = container.querySelector('svg');
+                    return svg ? svg.outerHTML : container.innerHTML;
+                }""")
+                if nutriscore_svg:
+                    logger.debug(f"Nutri-Score SVG extracted ({len(nutriscore_svg)} chars)")
+        except Exception as e:
+            logger.warning(f"Could not extract Nutri-Score: {e}")
+
+        image_url = None
+        try:
+            img_el = await page.query_selector("#productMainImage")
+            if img_el:
+                image_url = await img_el.get_attribute("src")
+                if image_url:
+                    if image_url.startswith("//"):
+                        image_url = "https:" + image_url
+                    elif image_url.startswith("/"):
+                        base = final_url.split("/")[0] + "//" + final_url.split("/")[2]
+                        image_url = base + image_url
+                    logger.info(f"Product image: {image_url}")
+        except Exception as e:
+            logger.warning(f"Could not extract product image: {e}")
+
+        promotion_until_date = None
+        try:
+            promo_el = await page.query_selector("div.promotion")
+            if promo_el:
+                promo_text = await promo_el.inner_text()
+                if promo_text:
+                    logger.debug(f"Promotion text: {promo_text.strip()}")
+                    match = PROMOTION_END_DATE_PATTERN.search(promo_text)
+                    if match:
+                        promotion_until_date = datetime.strptime(match.group(1), "%d/%m/%Y").date()
+                        logger.debug(f"Promotion until: {promotion_until_date}")
+        except Exception as e:
+            logger.warning(f"Could not extract promotion: {e}")
+
+        html = await page.content()
+
+        info_link_url = None
+        try:
+            info_link = await page.query_selector(
+                'a:has-text("plus d\'infos"), a:has-text("Plus d\'infos"), a:has-text("meer info"), a:has-text("Meer info")'
+            )
+            if info_link:
+                info_href = await info_link.get_attribute("href")
+                if info_href:
+                    if info_href.startswith("/"):
+                        base = final_url.split("/")[0] + "//" + final_url.split("/")[2]
+                        info_link_url = base + info_href
+                    elif not info_href.startswith("http"):
+                        info_link_url = final_url.rsplit("/", 1)[0] + "/" + info_href
+                    else:
+                        info_link_url = info_href
+                    logger.debug(f"Found product info link: {info_link_url}")
+        except Exception as e:
+            logger.warning(f"Could not find product info link: {e}")
+
+        await browser.close()
+        return CrawlResult(
+            html_content=html,
+            final_url=final_url,
+            extracted_price=extracted_price,
+            info_link_url=info_link_url,
+            nutriscore=nutriscore,
+            nutriscore_svg=nutriscore_svg,
+            promotion_until_date=promotion_until_date,
+            image_url=image_url,
+        )
+
+
 async def crawl_product_page(url: str) -> CrawlResult:
-    """
-    Crawl product page using Playwright with anti-detection measures.
-    Mimics real browser behavior to bypass WAF/bot detection.
-    """
     from urllib.parse import unquote
 
-    # Decode URL to handle special characters properly
     url = unquote(url)
     validate_url(url)
 
     try:
-        async with async_playwright() as p:
-            # Try webkit (Safari) - often less detected than Chromium
-            browser = await p.chromium.launch(headless=True)
-
-            # Create context with realistic Safari fingerprint
-            context = await browser.new_context(
-                viewport={"width": 1440, "height": 900},
-                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-                locale="fr-BE",
-                timezone_id="Europe/Brussels",
-                color_scheme="light",
-                extra_http_headers={
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                    "Accept-Language": "fr-BE,fr;q=0.9",
-                    "Accept-Encoding": "gzip, deflate, br",
-                    "Connection": "keep-alive",
-                },
-            )
-
-            page = await context.new_page()
-
-            # Simple stealth script for Safari/webkit
-            await page.add_init_script("""
-                Object.defineProperty(navigator, 'webdriver', {
-                    get: () => undefined
-                });
-            """)
-
-            # Step 1: Visit homepage first to establish session and get cookies
-            base_url = "https://www.collectandgo.be/fr"
-            logger.debug("Visiting homepage first")
-
-            try:
-                home_response = await page.goto(base_url, timeout=15000, wait_until="networkidle")
-                if home_response and home_response.status == 200:
-                    logger.debug("Homepage loaded successfully")
-                    # Wait longer like a real user browsing
-                    await asyncio.sleep(2.0)
-
-                    # Scroll down homepage slowly
-                    await page.evaluate("window.scrollTo({top: 400, behavior: 'smooth'})")
-                    await asyncio.sleep(1.0)
-
-                    await page.evaluate("window.scrollTo({top: 800, behavior: 'smooth'})")
-                    await asyncio.sleep(1.0)
-                else:
-                    logger.debug(
-                        f"Homepage returned status {home_response.status if home_response else 'None'}"
-                    )
-            except Exception as e:
-                logger.warning(f"Could not load homepage: {e}")
-
-            # Step 2: Navigate to product page (like clicking a link)
-            # Wait a bit more before navigating
-            await asyncio.sleep(1.5)
-
-            logger.debug("Navigating to product page")
-            try:
-                response = await page.goto(
-                    url, timeout=15000, wait_until="domcontentloaded", referer=base_url
-                )
-            except Exception as e:
-                logger.error(f"Navigation error: {e}")
-                await browser.close()
-                return CrawlResult()
-
-            if not response:
-                logger.error(f"No response from {url}")
-                await browser.close()
-                return CrawlResult()
-
-            # Check response status
-            if response.status >= 400:
-                logger.error(f"HTTP {response.status} from {url}")
-                logger.debug(f"Response headers: {response.headers}")
-                await browser.close()
-                return CrawlResult()
-
-            # Get final URL after redirects
-            final_url = page.url
-            if final_url != url:
-                logger.debug(f"Redirected to: {final_url}")
-
-            # Mimic human behavior: random scroll
-            await asyncio.sleep(
-                0.5 + (asyncio.get_event_loop().time() % 1)
-            )  # Random delay 0.5-1.5s
-
-            # Scroll down slowly like a human
-            await page.evaluate("""
-                window.scrollTo({
-                    top: document.body.scrollHeight / 3,
-                    behavior: 'smooth'
-                });
-            """)
-            await asyncio.sleep(0.3)
-
-            # Wait for content to load
-            await page.wait_for_timeout(1500)
-
-            # Extract price from the main product page
-            extracted_price = None
-            try:
-                # Wait for price element with specific selector
-                await page.wait_for_selector(
-                    'span.price-per-unit, [class*="price"]', timeout=3000, state="visible"
-                )
-
-                # Try to extract price from specific selector first
-                price_element = await page.query_selector("span.price-per-unit")
-                if price_element:
-                    price_text = await price_element.inner_text()
-                    # Clean price text: remove €, newlines, spaces, /pce, /kg, etc.
-                    # Handle formats like "2.\n99\n/pce" or "€1,89/kg"
-                    price_text = (
-                        price_text.strip()
-                        .replace("\n", "")
-                        .replace("\r", "")
-                        .replace("€", "")
-                        .replace(" ", "")
-                        .replace(",", ".")
-                    )
-
-                    # Remove unit suffixes like /pce, /kg, /l, etc.
-                    import re
-
-                    price_text = re.sub(r"/[a-z]+$", "", price_text)
-
-                    try:
-                        extracted_price = float(price_text)
-                        logger.debug(f"Extracted price: EUR {extracted_price:.2f}")
-                    except ValueError:
-                        logger.warning(f"Could not parse price: {repr(price_text)}")
-            except Exception as e:
-                logger.warning(f"Could not extract price: {e}")
-
-            # Scroll to bottom to trigger lazy loading
-            await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-            await asyncio.sleep(0.5)
-
-            # Extract Nutri-Score value and SVG
-            nutriscore = None
-            nutriscore_svg = None
-            try:
-                nutriscore_el = await page.query_selector("dsce-product-score")
-                if nutriscore_el:
-                    nutriscore = await nutriscore_el.get_attribute("nutri-score")
-                    if nutriscore:
-                        nutriscore = nutriscore.strip().upper()
-                        logger.debug(f"Nutri-Score: {nutriscore}")
-
-                    # SVG is inside the web component's shadow DOM
-                    nutriscore_svg = await page.evaluate("""() => {
-                        const el = document.querySelector('dsce-product-score');
-                        if (!el) return null;
-                        const root = el.shadowRoot || el;
-                        const container = root.querySelector('div > div.nutri-score > div');
-                        if (!container) return null;
-                        const svg = container.querySelector('svg');
-                        return svg ? svg.outerHTML : container.innerHTML;
-                    }""")
-                    if nutriscore_svg:
-                        logger.debug(f"Nutri-Score SVG extracted ({len(nutriscore_svg)} chars)")
-            except Exception as e:
-                logger.warning(f"Could not extract Nutri-Score: {e}")
-
-            # Extract product image URL
-            image_url = None
-            try:
-                img_el = await page.query_selector("#productMainImage")
-                if img_el:
-                    image_url = await img_el.get_attribute("src")
-                    if image_url:
-                        if image_url.startswith("//"):
-                            image_url = "https:" + image_url
-                        elif image_url.startswith("/"):
-                            base = final_url.split("/")[0] + "//" + final_url.split("/")[2]
-                            image_url = base + image_url
-                        logger.info(f"Product image: {image_url}")
-            except Exception as e:
-                logger.warning(f"Could not extract product image: {e}")
-
-            # Extract promotion end date
-            promotion_until_date = None
-            try:
-                promo_el = await page.query_selector("div.promotion")
-                if promo_el:
-                    promo_text = await promo_el.inner_text()
-                    if promo_text:
-                        logger.debug(f"Promotion text: {promo_text.strip()}")
-                        match = PROMOTION_END_DATE_PATTERN.search(promo_text)
-                        if match:
-                            promotion_until_date = datetime.strptime(
-                                match.group(1), "%d/%m/%Y"
-                            ).date()
-                            logger.debug(f"Promotion until: {promotion_until_date}")
-            except Exception as e:
-                logger.warning(f"Could not extract promotion: {e}")
-
-            # Get main product page HTML
-            html = await page.content()
-
-            # Try to find the "plus d'infos" link while page is still open
-            info_link_url = None
-            try:
-                info_link = await page.query_selector(
-                    'a:has-text("plus d\'infos"), a:has-text("Plus d\'infos"), a:has-text("meer info"), a:has-text("Meer info")'
-                )
-                if info_link:
-                    info_href = await info_link.get_attribute("href")
-                    if info_href:
-                        # Make absolute URL if relative
-                        if info_href.startswith("/"):
-                            base = final_url.split("/")[0] + "//" + final_url.split("/")[2]
-                            info_link_url = base + info_href
-                        elif not info_href.startswith("http"):
-                            info_link_url = final_url.rsplit("/", 1)[0] + "/" + info_href
-                        else:
-                            info_link_url = info_href
-                        logger.debug(f"Found product info link: {info_link_url}")
-            except Exception as e:
-                logger.warning(f"Could not find product info link: {e}")
-
-            await browser.close()
-            return CrawlResult(
-                html_content=html,
-                final_url=final_url,
-                extracted_price=extracted_price,
-                info_link_url=info_link_url,
-                nutriscore=nutriscore,
-                nutriscore_svg=nutriscore_svg,
-                promotion_until_date=promotion_until_date,
-                image_url=image_url,
-            )
-
+        return await async_retry(
+            _crawl_product_page_once,
+            url,
+            retryable_exceptions=(RuntimeError, OSError, TimeoutError),
+            non_retryable_exceptions=(PermanentCrawlError,),
+            label=f"crawl_product_page({url})",
+        )
+    except PermanentCrawlError as e:
+        logger.error(f"Permanent crawl failure: {e}")
+        return CrawlResult()
     except Exception as e:
-        logger.error(f"Error crawling {url}: {e}")
+        logger.error(f"Error crawling {url} after {MAX_RETRIES} attempts: {e}")
         return CrawlResult()
 
 
+async def _crawl_nutrition_page_once(
+    info_url: str, main_page_url: str
+) -> tuple[str | None, str | None]:
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True, args=CHROMIUM_ARGS)
+        context = await browser.new_context(
+            viewport={"width": 1440, "height": 900},
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+            locale="fr-BE",
+            timezone_id="Europe/Brussels",
+        )
+
+        page = await context.new_page()
+        await page.add_init_script(
+            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
+        )
+
+        response = await page.goto(
+            info_url, timeout=PAGE_TIMEOUT, wait_until="domcontentloaded", referer=main_page_url
+        )
+
+        if not response:
+            await browser.close()
+            raise RuntimeError(f"No response from nutrition page {info_url}")
+
+        if response.status == 404:
+            await browser.close()
+            raise PermanentCrawlError(f"HTTP 404 from nutrition page {info_url}")
+
+        if response.status in (429, 502, 503):
+            await browser.close()
+            raise RuntimeError(f"HTTP {response.status} from nutrition page {info_url}")
+
+        if response.status >= 400:
+            await browser.close()
+            raise PermanentCrawlError(f"HTTP {response.status} from nutrition page {info_url}")
+
+        await page.wait_for_timeout(2000)
+        await page.evaluate(
+            "window.scrollTo({top: document.body.scrollHeight / 2, behavior: 'smooth'})"
+        )
+        await asyncio.sleep(0.8)
+        await page.evaluate(
+            "window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'})"
+        )
+        await asyncio.sleep(1.0)
+
+        nutrition_table_text = None
+        try:
+            await page.wait_for_selector("table", timeout=5000, state="visible")
+            tables = await page.query_selector_all("table")
+            for table in tables:
+                table_text = await table.inner_text()
+                if any(
+                    keyword in table_text.lower()
+                    for keyword in [
+                        "valeur nutritionnelle",
+                        "voedingswaarde",
+                        "nutrition",
+                        "energie",
+                        "energy",
+                        "protéine",
+                        "protein",
+                        "kcal",
+                        "glucide",
+                        "carbohydrate",
+                        "lipide",
+                        "fat",
+                        "par 100",
+                    ]
+                ):
+                    nutrition_table_text = table_text
+                    logger.debug(f"Extracted nutrition table ({len(table_text)} chars)")
+                    break
+        except Exception as e:
+            logger.warning(f"Could not extract nutrition table: {e}")
+
+        detailed_html = await page.content()
+        await browser.close()
+        return detailed_html, nutrition_table_text
+
+
 async def crawl_nutrition_page(info_url: str, main_page_url: str) -> tuple[str | None, str | None]:
-    """
-    Crawl the detailed nutrition info page for a food product.
-    Returns (detailed_html, nutrition_table_text) or (None, None) if failed.
-    """
     from urllib.parse import unquote
 
     if not info_url:
@@ -409,84 +506,19 @@ async def crawl_nutrition_page(info_url: str, main_page_url: str) -> tuple[str |
         return None, None
 
     info_url = unquote(info_url)
-
     logger.debug(f"Crawling nutrition page: {info_url}")
 
     try:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context(
-                viewport={"width": 1440, "height": 900},
-                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-                locale="fr-BE",
-                timezone_id="Europe/Brussels",
-            )
-
-            page = await context.new_page()
-            await page.add_init_script(
-                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
-            )
-
-            # Navigate to nutrition page
-            response = await page.goto(
-                info_url, timeout=PAGE_TIMEOUT, wait_until="domcontentloaded", referer=main_page_url
-            )
-
-            if not response or response.status >= 400:
-                logger.error(
-                    f"Failed to load nutrition page (status {response.status if response else 'None'})"
-                )
-                await browser.close()
-                return None, None
-
-            # Wait and scroll to load nutrition table
-            await page.wait_for_timeout(2000)
-            await page.evaluate(
-                "window.scrollTo({top: document.body.scrollHeight / 2, behavior: 'smooth'})"
-            )
-            await asyncio.sleep(0.8)
-            await page.evaluate(
-                "window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'})"
-            )
-            await asyncio.sleep(1.0)
-
-            # Extract nutrition table text
-            nutrition_table_text = None
-            try:
-                await page.wait_for_selector("table", timeout=5000, state="visible")
-                tables = await page.query_selector_all("table")
-                for table in tables:
-                    table_text = await table.inner_text()
-                    if any(
-                        keyword in table_text.lower()
-                        for keyword in [
-                            "valeur nutritionnelle",
-                            "voedingswaarde",
-                            "nutrition",
-                            "energie",
-                            "energy",
-                            "protéine",
-                            "protein",
-                            "kcal",
-                            "glucide",
-                            "carbohydrate",
-                            "lipide",
-                            "fat",
-                            "par 100",
-                        ]
-                    ):
-                        nutrition_table_text = table_text
-                        logger.debug(f"Extracted nutrition table ({len(table_text)} chars)")
-                        break
-            except Exception as e:
-                logger.warning(f"Could not extract nutrition table: {e}")
-
-            detailed_html = await page.content()
-            await browser.close()
-            return detailed_html, nutrition_table_text
-
-    except Exception as e:
-        logger.error(f"Error crawling nutrition page: {e}")
+        return await async_retry(
+            _crawl_nutrition_page_once,
+            info_url,
+            main_page_url,
+            retryable_exceptions=(RuntimeError, OSError, TimeoutError),
+            non_retryable_exceptions=(PermanentCrawlError,),
+            label=f"crawl_nutrition_page({info_url})",
+        )
+    except (PermanentCrawlError, Exception) as e:
+        logger.error(f"Failed to crawl nutrition page after retries: {e}")
         return None, None
 
 
@@ -742,9 +774,9 @@ Page Content:
 
 Extract product data as JSON following the rules and examples above."""
 
-    try:
+    async def _call_llm():
         try:
-            response = await client.chat.completions.create(
+            resp = await client.chat.completions.create(
                 model=OPENAI_MODEL,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -755,10 +787,23 @@ Extract product data as JSON following the rules and examples above."""
             )
         finally:
             await client.close()
+        return resp
+
+    try:
+        response = await async_retry(
+            _call_llm,
+            retryable_exceptions=(
+                RateLimitError,
+                APITimeoutError,
+                APIConnectionError,
+                InternalServerError,
+            ),
+            non_retryable_exceptions=(AuthenticationError, BadRequestError),
+            label=f"extract_with_llm({raw_name})",
+        )
 
         extracted_data = json.loads(response.choices[0].message.content)
 
-        # Validate and sanitize extracted data types
         if extracted_data.get("price") is not None:
             try:
                 extracted_data["price"] = float(extracted_data["price"])
@@ -775,7 +820,6 @@ Extract product data as JSON following the rules and examples above."""
                 )
                 extracted_data["net_quantity_value"] = None
 
-        # Normalize unit to schema-compliant value
         if extracted_data.get("net_quantity_unit"):
             normalized_unit = normalize_unit(extracted_data["net_quantity_unit"])
             if normalized_unit:
@@ -786,7 +830,6 @@ Extract product data as JSON following the rules and examples above."""
                 )
                 extracted_data["net_quantity_unit"] = None
 
-        # Validate nutrition data types if present
         if extracted_data.get("nutrition") and isinstance(extracted_data["nutrition"], dict):
             nutrition = extracted_data["nutrition"]
             for key in [
@@ -805,7 +848,6 @@ Extract product data as JSON following the rules and examples above."""
                     except (ValueError, TypeError):
                         nutrition[key] = None
 
-            # Log extracted nutrition values
             logger.debug("LLM extracted nutrition:")
             for key, value in nutrition.items():
                 if value is not None:
@@ -815,12 +857,14 @@ Extract product data as JSON following the rules and examples above."""
 
         return extracted_data
 
+    except (AuthenticationError, BadRequestError) as e:
+        logger.error(f"Non-retryable LLM error: {e}")
+        return {}
     except json.JSONDecodeError as e:
         logger.error(f"JSON decode error: {e}")
-        logger.debug(f"Raw response: {response.choices[0].message.content[:200]}")
         return {}
     except Exception as e:
-        logger.error(f"Error with LLM extraction: {e}")
+        logger.error(f"LLM extraction failed after retries: {e}")
         return {}
 
 
@@ -1067,14 +1111,6 @@ def write_to_db(payload: dict, ch):
                 else:
                     logger.warning("No nutrition data was saved to database!")
 
-    except json.JSONDecodeError as e:
-        logger.error(f"JSON error for {payload.get('raw_name', 'unknown')}: {e}")
-    except ValueError as e:
-        logger.error(f"Value error for {payload.get('raw_name', 'unknown')}: {e}")
-    except Exception as e:
-        logger.exception(
-            f"Error processing {payload.get('raw_name', 'unknown')}: {type(e).__name__}: {e}"
-        )
     finally:
         loop.close()
 

@@ -313,6 +313,7 @@ services:
       dockerfile: Containerfile
       target: enricher
     image: quay.io/caugello/macmac-enricher:dev
+    shm_size: '2gb'
     working_dir: /opt/app-root/src
     volumes:
       - .:/opt/app-root/src
