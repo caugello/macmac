@@ -50,7 +50,7 @@ jobs:
             target: crawler
           - image: macmac-frontend
             context: ./frontend
-            containerfile: ./frontend/Dockerfile
+            containerfile: ./frontend/Containerfile
             target: ""
 
     steps:
