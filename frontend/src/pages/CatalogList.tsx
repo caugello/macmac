@@ -5,8 +5,8 @@ import { NutriscoreBadge } from '@/components/catalog/NutriscoreBadge'
 import { ProductImage } from '@/components/catalog/ProductImage'
 import { SearchBar } from '@/components/shared/SearchBar'
 import { Pagination } from '@/components/shared/Pagination'
+import { FilterChips } from '@/components/shared/FilterChips'
 import { Icon } from '@/components/ui/icon'
-import { cn } from '@/lib/utils'
 
 const ALL_PRODUCTS = 'All Products'
 
@@ -79,22 +79,12 @@ export const CatalogList = () => {
       </div>
 
       {categories.length > 1 && (
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-3 mt-3">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => handleCategoryChange(cat)}
-              className={cn(
-                'px-4 py-2 rounded-full text-label-md font-medium whitespace-nowrap transition-colors',
-                activeCategory === cat
-                  ? 'bg-primary text-on-primary'
-                  : 'bg-surface-container-low text-on-surface-variant wireframe-border hover:bg-surface-container'
-              )}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
+        <FilterChips
+          items={categories}
+          activeItem={activeCategory}
+          onItemChange={handleCategoryChange}
+          className="mt-3"
+        />
       )}
 
       {data && data.data.length === 0 ? (
