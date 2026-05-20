@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useRecipes } from '@/hooks/useRecipes'
+import { FilterChips } from '@/components/shared/FilterChips'
 import { SearchBar } from '@/components/shared/SearchBar'
 import { Pagination } from '@/components/shared/Pagination'
 import { Icon } from '@/components/ui/icon'
@@ -72,23 +73,16 @@ export const RecipeList = () => {
       </div>
 
       {/* Filter pills + sort */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 mt-4">
-        {filterChips.map((chip) => (
-          <button
-            key={chip}
-            onClick={() => setActiveFilter(chip)}
-            className={`px-4 py-2 rounded-full text-label-md font-medium whitespace-nowrap transition-colors ${
-              activeFilter === chip
-                ? 'bg-primary text-on-primary'
-                : 'border border-outline-variant text-on-surface-variant hover:bg-surface-variant'
-            }`}
-          >
-            {chip}
-          </button>
-        ))}
+      <div className="flex items-start gap-2 mt-4">
+        <FilterChips
+          items={filterChips}
+          activeItem={activeFilter}
+          onItemChange={setActiveFilter}
+          className="flex-1 min-w-0"
+        />
 
         {/* Sort button */}
-        <div className="ml-auto shrink-0 relative">
+        <div className="shrink-0 relative pt-3">
           <button
             onClick={() => setShowSort(!showSort)}
             className="flex items-center gap-1 px-4 py-2 rounded-full text-label-md font-medium border border-outline-variant text-on-surface-variant hover:bg-surface-variant transition-colors"

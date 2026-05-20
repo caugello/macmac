@@ -1,5 +1,5 @@
 .PHONY: help test test-unit test-integration lint format clean install crawl enricher-stop \
-	catalog-backup catalog-restore \
+	catalog-backup catalog-restore openshift-catalog-backup openshift-catalog-local-restore \
 	frontend-install frontend-test frontend-lint frontend-format frontend-build \
 	build-all build-gateway build-recipes build-catalog build-meal-plans build-auth build-crawler build-enricher
 
@@ -34,8 +34,12 @@ help:
 	@echo "  make clean            Remove generated files"
 	@echo "  make crawl            Run the catalog crawler (manual trigger)"
 	@echo "  make enricher-stop    Stop the catalog enricher"
-	@echo "  make catalog-backup   Backup catalog DB to backups/catalog.dump"
-	@echo "  make catalog-restore  Restore catalog DB from backups/catalog.dump"
+	@echo "  make catalog-backup   Backup local catalog DB to backups/catalog.dump.gz"
+	@echo "  make catalog-restore  Restore local catalog DB from backups/catalog.dump.gz"
+	@echo ""
+	@echo "OpenShift:"
+	@echo "  make openshift-catalog-backup        Dump catalog DB from OpenShift to backups/"
+	@echo "  make openshift-catalog-local-restore  Restore OpenShift dump into local dev DB"
 	@echo ""
 
 install:
@@ -102,6 +106,31 @@ catalog-restore:
 	podman exec $(CATALOG_DB_CONTAINER) pg_restore -U dbuser -d catalog --clean --if-exists /tmp/catalog.dump
 	podman exec $(REDIS_CONTAINER) redis-cli -a $${REDIS_PASSWORD:-devpassword} --no-auth-warning --scan --pattern "catalog:*" | xargs -r podman exec -i $(REDIS_CONTAINER) redis-cli -a $${REDIS_PASSWORD:-devpassword} --no-auth-warning DEL
 	@echo "Restored from backups/catalog.dump.gz (cache cleared)"
+
+# OpenShift catalog DB backup/restore
+OC_NAMESPACE := macmac
+OC_CATALOG_POD := catalog-db-0
+OC_DB_USER := macmac
+OC_DB_NAME := catalog
+OC_BACKUP_FILE := backups/openshift-catalog.dump.gz
+
+openshift-catalog-backup:
+	@mkdir -p backups
+	oc exec $(OC_CATALOG_POD) -n $(OC_NAMESPACE) -- pg_dump -U $(OC_DB_USER) -d $(OC_DB_NAME) -Fc -f /tmp/catalog.dump
+	oc cp $(OC_NAMESPACE)/$(OC_CATALOG_POD):/tmp/catalog.dump backups/openshift-catalog.dump.tmp
+	gzip -c backups/openshift-catalog.dump.tmp > $(OC_BACKUP_FILE)
+	rm -f backups/openshift-catalog.dump.tmp
+	oc exec $(OC_CATALOG_POD) -n $(OC_NAMESPACE) -- rm -f /tmp/catalog.dump
+	@echo "OpenShift backup saved to $(OC_BACKUP_FILE)"
+
+openshift-catalog-local-restore:
+	gunzip -c $(OC_BACKUP_FILE) > backups/openshift-catalog.dump.tmp
+	podman cp backups/openshift-catalog.dump.tmp $(CATALOG_DB_CONTAINER):/tmp/catalog.dump
+	rm -f backups/openshift-catalog.dump.tmp
+	podman exec $(CATALOG_DB_CONTAINER) pg_restore -U dbuser -d catalog --clean --if-exists --no-owner /tmp/catalog.dump
+	podman exec $(CATALOG_DB_CONTAINER) rm -f /tmp/catalog.dump
+	podman exec $(REDIS_CONTAINER) redis-cli -a $${REDIS_PASSWORD:-devpassword} --no-auth-warning --scan --pattern "catalog:*" | xargs -r podman exec -i $(REDIS_CONTAINER) redis-cli -a $${REDIS_PASSWORD:-devpassword} --no-auth-warning DEL
+	@echo "OpenShift dump restored to local dev DB (cache cleared)"
 
 REGISTRY := quay.io/caugello
 TAG := dev
