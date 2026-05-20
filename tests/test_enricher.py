@@ -1,11 +1,16 @@
 """Tests for catalog enricher functionality."""
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
 from services.catalog.enricher.main import (
+    PermanentCrawlError,
+    async_retry,
     extract_quantity_from_url,
     normalize_unit,
 )
+from services.shared.schemas.catalog import CatalogItemCreate
 
 # ===== UNIT TESTS - normalize_unit =====
 
@@ -174,3 +179,148 @@ def test_extract_quantity_from_url_magret():
     qty, unit = extract_quantity_from_url(url)
     assert qty == 80.0
     assert unit == "g"
+
+
+# ===== UNIT TESTS - async_retry =====
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_async_retry_succeeds_first_try():
+    func = AsyncMock(return_value="ok")
+    result = await async_retry(func, max_retries=3, backoff=0.01)
+    assert result == "ok"
+    assert func.call_count == 1
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_async_retry_succeeds_after_transient_failure():
+    func = AsyncMock(side_effect=[RuntimeError("timeout"), "ok"])
+    result = await async_retry(
+        func, max_retries=3, backoff=0.01, retryable_exceptions=(RuntimeError,)
+    )
+    assert result == "ok"
+    assert func.call_count == 2
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_async_retry_exhausts_retries():
+    func = AsyncMock(side_effect=RuntimeError("always fails"))
+    with pytest.raises(RuntimeError, match="always fails"):
+        await async_retry(func, max_retries=3, backoff=0.01, retryable_exceptions=(RuntimeError,))
+    assert func.call_count == 3
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_async_retry_does_not_retry_non_retryable():
+    func = AsyncMock(side_effect=PermanentCrawlError("404"))
+    with pytest.raises(PermanentCrawlError):
+        await async_retry(
+            func,
+            max_retries=3,
+            backoff=0.01,
+            retryable_exceptions=(RuntimeError,),
+            non_retryable_exceptions=(PermanentCrawlError,),
+        )
+    assert func.call_count == 1
+
+
+# ===== UNIT TESTS - write_to_db exception handling =====
+
+
+@pytest.mark.unit
+def test_write_to_db_propagates_unexpected_errors():
+    from services.catalog.enricher.main import write_to_db
+
+    payload = {
+        "raw_name": "Test Product",
+        "vendor_name": "test",
+        "product_url": "https://www.collectandgo.be/fr/assortiment/test-500g",
+    }
+    ch = MagicMock()
+
+    mock_loop = MagicMock()
+    mock_loop.run_until_complete.side_effect = ConnectionError("db down")
+
+    with (
+        patch("services.catalog.enricher.main.asyncio.new_event_loop", return_value=mock_loop),
+        patch("services.catalog.enricher.main.asyncio.set_event_loop"),
+    ):
+        with pytest.raises(ConnectionError, match="db down"):
+            write_to_db(payload, ch)
+
+
+# ===== UNIT TESTS - upsert behavior =====
+
+
+@pytest.mark.unit
+def test_create_catalog_item_inserts_new(mock_catalog_db):
+    from services.catalog.enricher.db import create_catalog_item
+
+    data = CatalogItemCreate(
+        vendor_name="colruyt",
+        raw_name="Pasta 500g",
+        product_url="https://example.com/pasta-500g",
+        is_food=True,
+        price=1.89,
+    )
+    result = create_catalog_item(data, mock_catalog_db)
+    assert result.product_url == "https://example.com/pasta-500g"
+    assert result.price == 1.89
+
+
+@pytest.mark.unit
+def test_create_catalog_item_updates_existing_fields(mock_catalog_db):
+    from services.catalog.enricher.db import create_catalog_item
+
+    data = CatalogItemCreate(
+        vendor_name="colruyt",
+        raw_name="Pasta 500g",
+        product_url="https://example.com/pasta-500g",
+        is_food=True,
+        price=1.89,
+        category="Pasta & Rice",
+    )
+    create_catalog_item(data, mock_catalog_db)
+
+    updated = CatalogItemCreate(
+        vendor_name="colruyt",
+        raw_name="Pasta 500g",
+        product_url="https://example.com/pasta-500g",
+        is_food=True,
+        price=2.19,
+        category="Pasta & Rice",
+    )
+    result = create_catalog_item(updated, mock_catalog_db)
+    assert result.price == 2.19
+
+
+@pytest.mark.unit
+def test_create_catalog_item_does_not_overwrite_with_null(mock_catalog_db):
+    from services.catalog.enricher.db import create_catalog_item
+
+    data = CatalogItemCreate(
+        vendor_name="colruyt",
+        raw_name="Pasta 500g",
+        product_url="https://example.com/pasta-500g",
+        is_food=True,
+        price=1.89,
+        category="Pasta & Rice",
+        nutriscore="B",
+    )
+    create_catalog_item(data, mock_catalog_db)
+
+    partial = CatalogItemCreate(
+        vendor_name="colruyt",
+        raw_name="Pasta 500g",
+        product_url="https://example.com/pasta-500g",
+        is_food=True,
+        price=2.19,
+    )
+    result = create_catalog_item(partial, mock_catalog_db)
+    assert result.price == 2.19
+    assert result.category == "Pasta & Rice"
+    assert result.nutriscore == "B"

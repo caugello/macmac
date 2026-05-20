@@ -1,11 +1,52 @@
-from sqlalchemy.exc import IntegrityError
+import logging
+
 from sqlalchemy.orm import Session
 
 from services.catalog.models import CatalogItem
 from services.shared.schemas import catalog as rs
 
+logger = logging.getLogger(__name__)
+
+MUTABLE_FIELDS = [
+    "canonical_name",
+    "normalized_name",
+    "brand",
+    "net_quantity_value",
+    "net_quantity_unit",
+    "price",
+    "currency",
+    "category",
+    "nutrition",
+    "nutriscore",
+    "nutriscore_svg",
+    "promotion_until_date",
+    "image_url",
+    "is_food",
+]
+
 
 def create_catalog_item(data: rs.CatalogItemCreate, db: Session):
+    existing = db.query(CatalogItem).filter(CatalogItem.product_url == data.product_url).first()
+
+    if existing:
+        updated_fields = []
+        for field in MUTABLE_FIELDS:
+            new_value = getattr(data, field)
+            if new_value is not None:
+                old_value = getattr(existing, field)
+                if new_value != old_value:
+                    setattr(existing, field, new_value)
+                    updated_fields.append(field)
+
+        if updated_fields:
+            db.commit()
+            db.refresh(existing)
+            logger.info(f"Updated {data.product_url}: {', '.join(updated_fields)}")
+        else:
+            logger.debug(f"No changes for {data.product_url}")
+
+        return rs.CatalogItemOut.model_validate(existing)
+
     item = CatalogItem(
         vendor_name=data.vendor_name,
         raw_name=data.raw_name,
@@ -27,11 +68,6 @@ def create_catalog_item(data: rs.CatalogItemCreate, db: Session):
     )
 
     db.add(item)
-    try:
-        db.commit()
-        db.refresh(item)
-    except IntegrityError as exc:
-        db.rollback()
-        raise ValueError(f"CatalogItem '{data.product_url}' already exists. {exc.detail}") from exc
-
+    db.commit()
+    db.refresh(item)
     return rs.CatalogItemOut.model_validate(item)
