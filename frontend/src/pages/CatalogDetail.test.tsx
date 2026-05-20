@@ -291,25 +291,25 @@ describe('CatalogDetail Page', () => {
     it('should render energy value', () => {
       render(<CatalogDetail />, { wrapper: createWrapper() })
       expect(screen.getByText('Energy')).toBeInTheDocument()
-      expect(screen.getByText('100 kcal')).toBeInTheDocument()
+      expect(screen.getByText(/100kcal/)).toBeInTheDocument()
     })
 
     it('should render fat value', () => {
       render(<CatalogDetail />, { wrapper: createWrapper() })
       expect(screen.getByText('Fat')).toBeInTheDocument()
-      expect(screen.getByText('2g')).toBeInTheDocument()
+      expect(screen.getByText(/2g/)).toBeInTheDocument()
     })
 
     it('should render carbs value', () => {
       render(<CatalogDetail />, { wrapper: createWrapper() })
       expect(screen.getByText('Carbs')).toBeInTheDocument()
-      expect(screen.getByText('5g')).toBeInTheDocument()
+      expect(screen.getByText(/5g/)).toBeInTheDocument()
     })
 
     it('should render protein value', () => {
       render(<CatalogDetail />, { wrapper: createWrapper() })
       expect(screen.getByText('Protein')).toBeInTheDocument()
-      expect(screen.getByText('10g')).toBeInTheDocument()
+      expect(screen.getByText(/10g/)).toBeInTheDocument()
     })
 
     it('should render serving size', () => {

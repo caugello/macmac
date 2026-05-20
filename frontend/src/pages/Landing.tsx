@@ -47,7 +47,7 @@ export const Landing = () => {
 
       {/* Features Section */}
       <section className="container mx-auto px-4 py-20">
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 stagger-grid">
           <Card className="bg-surface-container-lowest wireframe-border card-hover-shadow">
             <CardContent className="p-6 space-y-4">
               <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
@@ -109,7 +109,7 @@ export const Landing = () => {
           </h2>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 stagger-grid">
           <Card className="bg-surface-container-lowest wireframe-border">
             <CardContent className="p-6 space-y-4">
               <div className="text-primary font-heading font-bold text-lg">1. Browse Recipes</div>

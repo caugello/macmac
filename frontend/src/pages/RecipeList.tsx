@@ -8,6 +8,13 @@ import { Icon } from '@/components/ui/icon'
 const filterChips = ['All', 'Ingredients', 'Vegetarian', 'Quick']
 const sortOptions = ['Newest', 'A-Z', 'Z-A']
 
+const cardHues = [15, 25, 35, 140, 30, 45, 10, 200, 50, 20]
+const getCardHue = (title: string) => {
+  let hash = 0
+  for (let i = 0; i < title.length; i++) hash = (hash * 31 + title.charCodeAt(i)) | 0
+  return cardHues[Math.abs(hash) % cardHues.length]
+}
+
 export const RecipeList = () => {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
@@ -114,25 +121,37 @@ export const RecipeList = () => {
 
       {data && data.data.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24">
-          <div className="w-full max-w-sm dashed-outline rounded-lg p-12 flex flex-col items-center gap-4">
-            <Icon name="restaurant_menu" size={64} className="text-outline-variant/40" />
-            <p className="text-on-surface-variant text-body-lg">No recipes found.</p>
+          <div className="w-full max-w-sm rounded-2xl bg-gradient-to-br from-primary/5 to-transparent p-12 flex flex-col items-center gap-5 border border-outline-variant/50">
+            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+              <Icon name="restaurant_menu" size={36} className="text-primary" />
+            </div>
+            <div className="text-center space-y-1.5">
+              <p className="text-headline-md font-heading font-semibold">Your kitchen awaits</p>
+              <p className="text-body-md text-on-surface-variant">
+                Add your first recipe and start building your collection.
+              </p>
+            </div>
             <Link
               to="/recipes/new"
-              className="text-primary font-semibold text-label-md hover:underline"
+              className="bg-primary text-primary-foreground px-6 py-2.5 rounded-full text-label-md font-semibold hover:brightness-110 transition-all"
             >
-              Create your first recipe
+              Create a recipe
             </Link>
           </div>
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6 stagger-grid">
             {data?.data.map((recipe) => (
               <Link key={recipe.id} to={`/recipes/${recipe.id}`} className="group">
                 <div className="bg-surface-container-lowest wireframe-border rounded-lg overflow-hidden card-hover-shadow">
                   <div className="aspect-square relative overflow-hidden">
-                    <div className="w-full h-full bg-gradient-to-br from-surface-container-low to-surface-container flex items-center justify-center group-hover:scale-105 transition-transform duration-500">
+                    <div
+                      className="w-full h-full flex items-center justify-center group-hover:scale-105 transition-transform duration-500"
+                      style={{
+                        background: `linear-gradient(135deg, hsl(${getCardHue(recipe.title)} 40% 92%) 0%, hsl(${getCardHue(recipe.title)} 30% 85%) 100%)`,
+                      }}
+                    >
                       <Icon name="restaurant_menu" size={48} className="text-outline-variant/30" />
                     </div>
                     <span className="absolute bottom-2 right-2 bg-surface-container-lowest/90 backdrop-blur-sm text-primary text-label-sm px-2 py-1 rounded-full border border-outline-variant">
@@ -144,9 +163,23 @@ export const RecipeList = () => {
                     <h3 className="text-label-md font-heading font-semibold text-on-surface line-clamp-2 min-h-[2.8em]">
                       {recipe.title}
                     </h3>
-                    <p className="text-label-sm text-on-surface-variant line-clamp-2 mt-1">
-                      {recipe.description || 'No description'}
-                    </p>
+                    {recipe.ingredients.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {recipe.ingredients.slice(0, 3).map((ing, i) => (
+                          <span
+                            key={i}
+                            className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant"
+                          >
+                            {ing.catalog_item_name}
+                          </span>
+                        ))}
+                        {recipe.ingredients.length > 3 && (
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant">
+                            +{recipe.ingredients.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    )}
                     <div className="flex items-center justify-between mt-2 pt-2 border-t border-outline-variant/30">
                       <span className="text-label-sm text-on-surface-variant">
                         {new Date(recipe.created_at).toLocaleDateString()}

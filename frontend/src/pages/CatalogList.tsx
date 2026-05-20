@@ -74,7 +74,9 @@ export const CatalogList = () => {
     <div className="max-w-7xl mx-auto px-4 md:px-12 pt-6 pb-32">
       <h1 className="text-headline-xl font-heading font-bold mb-6">Product Catalog</h1>
 
-      <SearchBar value={search} onChange={setSearch} placeholder="Search products..." />
+      <div>
+        <SearchBar value={search} onChange={setSearch} placeholder="Search products..." />
+      </div>
 
       {categories.length > 1 && (
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-3 mt-3">
@@ -97,14 +99,21 @@ export const CatalogList = () => {
 
       {data && data.data.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24">
-          <div className="dashed-outline rounded-lg p-12 flex flex-col items-center gap-4">
-            <Icon name="inventory_2" size={64} className="text-outline-variant/40" />
-            <p className="text-on-surface-variant text-body-lg">No products found.</p>
+          <div className="w-full max-w-sm rounded-2xl bg-gradient-to-br from-primary/5 to-transparent p-12 flex flex-col items-center gap-5 border border-outline-variant/50">
+            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+              <Icon name="inventory_2" size={36} className="text-primary" />
+            </div>
+            <div className="text-center space-y-1.5">
+              <p className="text-headline-md font-heading font-semibold">Nothing here yet</p>
+              <p className="text-body-md text-on-surface-variant">
+                Products will appear here once the catalog is populated.
+              </p>
+            </div>
           </div>
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 mt-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 mt-4 stagger-grid">
             {data?.data.map((item) => (
               <Link key={item.id} to={`/catalog/${item.id}`} className="group">
                 <div className="bg-surface-container-lowest wireframe-border rounded-lg overflow-hidden card-hover-shadow flex flex-col h-full">

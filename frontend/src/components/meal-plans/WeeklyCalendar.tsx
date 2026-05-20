@@ -62,7 +62,7 @@ export const WeeklyCalendar = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4 stagger-grid">
         {weekDays.map((day) => {
           const dateStr = format(day, 'yyyy-MM-dd')
           return (

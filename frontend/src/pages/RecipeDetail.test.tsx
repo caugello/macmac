@@ -4,13 +4,12 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { RecipeDetail } from './RecipeDetail'
+import { ToastProvider } from '@/components/ui/toast'
 import * as useRecipesHook from '@/hooks/useRecipes'
 
 const mockUseRecipe = vi.fn()
 const mockUseDeleteRecipe = vi.fn()
 const mockNavigate = vi.fn()
-const mockConfirm = vi.fn()
-const mockAlert = vi.fn()
 
 vi.spyOn(useRecipesHook, 'useRecipe').mockImplementation(mockUseRecipe)
 vi.spyOn(useRecipesHook, 'useDeleteRecipe').mockImplementation(mockUseDeleteRecipe)
@@ -23,9 +22,6 @@ vi.mock('react-router-dom', async () => {
   }
 })
 
-global.confirm = mockConfirm
-global.alert = mockAlert
-
 const createWrapper = (initialRoute = '/recipes/1') => {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -37,9 +33,11 @@ const createWrapper = (initialRoute = '/recipes/1') => {
   const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Routes>
-          <Route path="/recipes/:id" element={children} />
-        </Routes>
+        <ToastProvider>
+          <Routes>
+            <Route path="/recipes/:id" element={children} />
+          </Routes>
+        </ToastProvider>
       </BrowserRouter>
     </QueryClientProvider>
   )
@@ -228,20 +226,19 @@ describe('RecipeDetail Page', () => {
 
     it('should show confirmation dialog when delete is clicked', async () => {
       const user = userEvent.setup()
-      mockConfirm.mockReturnValue(false)
 
       render(<RecipeDetail />, { wrapper: createWrapper() })
 
       const deleteButton = screen.getByText('Delete')
       await user.click(deleteButton)
 
-      expect(mockConfirm).toHaveBeenCalledWith('Are you sure you want to delete this recipe?')
+      expect(screen.getByText('Delete recipe?')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
     })
 
     it('should not delete when user cancels', async () => {
       const user = userEvent.setup()
       const mockMutate = vi.fn()
-      mockConfirm.mockReturnValue(false)
       mockUseDeleteRecipe.mockReturnValue({
         mutate: mockMutate,
         isPending: false,
@@ -249,8 +246,8 @@ describe('RecipeDetail Page', () => {
 
       render(<RecipeDetail />, { wrapper: createWrapper() })
 
-      const deleteButton = screen.getByText('Delete')
-      await user.click(deleteButton)
+      await user.click(screen.getByText('Delete'))
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
       expect(mockMutate).not.toHaveBeenCalled()
     })
@@ -260,7 +257,6 @@ describe('RecipeDetail Page', () => {
       const mockMutate = vi.fn((_id, callbacks) => {
         callbacks.onSuccess()
       })
-      mockConfirm.mockReturnValue(true)
       mockUseDeleteRecipe.mockReturnValue({
         mutate: mockMutate,
         isPending: false,
@@ -268,10 +264,12 @@ describe('RecipeDetail Page', () => {
 
       render(<RecipeDetail />, { wrapper: createWrapper() })
 
-      const deleteButton = screen.getByText('Delete')
-      await user.click(deleteButton)
+      await user.click(screen.getByText('Delete'))
+      await user.click(screen.getByRole('button', { name: /^Delete$/ }))
 
-      expect(mockMutate).toHaveBeenCalledWith('1', expect.any(Object))
+      await waitFor(() => {
+        expect(mockMutate).toHaveBeenCalledWith('1', expect.any(Object))
+      })
     })
 
     it('should navigate to recipes list after successful deletion', async () => {
@@ -279,7 +277,6 @@ describe('RecipeDetail Page', () => {
       const mockMutate = vi.fn((_id, callbacks) => {
         callbacks.onSuccess()
       })
-      mockConfirm.mockReturnValue(true)
       mockUseDeleteRecipe.mockReturnValue({
         mutate: mockMutate,
         isPending: false,
@@ -287,20 +284,19 @@ describe('RecipeDetail Page', () => {
 
       render(<RecipeDetail />, { wrapper: createWrapper() })
 
-      const deleteButton = screen.getByText('Delete')
-      await user.click(deleteButton)
+      await user.click(screen.getByText('Delete'))
+      await user.click(screen.getByRole('button', { name: /^Delete$/ }))
 
       await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalledWith('/recipes')
       })
     })
 
-    it('should show alert on deletion error', async () => {
+    it('should show error toast on deletion error', async () => {
       const user = userEvent.setup()
       const mockMutate = vi.fn((_id, callbacks) => {
         callbacks.onError()
       })
-      mockConfirm.mockReturnValue(true)
       mockUseDeleteRecipe.mockReturnValue({
         mutate: mockMutate,
         isPending: false,
@@ -308,11 +304,11 @@ describe('RecipeDetail Page', () => {
 
       render(<RecipeDetail />, { wrapper: createWrapper() })
 
-      const deleteButton = screen.getByText('Delete')
-      await user.click(deleteButton)
+      await user.click(screen.getByText('Delete'))
+      await user.click(screen.getByRole('button', { name: /^Delete$/ }))
 
       await waitFor(() => {
-        expect(mockAlert).toHaveBeenCalledWith('Failed to delete recipe')
+        expect(screen.getByText('Failed to delete recipe')).toBeInTheDocument()
       })
     })
   })

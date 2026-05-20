@@ -102,7 +102,7 @@ export const Navbar = () => {
 
       {/* Mobile menu panel */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-b border-outline-variant bg-surface-container-lowest">
+        <div className="md:hidden border-b border-outline-variant bg-surface-container-lowest animate-fade">
           <div className="container mx-auto px-4 py-4 flex flex-col gap-4">
             {[
               { to: '/recipes', label: 'Recipes' },

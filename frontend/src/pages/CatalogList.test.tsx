@@ -74,7 +74,7 @@ describe('CatalogList Page', () => {
       })
 
       render(<CatalogList />, { wrapper: createWrapper() })
-      expect(screen.getByText('No products found.')).toBeInTheDocument()
+      expect(screen.getByText('Nothing here yet')).toBeInTheDocument()
     })
   })
 

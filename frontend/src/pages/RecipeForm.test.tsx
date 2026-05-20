@@ -73,7 +73,6 @@ describe('RecipeForm Page', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockRecipeData.mockReturnValue(undefined)
-    vi.spyOn(window, 'alert').mockImplementation(() => {})
   })
 
   describe('create mode', () => {
@@ -105,7 +104,7 @@ describe('RecipeForm Page', () => {
       expect(screen.getByPlaceholderText('Enter each step on a new line...')).toBeInTheDocument()
     })
 
-    it('should alert if no ingredients on submit', async () => {
+    it('should not submit if no ingredients', async () => {
       const user = userEvent.setup()
       render(<RecipeForm />, { wrapper: createWrapper() })
 
@@ -113,7 +112,7 @@ describe('RecipeForm Page', () => {
       await user.type(titleInput, 'Test Recipe')
 
       await user.click(screen.getByRole('button', { name: /Create Recipe/ }))
-      expect(window.alert).toHaveBeenCalledWith('Please add at least one ingredient')
+      expect(mockCreateMutate).not.toHaveBeenCalled()
     })
 
     it('should call createRecipe with correct data', async () => {

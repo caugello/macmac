@@ -1,6 +1,7 @@
 .PHONY: help test test-unit test-integration lint format clean install crawl enricher-stop \
 	catalog-backup catalog-restore \
-	frontend-install frontend-test frontend-lint frontend-format frontend-build
+	frontend-install frontend-test frontend-lint frontend-format frontend-build \
+	build-all build-gateway build-recipes build-catalog build-meal-plans build-auth build-crawler build-enricher
 
 help:
 	@echo "MacMac Development Commands"
@@ -20,6 +21,11 @@ help:
 	@echo "  make frontend-lint    Run frontend linters (ESLint, Prettier, TypeScript)"
 	@echo "  make frontend-format  Format frontend code (Prettier)"
 	@echo "  make frontend-build   Build frontend for production"
+	@echo ""
+	@echo "Container builds:"
+	@echo "  make build-all        Build all service images (:dev tag)"
+	@echo "  make build-<service>  Build a single image (gateway, recipes, catalog,"
+	@echo "                        meal-plans, auth, crawler, enricher)"
 	@echo ""
 	@echo "All:"
 	@echo "  make test-all         Run all tests (backend + frontend)"
@@ -79,20 +85,50 @@ enricher-stop:
 	podman-compose -f podman-compose-dev.yaml stop catalog_enricher
 
 # Catalog DB backup/restore
+CATALOG_DB_CONTAINER := macmac-catalog_db-1
+REDIS_CONTAINER := macmac-redis-1
+
 catalog-backup:
-	podman-compose -f podman-compose-dev.yaml exec catalog_db pg_dump -U dbuser -d catalog -Fc -f /tmp/catalog.dump
-	podman cp macmac_catalog_db_1:/tmp/catalog.dump backups/catalog.dump.tmp
+	podman exec $(CATALOG_DB_CONTAINER) pg_dump -U dbuser -d catalog -Fc -f /tmp/catalog.dump
+	podman cp $(CATALOG_DB_CONTAINER):/tmp/catalog.dump backups/catalog.dump.tmp
 	gzip -c backups/catalog.dump.tmp > backups/catalog.dump.gz
 	rm -f backups/catalog.dump.tmp
 	@echo "Backup saved to backups/catalog.dump.gz"
 
 catalog-restore:
 	gunzip -c backups/catalog.dump.gz > backups/catalog.dump.tmp
-	podman cp backups/catalog.dump.tmp macmac_catalog_db_1:/tmp/catalog.dump
+	podman cp backups/catalog.dump.tmp $(CATALOG_DB_CONTAINER):/tmp/catalog.dump
 	rm -f backups/catalog.dump.tmp
-	podman-compose -f podman-compose-dev.yaml exec catalog_db pg_restore -U dbuser -d catalog --clean --if-exists /tmp/catalog.dump
-	podman exec macmac_redis_1 redis-cli -a $${REDIS_PASSWORD:-devpassword} --no-auth-warning --scan --pattern "catalog:*" | xargs -r podman exec -i macmac_redis_1 redis-cli -a $${REDIS_PASSWORD:-devpassword} --no-auth-warning DEL
+	podman exec $(CATALOG_DB_CONTAINER) pg_restore -U dbuser -d catalog --clean --if-exists /tmp/catalog.dump
+	podman exec $(REDIS_CONTAINER) redis-cli -a $${REDIS_PASSWORD:-devpassword} --no-auth-warning --scan --pattern "catalog:*" | xargs -r podman exec -i $(REDIS_CONTAINER) redis-cli -a $${REDIS_PASSWORD:-devpassword} --no-auth-warning DEL
 	@echo "Restored from backups/catalog.dump.gz (cache cleared)"
+
+REGISTRY := quay.io/caugello
+TAG := dev
+
+build-gateway:
+	podman build --target gateway -t $(REGISTRY)/macmac-gateway:$(TAG) -f Containerfile .
+
+build-recipes:
+	podman build --target recipes -t $(REGISTRY)/macmac-recipes:$(TAG) -f Containerfile .
+
+build-catalog:
+	podman build --target catalog -t $(REGISTRY)/macmac-catalog:$(TAG) -f Containerfile .
+
+build-meal-plans:
+	podman build --target meal-plans -t $(REGISTRY)/macmac-meal-plans:$(TAG) -f Containerfile .
+
+build-auth:
+	podman build --target auth -t $(REGISTRY)/macmac-auth:$(TAG) -f Containerfile .
+
+build-crawler:
+	podman build --target crawler -t $(REGISTRY)/macmac-crawler:$(TAG) -f Containerfile .
+
+build-enricher:
+	podman build --target enricher -t $(REGISTRY)/macmac-enricher:$(TAG) -f Containerfile .
+
+build-all: build-gateway build-recipes build-catalog build-meal-plans build-auth build-crawler build-enricher
+	@echo "All images built with tag :$(TAG)"
 
 # Frontend commands
 frontend-install:

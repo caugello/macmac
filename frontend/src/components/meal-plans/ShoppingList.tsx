@@ -23,6 +23,16 @@ const getCategoryIcon = (category: string) => {
 export const ShoppingList = ({ weekStart, weekEnd }: ShoppingListProps) => {
   const [showList, setShowList] = useState(false)
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set())
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
+
+  const toggleCategory = (category: string) => {
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev)
+      if (next.has(category)) next.delete(category)
+      else next.add(category)
+      return next
+    })
+  }
   const generateMutation = useGenerateShoppingList()
 
   const handleGenerate = () => {
@@ -75,51 +85,71 @@ export const ShoppingList = ({ weekStart, weekEnd }: ShoppingListProps) => {
               key={category}
               className="bg-surface-container-lowest rounded-lg wireframe-border overflow-hidden"
             >
-              <div className="flex items-center justify-between px-4 md:px-6 py-3 bg-primary/5 border-b border-outline-variant/50">
+              <button
+                onClick={() => toggleCategory(category)}
+                className="flex items-center justify-between px-4 md:px-6 py-3 bg-primary/5 border-b border-outline-variant/50 w-full text-left hover:bg-primary/8 transition-colors cursor-pointer"
+              >
                 <div className="flex items-center gap-2">
                   <Icon name={getCategoryIcon(category)} size={20} className="text-primary" />
                   <h3 className="text-label-md text-primary uppercase tracking-wider font-semibold">
                     {category || 'Other'}
                   </h3>
                 </div>
-                <span className="text-label-sm bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full">
-                  {items.length}
-                </span>
-              </div>
-              <div className="p-4 md:p-6 space-y-2">
-                {items.map((item) => (
-                  <div
-                    key={item.catalog_item_id}
-                    onClick={() => toggleCheck(item.catalog_item_id)}
-                    className={`flex items-center justify-between p-3 bg-surface rounded-lg wireframe-border hover:border-primary/50 transition-colors cursor-pointer ${
-                      checkedItems.has(item.catalog_item_id) ? 'opacity-60' : ''
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={checkedItems.has(item.catalog_item_id)}
-                        onChange={() => toggleCheck(item.catalog_item_id)}
-                        className="w-6 h-6 rounded border-outline text-primary focus:ring-primary accent-primary"
-                      />
-                      <div>
-                        <span
-                          className={`text-label-md text-on-surface ${checkedItems.has(item.catalog_item_id) ? 'line-through' : ''}`}
-                        >
-                          {item.catalog_item_name}
-                        </span>
-                        <span className="text-label-sm text-on-surface-variant ml-2">
-                          {item.total_qty} {item.unit}
-                        </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-label-sm bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full">
+                    {items.length}
+                  </span>
+                  <Icon
+                    name="expand_more"
+                    size={20}
+                    className={`text-on-surface-variant transition-transform duration-200 ${collapsedCategories.has(category) ? '-rotate-90' : ''}`}
+                  />
+                </div>
+              </button>
+              <div
+                className="overflow-hidden transition-all duration-300 ease-in-out"
+                style={{
+                  maxHeight: collapsedCategories.has(category)
+                    ? '0px'
+                    : `${items.length * 72 + 48}px`,
+                  opacity: collapsedCategories.has(category) ? 0 : 1,
+                }}
+              >
+                <div className="p-4 md:p-6 space-y-2">
+                  {items.map((item) => (
+                    <div
+                      key={item.catalog_item_id}
+                      onClick={() => toggleCheck(item.catalog_item_id)}
+                      className={`flex items-center justify-between p-3 bg-surface rounded-lg wireframe-border hover:border-primary/50 transition-colors cursor-pointer ${
+                        checkedItems.has(item.catalog_item_id) ? 'opacity-60' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={checkedItems.has(item.catalog_item_id)}
+                          onChange={() => toggleCheck(item.catalog_item_id)}
+                          className="w-6 h-6 rounded border-outline text-primary focus:ring-primary accent-primary"
+                        />
+                        <div>
+                          <span
+                            className={`text-label-md text-on-surface ${checkedItems.has(item.catalog_item_id) ? 'line-through' : ''}`}
+                          >
+                            {item.catalog_item_name}
+                          </span>
+                          <span className="text-label-sm text-on-surface-variant ml-2">
+                            {item.total_qty} {item.unit}
+                          </span>
+                        </div>
                       </div>
+                      {item.price && (
+                        <span className="text-label-md font-semibold text-primary">
+                          &euro;{item.price.toFixed(2)}
+                        </span>
+                      )}
                     </div>
-                    {item.price && (
-                      <span className="text-label-md font-semibold text-primary">
-                        &euro;{item.price.toFixed(2)}
-                      </span>
-                    )}
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           ))}
