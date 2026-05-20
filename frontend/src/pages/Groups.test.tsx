@@ -75,15 +75,15 @@ describe('Groups Page', () => {
       mockListGroups.mockResolvedValue({ data: [], total: 0 })
       render(<Groups />, { wrapper: createWrapper() })
 
-      expect(await screen.findByText('No groups yet')).toBeInTheDocument()
-      expect(screen.getByText("You don't belong to any groups yet")).toBeInTheDocument()
+      expect(await screen.findByText('Better together')).toBeInTheDocument()
+      expect(screen.getAllByText(/Create a group to share/).length).toBeGreaterThan(0)
     })
 
     it('should show create first group button', async () => {
       mockListGroups.mockResolvedValue({ data: [], total: 0 })
       render(<Groups />, { wrapper: createWrapper() })
 
-      expect(await screen.findByText('Create Your First Group')).toBeInTheDocument()
+      expect(await screen.findByText('Create a group')).toBeInTheDocument()
     })
   })
 
@@ -226,7 +226,7 @@ describe('Groups Page', () => {
 
       render(<Groups />, { wrapper: createWrapper() })
 
-      await screen.findByText('No groups yet')
+      await screen.findByText('Better together')
 
       const nameInput = screen.getByPlaceholderText('Smith Family')
       const submitButton = screen

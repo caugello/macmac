@@ -122,39 +122,64 @@ export const CatalogDetail = () => {
           <h2 className="text-headline-md font-heading font-semibold mb-4">
             Nutritional Values (100g)
           </h2>
-          <div className="grid grid-cols-2 gap-3">
-            {item.nutrition.energy_kcal != null && (
-              <div className="bg-surface-container-lowest wireframe-border rounded-lg p-4">
-                <span className="block text-label-sm text-on-surface-variant mb-1">Energy</span>
-                <span className="text-headline-md font-heading font-semibold">
-                  {item.nutrition.energy_kcal} kcal
-                </span>
-              </div>
-            )}
-            {item.nutrition.fat_g != null && (
-              <div className="bg-surface-container-lowest wireframe-border rounded-lg p-4">
-                <span className="block text-label-sm text-on-surface-variant mb-1">Fat</span>
-                <span className="text-headline-md font-heading font-semibold">
-                  {item.nutrition.fat_g}g
-                </span>
-              </div>
-            )}
-            {item.nutrition.carbs_g != null && (
-              <div className="bg-surface-container-lowest wireframe-border rounded-lg p-4">
-                <span className="block text-label-sm text-on-surface-variant mb-1">Carbs</span>
-                <span className="text-headline-md font-heading font-semibold">
-                  {item.nutrition.carbs_g}g
-                </span>
-              </div>
-            )}
-            {item.nutrition.protein_g != null && (
-              <div className="bg-surface-container-lowest wireframe-border rounded-lg p-4">
-                <span className="block text-label-sm text-on-surface-variant mb-1">Protein</span>
-                <span className="text-headline-md font-heading font-semibold">
-                  {item.nutrition.protein_g}g
-                </span>
-              </div>
-            )}
+          <div className="space-y-3">
+            {[
+              {
+                label: 'Energy',
+                value: item.nutrition.energy_kcal,
+                unit: 'kcal',
+                daily: 2000,
+                color: 'bg-primary',
+              },
+              {
+                label: 'Fat',
+                value: item.nutrition.fat_g,
+                unit: 'g',
+                daily: 70,
+                color: 'bg-tertiary',
+              },
+              {
+                label: 'Carbs',
+                value: item.nutrition.carbs_g,
+                unit: 'g',
+                daily: 260,
+                color: 'bg-secondary',
+              },
+              {
+                label: 'Protein',
+                value: item.nutrition.protein_g,
+                unit: 'g',
+                daily: 50,
+                color: 'bg-primary',
+              },
+            ]
+              .filter((n) => n.value != null)
+              .map((n) => {
+                const pct = Math.min(Math.round(((n.value ?? 0) / n.daily) * 100), 100)
+                return (
+                  <div
+                    key={n.label}
+                    className="bg-surface-container-lowest wireframe-border rounded-lg p-4"
+                  >
+                    <div className="flex items-baseline justify-between mb-2">
+                      <span className="text-label-md font-medium text-on-surface">{n.label}</span>
+                      <span className="text-label-md font-semibold">
+                        {n.value}
+                        {n.unit}
+                        <span className="text-on-surface-variant font-normal ml-1.5">
+                          {pct}% DV
+                        </span>
+                      </span>
+                    </div>
+                    <div className="h-2 bg-surface-container rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${n.color} transition-all duration-700 ease-out`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
           </div>
           {item.nutrition.serving_size && (
             <p className="text-label-sm text-on-surface-variant mt-3">

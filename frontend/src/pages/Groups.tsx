@@ -326,19 +326,19 @@ export const Groups: React.FC = () => {
         {/* Main area */}
         <div className="md:col-span-8">
           {groupsData?.data.length === 0 && pendingInvitations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center dashed-outline rounded-lg bg-surface-container-lowest">
-              <div className="w-24 h-24 rounded-full bg-surface-variant flex items-center justify-center mb-6 opacity-40">
-                <Icon name="group_off" size={48} />
+            <div className="flex flex-col items-center justify-center py-12 text-center rounded-2xl bg-gradient-to-br from-primary/5 to-transparent border border-outline-variant/50">
+              <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-5">
+                <Icon name="group" size={36} className="text-primary" />
               </div>
-              <p className="text-headline-md font-heading mb-2">No groups yet</p>
-              <p className="text-body-md text-on-surface-variant mb-6">
-                You don&apos;t belong to any groups yet
+              <p className="text-headline-md font-heading font-semibold mb-1.5">Better together</p>
+              <p className="text-body-md text-on-surface-variant mb-6 max-w-xs">
+                Create a group to share recipes and meal plans with family or friends.
               </p>
               <Button
                 onClick={() => setIsCreateDialogOpen(true)}
                 className="bg-primary text-on-primary rounded-full px-6"
               >
-                Create Your First Group
+                Create a group
               </Button>
             </div>
           ) : (

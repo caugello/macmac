@@ -65,8 +65,8 @@ describe('RecipeList Page', () => {
       })
 
       render(<RecipeList />, { wrapper: createWrapper() })
-      expect(screen.getByText('No recipes found.')).toBeInTheDocument()
-      expect(screen.getByText('Create your first recipe')).toBeInTheDocument()
+      expect(screen.getByText('Your kitchen awaits')).toBeInTheDocument()
+      expect(screen.getByText('Create a recipe')).toBeInTheDocument()
     })
   })
 
@@ -118,10 +118,10 @@ describe('RecipeList Page', () => {
       expect(screen.getByText('Chicken Curry')).toBeInTheDocument()
     })
 
-    it('should render recipe descriptions', () => {
+    it('should render recipe cards with titles', () => {
       render(<RecipeList />, { wrapper: createWrapper() })
-      expect(screen.getByText('Classic Italian pasta')).toBeInTheDocument()
-      expect(screen.getByText('Spicy Indian dish')).toBeInTheDocument()
+      expect(screen.getByText('Pasta Carbonara')).toBeInTheDocument()
+      expect(screen.getByText('Chicken Curry')).toBeInTheDocument()
     })
 
     it('should render ingredient counts', () => {
@@ -148,27 +148,6 @@ describe('RecipeList Page', () => {
 
       render(<RecipeList />, { wrapper: createWrapper() })
       expect(screen.getByText('1 ingredient')).toBeInTheDocument()
-    })
-
-    it('should show "No description" for recipes without description', () => {
-      mockUseRecipes.mockReturnValue({
-        data: {
-          data: [
-            {
-              id: '1',
-              title: 'Recipe',
-              description: null,
-              ingredients: [],
-            },
-          ],
-          total: 1,
-        },
-        isLoading: false,
-        error: null,
-      })
-
-      render(<RecipeList />, { wrapper: createWrapper() })
-      expect(screen.getByText('No description')).toBeInTheDocument()
     })
 
     it('should link to recipe detail pages', () => {

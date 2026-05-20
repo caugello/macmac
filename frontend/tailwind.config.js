@@ -111,7 +111,7 @@ export default {
         'gutter': '24px',
       },
       fontFamily: {
-        heading: ['Plus Jakarta Sans', 'sans-serif'],
+        heading: ['Literata', 'Georgia', 'serif'],
         body: ['Plus Jakarta Sans', 'sans-serif'],
       },
       fontSize: {

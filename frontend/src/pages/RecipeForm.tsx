@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { IngredientEditor } from '@/components/recipes/IngredientEditor'
 import { Icon } from '@/components/ui/icon'
+import { useToast } from '@/components/ui/use-toast'
 
 export const RecipeForm = () => {
   const { id } = useParams<{ id: string }>()
@@ -23,6 +24,7 @@ export const RecipeForm = () => {
   const createRecipe = useCreateRecipe()
   const updateRecipe = useUpdateRecipe()
   const { data: existingRecipe, isLoading } = useRecipe(id || '')
+  const { toast } = useToast()
 
   useEffect(() => {
     if (existingRecipe) {
@@ -48,7 +50,7 @@ export const RecipeForm = () => {
     e.preventDefault()
 
     if (ingredients.length === 0) {
-      alert('Please add at least one ingredient')
+      toast('Please add at least one ingredient', 'error')
       return
     }
 
@@ -76,19 +78,25 @@ export const RecipeForm = () => {
       updateRecipe.mutate(
         { id, data: recipeData },
         {
-          onSuccess: () => navigate(`/recipes/${id}`),
+          onSuccess: () => {
+            toast('Recipe updated', 'success')
+            navigate(`/recipes/${id}`)
+          },
           onError: (error) => {
             console.error('Failed to update recipe:', error)
-            alert('Failed to update recipe. Please try again.')
+            toast('Failed to update recipe. Please try again.', 'error')
           },
         }
       )
     } else {
       createRecipe.mutate(recipeData, {
-        onSuccess: () => navigate('/recipes'),
+        onSuccess: () => {
+          toast('Recipe created', 'success')
+          navigate('/recipes')
+        },
         onError: (error) => {
           console.error('Failed to create recipe:', error)
-          alert('Failed to create recipe. Please try again.')
+          toast('Failed to create recipe. Please try again.', 'error')
         },
       })
     }
