@@ -321,6 +321,9 @@ services:
           category:
             type: str
             default: null
+          is_food:
+            type: bool
+            default: null
         tags:
           - catalog
       - name: list_catalog_categories

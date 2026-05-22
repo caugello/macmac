@@ -1055,14 +1055,6 @@ def write_to_db(payload: dict, ch):
             )
         )
 
-        # Skip non-food items - don't store them in the catalog
-        if enriched_item and not enriched_item.is_food:
-            logger.warning(
-                f"Skipping non-food item: {enriched_item.canonical_name or enriched_item.raw_name}"
-            )
-            logger.debug(f"Category: {enriched_item.category}")
-            return
-
         with get_db(SessionLocal) as db:
             if enriched_item:
                 item = create_catalog_item(enriched_item, db)
@@ -1091,7 +1083,9 @@ def write_to_db(payload: dict, ch):
                 category_str = item.category or "N/A"
                 nutrition_str = "yes" if item.nutrition else "no"
 
-                logger.info(f"Saved: {item.canonical_name or item.raw_name}")
+                logger.info(
+                    f"Stored: {item.canonical_name or item.raw_name}, is_food={enriched_item.is_food}"
+                )
                 logger.info(
                     f"{qty_str} | {price_str} | {category_str} | Nutrition: {nutrition_str}"
                 )

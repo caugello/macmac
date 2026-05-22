@@ -324,3 +324,74 @@ def test_create_catalog_item_does_not_overwrite_with_null(mock_catalog_db):
     assert result.price == 2.19
     assert result.category == "Pasta & Rice"
     assert result.nutriscore == "B"
+
+
+# ===== UNIT TESTS - non-food products are stored =====
+
+
+@pytest.mark.unit
+def test_create_catalog_item_stores_non_food(mock_catalog_db):
+    """Non-food products must be stored (not silently dropped)."""
+    from services.catalog.enricher.db import create_catalog_item
+
+    data = CatalogItemCreate(
+        vendor_name="colruyt",
+        raw_name="Sponge Cleaning Pad 3pc",
+        product_url="https://example.com/sponge-3pc",
+        is_food=False,
+        price=2.49,
+        category="Household",
+    )
+    result = create_catalog_item(data, mock_catalog_db)
+    assert result.product_url == "https://example.com/sponge-3pc"
+    assert result.is_food is False
+    assert result.category == "Household"
+
+
+@pytest.mark.unit
+def test_write_to_db_stores_non_food_item():
+    """write_to_db must not skip is_food=False products."""
+    from services.catalog.enricher.main import write_to_db
+
+    payload = {
+        "raw_name": "Dish Soap 500ml",
+        "vendor_name": "colruyt",
+        "product_url": "https://www.collectandgo.be/fr/assortiment/dish-soap-500ml",
+    }
+    ch = MagicMock()
+
+    mock_enriched = CatalogItemCreate(
+        vendor_name="colruyt",
+        raw_name="Dish Soap 500ml",
+        product_url="https://www.collectandgo.be/fr/assortiment/dish-soap-500ml",
+        is_food=False,
+        price=1.99,
+        category="Household",
+    )
+
+    mock_item = MagicMock()
+    mock_item.canonical_name = "Dish Soap"
+    mock_item.raw_name = "Dish Soap 500ml"
+    mock_item.net_quantity_value = 500.0
+    mock_item.net_quantity_unit = "ml"
+    mock_item.price = 1.99
+    mock_item.category = "Household"
+    mock_item.nutrition = None
+
+    mock_loop = MagicMock()
+    mock_loop.run_until_complete.return_value = mock_enriched
+
+    mock_db_session = MagicMock()
+    mock_create = MagicMock(return_value=mock_item)
+
+    with (
+        patch("services.catalog.enricher.main.asyncio.new_event_loop", return_value=mock_loop),
+        patch("services.catalog.enricher.main.asyncio.set_event_loop"),
+        patch("services.catalog.enricher.main.get_db") as mock_get_db,
+        patch("services.catalog.enricher.main.create_catalog_item", mock_create),
+    ):
+        mock_get_db.return_value.__enter__ = MagicMock(return_value=mock_db_session)
+        mock_get_db.return_value.__exit__ = MagicMock(return_value=False)
+        write_to_db(payload, ch)
+
+    mock_create.assert_called_once_with(mock_enriched, mock_db_session)
