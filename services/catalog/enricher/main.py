@@ -7,17 +7,6 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
 
-from openai import (
-    APIConnectionError,
-    APITimeoutError,
-    AsyncOpenAI,
-    AuthenticationError,
-    BadRequestError,
-    InternalServerError,
-    RateLimitError,
-)
-from playwright.async_api import async_playwright
-
 from services.catalog.db import SessionLocal
 from services.catalog.enricher.db import create_catalog_item
 from services.config import get_config, get_config_for_service, get_config_for_service_dependency
@@ -193,6 +182,8 @@ CHROMIUM_ARGS = ["--disable-dev-shm-usage", "--no-sandbox"]
 
 
 async def _crawl_product_page_once(url: str) -> CrawlResult:
+    from playwright.async_api import async_playwright
+
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True, args=CHROMIUM_ARGS)
 
@@ -419,6 +410,8 @@ async def crawl_product_page(url: str) -> CrawlResult:
 async def _crawl_nutrition_page_once(
     info_url: str, main_page_url: str
 ) -> tuple[str | None, str | None]:
+    from playwright.async_api import async_playwright
+
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True, args=CHROMIUM_ARGS)
         context = await browser.new_context(
@@ -636,6 +629,16 @@ async def extract_with_llm(
     Use OpenAI to extract structured product data from HTML.
     Returns a dict with extracted fields.
     """
+    from openai import (
+        APIConnectionError,
+        APITimeoutError,
+        AsyncOpenAI,
+        AuthenticationError,
+        BadRequestError,
+        InternalServerError,
+        RateLimitError,
+    )
+
     if not OPENAI_API_KEY:
         logger.warning("OPENAI_API_KEY not set, skipping LLM extraction")
         return {}
@@ -1055,14 +1058,6 @@ def write_to_db(payload: dict, ch):
             )
         )
 
-        # Skip non-food items - don't store them in the catalog
-        if enriched_item and not enriched_item.is_food:
-            logger.warning(
-                f"Skipping non-food item: {enriched_item.canonical_name or enriched_item.raw_name}"
-            )
-            logger.debug(f"Category: {enriched_item.category}")
-            return
-
         with get_db(SessionLocal) as db:
             if enriched_item:
                 item = create_catalog_item(enriched_item, db)
@@ -1091,7 +1086,9 @@ def write_to_db(payload: dict, ch):
                 category_str = item.category or "N/A"
                 nutrition_str = "yes" if item.nutrition else "no"
 
-                logger.info(f"Saved: {item.canonical_name or item.raw_name}")
+                logger.info(
+                    f"Stored: {item.canonical_name or item.raw_name}, is_food={enriched_item.is_food}"
+                )
                 logger.info(
                     f"{qty_str} | {price_str} | {category_str} | Nutrition: {nutrition_str}"
                 )

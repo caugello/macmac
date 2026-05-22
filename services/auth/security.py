@@ -4,10 +4,7 @@ import sys
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-import firebase_admin
 import jwt
-from firebase_admin import auth as firebase_auth
-from firebase_admin import credentials
 from pydantic import UUID4
 
 from services.config import get_config
@@ -23,24 +20,39 @@ config = get_config()
 
 ACCESS_TOKEN_EXPIRE_MINUTES = config.auth.jwt.access_token_expire_minutes
 
-# Initialize Firebase Admin SDK
-# Uses GOOGLE_APPLICATION_CREDENTIALS env var for service account JSON path
-if not firebase_admin._apps:
-    cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-    if cred_path:
-        cred = credentials.Certificate(cred_path)
-        firebase_admin.initialize_app(cred)
-    else:
-        if os.getenv("ENVIRONMENT") != "development":
-            logger.critical("GOOGLE_APPLICATION_CREDENTIALS not set — cannot start in production")
-            sys.exit(1)
-        logger.warning(
-            "GOOGLE_APPLICATION_CREDENTIALS not set — Firebase token verification will fail"
-        )
-        firebase_admin.initialize_app()
+_firebase_initialized = False
+
+
+def _ensure_firebase():
+    global _firebase_initialized
+    if _firebase_initialized:
+        return
+    _firebase_initialized = True
+
+    import firebase_admin
+    from firebase_admin import credentials
+
+    if not firebase_admin._apps:
+        cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        if cred_path:
+            cred = credentials.Certificate(cred_path)
+            firebase_admin.initialize_app(cred)
+        else:
+            if os.getenv("ENVIRONMENT") != "development":
+                logger.critical(
+                    "GOOGLE_APPLICATION_CREDENTIALS not set — cannot start in production"
+                )
+                sys.exit(1)
+            logger.warning(
+                "GOOGLE_APPLICATION_CREDENTIALS not set — Firebase token verification will fail"
+            )
+            firebase_admin.initialize_app()
 
 
 def verify_firebase_token(id_token: str) -> dict:
+    _ensure_firebase()
+    from firebase_admin import auth as firebase_auth
+
     decoded_token = firebase_auth.verify_id_token(id_token)
 
     if not decoded_token.get("email_verified", False):
