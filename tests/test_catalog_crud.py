@@ -329,3 +329,77 @@ async def test_list_catalog_items_invalid_sort_direction(mock_catalog_db):
 
     assert exc_info.value.status_code == 400
     assert "Invalid sort value" in str(exc_info.value.detail)
+
+
+# ===== UNIT TESTS - is_food filter =====
+
+
+async def _seed_food_and_nonfood(db):
+    """Helper: seed 3 food + 2 non-food items."""
+    foods = [
+        ("Milk 1L", "https://example.com/milk", True, "Dairy"),
+        ("Bread", "https://example.com/bread", True, "Bakery"),
+        ("Cheese", "https://example.com/cheese", True, "Dairy"),
+        ("Dish Soap", "https://example.com/soap", False, "Household"),
+        ("Sponge 3pc", "https://example.com/sponge", False, "Household"),
+    ]
+    for name, url, is_food, cat in foods:
+        await create_catalog_item(
+            CatalogItemCreate(
+                vendor_name="test_vendor",
+                raw_name=name,
+                normalized_name=name.lower(),
+                product_url=url,
+                is_food=is_food,
+                category=cat,
+            ),
+            db,
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_list_catalog_items_filter_food_only(mock_catalog_db):
+    """is_food=True returns only food items."""
+    await _seed_food_and_nonfood(mock_catalog_db)
+    result = await list_catalog_items(mock_catalog_db, is_food=True)
+    assert result["total"] == 3
+    assert all(item.is_food is True for item in result["data"])
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_list_catalog_items_filter_nonfood_only(mock_catalog_db):
+    """is_food=False returns only non-food items."""
+    await _seed_food_and_nonfood(mock_catalog_db)
+    result = await list_catalog_items(mock_catalog_db, is_food=False)
+    assert result["total"] == 2
+    assert all(item.is_food is False for item in result["data"])
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_list_catalog_items_no_food_filter(mock_catalog_db):
+    """No is_food filter returns all items."""
+    await _seed_food_and_nonfood(mock_catalog_db)
+    result = await list_catalog_items(mock_catalog_db)
+    assert result["total"] == 5
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_list_catalog_items_food_filter_with_search(mock_catalog_db):
+    """is_food combined with search filters correctly."""
+    await _seed_food_and_nonfood(mock_catalog_db)
+    result = await list_catalog_items(mock_catalog_db, search="soap", is_food=False)
+    assert result["total"] == 1
+    assert result["data"][0].raw_name == "Dish Soap"
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_list_catalog_items_food_filter_with_category(mock_catalog_db):
+    """is_food combined with category filters correctly."""
+    await _seed_food_and_nonfood(mock_catalog_db)
+    result = await list_catalog_items(mock_catalog_db, category="Dairy", is_food=True)
+    assert result["total"] == 2

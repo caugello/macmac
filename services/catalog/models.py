@@ -36,4 +36,5 @@ class CatalogItem(BaseModel, Base):
         Index("ix_catalog_normalized_name", "normalized_name"),
         Index("ix_catalog_product_url", "product_url", unique=True),
         Index("ix_catalog_category", "category"),
+        Index("ix_catalog_is_food", "is_food"),
     )

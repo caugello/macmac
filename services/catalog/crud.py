@@ -65,14 +65,17 @@ async def list_catalog_items(
     search: str | None = None,
     sort: str | None = None,
     category: str | None = None,
+    is_food: bool | None = None,
 ):
     """
     Lists catalog items with optional filtering, searching, and sorting.
     Caches results for 5 minutes.
     """
     # Build cache key from query params
+    is_food_str = "" if is_food is None else str(is_food)
     cache_key = (
-        f"catalog:list:l={limit}:o={offset}:s={search or ''}:sort={sort or ''}:c={category or ''}"
+        f"catalog:list:l={limit}:o={offset}:s={search or ''}:sort={sort or ''}"
+        f":c={category or ''}:f={is_food_str}"
     )
     cached = cache.get_json(cache_key)
     if cached:
@@ -89,6 +92,10 @@ async def list_catalog_items(
         # ---- CATEGORY FILTER
         if category:
             query = query.filter(CatalogItem.category == category)
+
+        # ---- FOOD/NON-FOOD FILTER
+        if is_food is not None:
+            query = query.filter(CatalogItem.is_food == is_food)
 
         # ---- SORTING
         query = apply_sorting(query, CatalogItem, sort)
