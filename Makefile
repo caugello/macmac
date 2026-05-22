@@ -1,7 +1,8 @@
 .PHONY: help test test-unit test-integration lint format clean install crawl enricher-stop \
 	catalog-backup catalog-restore openshift-catalog-backup openshift-catalog-local-restore \
 	frontend-install frontend-test frontend-lint frontend-format frontend-build \
-	build-all build-gateway build-recipes build-catalog build-meal-plans build-auth build-crawler build-enricher
+	build-all build-gateway build-recipes build-catalog build-meal-plans build-auth build-crawler build-enricher \
+	sbom verify-image
 
 help:
 	@echo "MacMac Development Commands"
@@ -36,6 +37,10 @@ help:
 	@echo "  make enricher-stop    Stop the catalog enricher"
 	@echo "  make catalog-backup   Backup local catalog DB to backups/catalog.dump.gz"
 	@echo "  make catalog-restore  Restore local catalog DB from backups/catalog.dump.gz"
+	@echo ""
+	@echo "Security (SLSA L3):"
+	@echo "  make sbom             Scan all dependencies for vulnerabilities"
+	@echo "  make verify-image IMAGE=<ref>  Verify image signature, provenance, and SBOM"
 	@echo ""
 	@echo "OpenShift:"
 	@echo "  make openshift-catalog-backup        Dump catalog DB from OpenShift to backups/"
@@ -204,3 +209,19 @@ lint-all: lint frontend-lint
 
 format-all: format frontend-format
 	@echo "All formatting completed!"
+
+# Security / SLSA L3
+sbom:
+	@echo "Scanning Python dependencies for vulnerabilities..."
+	@for req in requirements*.txt; do \
+		echo "  Scanning $$req..."; \
+		grype "file:$$req" --only-fixed --fail-on high; \
+	done
+	@if [ -f frontend/package-lock.json ]; then \
+		echo "  Scanning frontend/package-lock.json..."; \
+		grype "file:frontend/package-lock.json" --only-fixed --fail-on high; \
+	fi
+	@echo "No high/critical vulnerabilities found"
+
+verify-image:
+	@./scripts/verify-image.sh $(IMAGE)

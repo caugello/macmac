@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: dependency-scan
+        name: Scan dependencies for vulnerabilities
+        entry: scripts/pre-commit-scan.sh
+        language: script
+        pass_filenames: false
+        stages: [pre-commit]
