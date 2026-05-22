@@ -246,6 +246,7 @@ def test_write_to_db_propagates_unexpected_errors():
     mock_loop.run_until_complete.side_effect = ConnectionError("db down")
 
     with (
+        patch("services.catalog.enricher.main.enrich_catalog_item", new=MagicMock()),
         patch("services.catalog.enricher.main.asyncio.new_event_loop", return_value=mock_loop),
         patch("services.catalog.enricher.main.asyncio.set_event_loop"),
     ):
@@ -385,6 +386,7 @@ def test_write_to_db_stores_non_food_item():
     mock_create = MagicMock(return_value=mock_item)
 
     with (
+        patch("services.catalog.enricher.main.enrich_catalog_item", new=MagicMock()),
         patch("services.catalog.enricher.main.asyncio.new_event_loop", return_value=mock_loop),
         patch("services.catalog.enricher.main.asyncio.set_event_loop"),
         patch("services.catalog.enricher.main.get_db") as mock_get_db,
