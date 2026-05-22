@@ -2,10 +2,13 @@
 FROM registry.access.redhat.com/ubi9/python-312 AS base
 
 USER root
-RUN dnf install -y libpq-devel gcc && \
+RUN dnf update -y && \
+    dnf install -y libpq-devel gcc && \
+    dnf remove -y nodejs npm nodejs-docs nodejs-full-i18n 2>/dev/null; \
     dnf clean all && rm -rf /var/cache/dnf
 
 WORKDIR /opt/app-root/src
+RUN pip install --no-cache-dir --upgrade pip
 COPY requirements-base.txt requirements-cache.txt requirements-messaging.txt ./
 RUN pip install --no-cache-dir -r requirements-base.txt
 
@@ -52,16 +55,19 @@ EXPOSE 8004
 FROM registry.access.redhat.com/ubi9/python-312 AS crawler
 
 USER root
-RUN dnf install -y \
+RUN dnf update -y && \
+    dnf install -y \
     libpq-devel gcc \
     alsa-lib atk at-spi2-atk cups-libs libdrm mesa-libgbm \
     gtk3 libX11 libXcomposite libXdamage libXext libXfixes libXrandr \
     libxkbcommon pango cairo dbus-libs nss nspr libxshmfence \
     gstreamer1 gstreamer1-plugins-base \
     harfbuzz libwebp libjpeg-turbo libpng enchant2 \
-    && dnf clean all && rm -rf /var/cache/dnf
+    && dnf remove -y nodejs npm nodejs-docs nodejs-full-i18n 2>/dev/null; \
+    dnf clean all && rm -rf /var/cache/dnf
 
 WORKDIR /opt/app-root/src
+RUN pip install --no-cache-dir --upgrade pip
 COPY requirements-base.txt requirements-messaging.txt requirements-crawler.txt ./
 RUN pip install --no-cache-dir -r requirements-crawler.txt
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
@@ -74,16 +80,19 @@ USER 1001
 FROM registry.access.redhat.com/ubi9/python-312 AS enricher
 
 USER root
-RUN dnf install -y \
+RUN dnf update -y && \
+    dnf install -y \
     libpq-devel gcc \
     alsa-lib atk at-spi2-atk cups-libs libdrm mesa-libgbm \
     gtk3 libX11 libXcomposite libXdamage libXext libXfixes libXrandr \
     libxkbcommon pango cairo dbus-libs nss nspr libxshmfence \
     gstreamer1 gstreamer1-plugins-base \
     harfbuzz libwebp libjpeg-turbo libpng enchant2 \
-    && dnf clean all && rm -rf /var/cache/dnf
+    && dnf remove -y nodejs npm nodejs-docs nodejs-full-i18n 2>/dev/null; \
+    dnf clean all && rm -rf /var/cache/dnf
 
 WORKDIR /opt/app-root/src
+RUN pip install --no-cache-dir --upgrade pip
 COPY requirements-enricher.txt requirements-base.txt requirements-cache.txt requirements-messaging.txt ./
 RUN pip install --no-cache-dir -r requirements-enricher.txt
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers

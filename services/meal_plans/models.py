@@ -8,7 +8,7 @@ from services.meal_plans.db import Base
 from services.shared.models import BaseModel, UserOwnershipMixin
 
 
-class MealTypeEnum(str, enum.Enum):
+class MealTypeEnum(enum.StrEnum):
     """Meal types - matches frontend expectations"""
 
     BREAKFAST = "breakfast"
