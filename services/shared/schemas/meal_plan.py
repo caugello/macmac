@@ -98,7 +98,15 @@ class ShoppingListItem(BaseModel):
     total_qty: float = Field(..., description="Sum of all quantities (converted to base unit)")
     unit: str
     price: float | None = None
+    line_total: float | None = None
     category: str | None = None
+    is_on_promotion: bool = False
+    promotion_until_date: DateType | None = None
+    package_size: float | None = Field(None, description="Size of one package (e.g., 150)")
+    package_unit: str | None = Field(None, description="Unit of the package (e.g., g)")
+    packages_needed: int | None = Field(
+        None, description="Whole packages to buy: ceil(total_qty / package_size)"
+    )
 
 
 class ShoppingListResponse(BaseModel):

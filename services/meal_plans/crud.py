@@ -1,3 +1,4 @@
+import math
 import uuid
 from collections import defaultdict
 from datetime import date, timedelta
@@ -19,6 +20,7 @@ from services.shared.lib.authorization import (
 from services.shared.lib.cache import initialize_service_cache
 from services.shared.lib.crud_helpers import safe_commit
 from services.shared.lib.http_client import service_request
+from services.shared.lib.units import to_base_unit, to_display_unit
 from services.shared.schemas import meal_plan as mp
 from services.shared.schemas.generic import DeleteResponse
 
@@ -176,9 +178,11 @@ async def get_meal_plan(meal_plan_id: UUID4, db: Session) -> mp.MealPlanOut:
     cache_key = f"meal_plan:{meal_plan_id}"
     cached = cache.get_json(cache_key)
     if cached:
-        check_owner_or_group(cached.get("_user_id"), cached.get("_group_id"), "meal plan")
-        cached.pop("_user_id", None)
-        cached.pop("_group_id", None)
+        uid = cached.pop("_user_id", None)
+        gid = cached.pop("_group_id", None)
+        check_owner_or_group(
+            uuid.UUID(uid) if uid else None, uuid.UUID(gid) if gid else None, "meal plan"
+        )
         return mp.MealPlanOut(**cached)
 
     with Span("db_get_meal_plan"):
@@ -456,6 +460,7 @@ async def generate_shopping_list(
         catalog_config = get_config_for_service("catalog")
 
         # Step 1: Batch fetch all recipe details (with ingredients)
+        recipes_by_id: dict[str, dict] = {}
         try:
             response = await service_request(
                 "POST",
@@ -463,26 +468,39 @@ async def generate_shopping_list(
                 json={"ids": [str(rid) for rid in recipe_ids]},
             )
             response.raise_for_status()
-            recipes_data = list(response.json().get("items", {}).values())
+            recipes_by_id = response.json().get("items", {})
         except Exception:
-            recipes_data = []
+            pass
 
-        # Step 2: Aggregate ingredients by catalog_item_id
-        ingredient_totals = defaultdict(lambda: {"qty": 0.0, "unit": None})
+        # Step 2: Aggregate ingredients by (catalog_item_id, base_unit)
+        # Iterate over every meal plan entry so the same recipe scheduled
+        # multiple times has its ingredients counted each time.
+        ingredient_totals: dict[tuple[uuid.UUID, str], dict] = {}
 
-        for recipe in recipes_data:
+        for meal_plan in meal_plans:
+            recipe = recipes_by_id.get(str(meal_plan.recipe_id))
+            if not recipe:
+                continue
             for ingredient in recipe.get("ingredients", []):
                 catalog_item_id = uuid.UUID(ingredient["catalog_item_id"])
                 qty = ingredient["qty"]
                 unit = ingredient["unit"]
 
-                # Simple aggregation (no unit conversion for MVP)
-                ingredient_totals[catalog_item_id]["qty"] += qty
-                if ingredient_totals[catalog_item_id]["unit"] is None:
-                    ingredient_totals[catalog_item_id]["unit"] = unit
+                base_qty, base_unit = to_base_unit(qty, unit)
+                key = (catalog_item_id, base_unit)
+                if key not in ingredient_totals:
+                    ingredient_totals[key] = {"qty": 0.0, "unit": base_unit}
+                ingredient_totals[key]["qty"] += base_qty
+
+        # Convert aggregated base units back to display units
+        for key in ingredient_totals:
+            totals = ingredient_totals[key]
+            display_qty, display_unit = to_display_unit(totals["qty"], totals["unit"])
+            totals["qty"] = round(display_qty, 1)
+            totals["unit"] = display_unit
 
         # Step 3: Batch fetch catalog item details (price, name, category)
-        all_catalog_ids = list(ingredient_totals.keys())
+        all_catalog_ids = list({cid for cid, _ in ingredient_totals.keys()})
         catalog_items = {}
         try:
             response = await service_request(
@@ -498,12 +516,49 @@ async def generate_shopping_list(
         shopping_items = []
         total_price = 0.0
 
-        for catalog_item_id, totals in ingredient_totals.items():
+        for (catalog_item_id, _base_unit), totals in ingredient_totals.items():
             catalog_item = catalog_items.get(str(catalog_item_id))
             if catalog_item:
                 price = catalog_item.get("price")
-                if price:
-                    total_price += price
+                line_total = None
+                package_size = None
+                package_unit = None
+                packages_needed = None
+
+                if price is not None:
+                    net_qty = catalog_item.get("net_quantity_value")
+                    net_unit = catalog_item.get("net_quantity_unit")
+                    if net_qty and net_qty > 0:
+                        base_need, base_need_unit = to_base_unit(totals["qty"], totals["unit"])
+                        base_pkg, base_pkg_unit = to_base_unit(net_qty, net_unit or totals["unit"])
+                        if base_need_unit == base_pkg_unit:
+                            packages_needed = math.ceil(base_need / base_pkg)
+                            package_size = net_qty
+                            package_unit = net_unit
+                            line_total = price * packages_needed
+                        else:
+                            line_total = price
+                    else:
+                        line_total = price
+                if line_total is not None:
+                    total_price += line_total
+
+                is_on_promotion = False
+                promotion_until_date = None
+                raw_promo = catalog_item.get("promotion_until_date")
+                if raw_promo:
+                    try:
+                        promo_date = (
+                            date.fromisoformat(raw_promo)
+                            if isinstance(raw_promo, str)
+                            else raw_promo
+                        )
+                        if promo_date >= date.today():
+                            is_on_promotion = True
+                            promotion_until_date = promo_date
+                    except (ValueError, TypeError):
+                        pass
+
                 shopping_items.append(
                     mp.ShoppingListItem(
                         catalog_item_id=catalog_item_id,
@@ -512,7 +567,13 @@ async def generate_shopping_list(
                         total_qty=totals["qty"],
                         unit=totals["unit"],
                         price=price,
+                        line_total=round(line_total, 2) if line_total is not None else None,
                         category=catalog_item.get("category"),
+                        is_on_promotion=is_on_promotion,
+                        promotion_until_date=promotion_until_date,
+                        package_size=package_size,
+                        package_unit=package_unit,
+                        packages_needed=packages_needed,
                     )
                 )
             else:
@@ -523,6 +584,7 @@ async def generate_shopping_list(
                         total_qty=totals["qty"],
                         unit=totals["unit"],
                         price=None,
+                        line_total=None,
                         category=None,
                     )
                 )

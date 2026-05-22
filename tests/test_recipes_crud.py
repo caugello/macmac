@@ -1,6 +1,7 @@
 """Tests for recipes CRUD operations."""
 
 import uuid
+from unittest.mock import patch
 
 import pytest
 from fastapi import HTTPException
@@ -462,3 +463,50 @@ async def test_update_recipe_duplicate_title(mock_db):
     assert exc_info.value.status_code == 400
     # IntegrityError message differs between SQLite (used in tests) and PostgreSQL (production)
     assert "Failed to update recipe" in str(exc_info.value.detail)
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_get_recipe_cache_hit_with_string_uuids(mock_db):
+    """Cached data stores UUIDs as strings; get_recipe must convert them for auth."""
+    from services.framework.user_context import require_user_context
+
+    user_ctx = require_user_context()
+
+    created = await create_recipe(
+        RecipeCreate(
+            title="Cache Test Recipe",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+        ),
+        mock_db,
+    )
+
+    cached_data = {
+        "id": str(created.id),
+        "title": "Cache Test Recipe",
+        "normalized_title": "cache test recipe",
+        "description": None,
+        "ingredients": [
+            {
+                "catalog_item_id": str(TEST_CATALOG_ITEM_FLOUR),
+                "catalog_item_name": "Test Item",
+                "qty": 1.0,
+                "unit": "kg",
+            }
+        ],
+        "steps": None,
+        "created_at": created.created_at.isoformat(),
+        "updated_at": created.updated_at.isoformat(),
+        "_user_id": str(user_ctx.user_id),
+        "_group_id": str(user_ctx.group_ids[0]),
+    }
+
+    with patch("services.recipes.crud.cache") as mock_cache:
+        mock_cache.get_json.return_value = cached_data
+        result = await get_recipe(created.id, mock_db)
+
+    assert result.title == "Cache Test Recipe"
