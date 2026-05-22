@@ -190,7 +190,13 @@ export interface ShoppingListItem {
   total_qty: number
   unit: string
   price: number | null
+  line_total: number | null
   category: string | null
+  is_on_promotion: boolean
+  promotion_until_date: string | null
+  package_size: number | null
+  package_unit: string | null
+  packages_needed: number | null
 }
 
 export interface ShoppingListResponse {

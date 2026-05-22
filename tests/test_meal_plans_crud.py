@@ -280,6 +280,8 @@ async def test_generate_shopping_list(mock_meal_plans_db):
                 "canonical_name": "Flour",
                 "raw_name": "flour",
                 "price": 2.50,
+                "net_quantity_value": 1000.0,
+                "net_quantity_unit": "g",
                 "category": "Baking",
             }
         }
@@ -300,8 +302,14 @@ async def test_generate_shopping_list(mock_meal_plans_db):
 
     assert result.total_items == 1
     assert "Baking" in result.items_by_category
-    assert result.items_by_category["Baking"][0].catalog_item_name == "Flour"
-    assert result.estimated_total == 2.50
+    item = result.items_by_category["Baking"][0]
+    assert item.catalog_item_name == "Flour"
+    assert item.price == 2.50
+    assert item.packages_needed == 1
+    assert item.package_size == 1000.0
+    assert item.package_unit == "g"
+    assert item.line_total == pytest.approx(2.50)
+    assert result.estimated_total == pytest.approx(2.50)
 
 
 @pytest.mark.asyncio
@@ -350,6 +358,8 @@ async def test_generate_shopping_list_aggregates_quantities(mock_meal_plans_db):
                 "canonical_name": "Sugar",
                 "raw_name": "sugar",
                 "price": 1.50,
+                "net_quantity_value": 1000.0,
+                "net_quantity_unit": "g",
                 "category": "Baking",
             }
         }
@@ -371,3 +381,617 @@ async def test_generate_shopping_list_aggregates_quantities(mock_meal_plans_db):
     assert result.total_items == 1
     baking_items = result.items_by_category["Baking"]
     assert baking_items[0].total_qty == 500.0
+    assert baking_items[0].packages_needed == 1
+    assert baking_items[0].line_total == pytest.approx(1.50)
+    assert result.estimated_total == pytest.approx(1.50)
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_generate_shopping_list_price_without_net_quantity(mock_meal_plans_db):
+    """When net_quantity_value is missing, line_total falls back to unit price."""
+    await create_meal_plan(
+        MealPlanCreate(date=MONDAY, meal_type=MealTypeEnum.BREAKFAST, recipe_id=TEST_RECIPE_A),
+        mock_meal_plans_db,
+    )
+
+    catalog_id = "11111111-1111-4111-b111-111111111111"
+
+    mock_recipes_response = MagicMock()
+    mock_recipes_response.json.return_value = {
+        "items": {
+            str(TEST_RECIPE_A): {
+                "title": "Test Recipe",
+                "ingredients": [
+                    {"catalog_item_id": catalog_id, "qty": 500.0, "unit": "g"},
+                ],
+            }
+        }
+    }
+
+    mock_catalog_response = MagicMock()
+    mock_catalog_response.json.return_value = {
+        "items": {
+            catalog_id: {
+                "canonical_name": "Flour",
+                "raw_name": "flour",
+                "price": 2.50,
+                "category": "Baking",
+            }
+        }
+    }
+
+    async def mock_service_req(method, url, **kwargs):
+        if "/recipes/batch" in url:
+            return mock_recipes_response
+        if "/catalog/batch" in url:
+            return mock_catalog_response
+        raise ValueError(f"Unexpected URL: {url}")
+
+    with patch("services.meal_plans.crud.service_request", new=mock_service_req):
+        result = await generate_shopping_list(
+            ShoppingListRequest(start_date=MONDAY, end_date=MONDAY + timedelta(days=6)),
+            mock_meal_plans_db,
+        )
+
+    item = result.items_by_category["Baking"][0]
+    assert item.price == 2.50
+    assert item.line_total == 2.50
+    assert result.estimated_total == 2.50
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_generate_shopping_list_with_promotion(mock_meal_plans_db):
+    """Items with a future promotion_until_date are flagged as on promotion."""
+    await create_meal_plan(
+        MealPlanCreate(date=MONDAY, meal_type=MealTypeEnum.BREAKFAST, recipe_id=TEST_RECIPE_A),
+        mock_meal_plans_db,
+    )
+
+    catalog_id = "11111111-1111-4111-b111-111111111111"
+
+    mock_recipes_response = MagicMock()
+    mock_recipes_response.json.return_value = {
+        "items": {
+            str(TEST_RECIPE_A): {
+                "title": "Test Recipe",
+                "ingredients": [
+                    {"catalog_item_id": catalog_id, "qty": 500.0, "unit": "g"},
+                ],
+            }
+        }
+    }
+
+    mock_catalog_response = MagicMock()
+    mock_catalog_response.json.return_value = {
+        "items": {
+            catalog_id: {
+                "canonical_name": "Flour",
+                "raw_name": "flour",
+                "price": 2.50,
+                "net_quantity_value": 1000.0,
+                "net_quantity_unit": "g",
+                "category": "Baking",
+                "promotion_until_date": "2099-12-31",
+            }
+        }
+    }
+
+    async def mock_service_req(method, url, **kwargs):
+        if "/recipes/batch" in url:
+            return mock_recipes_response
+        if "/catalog/batch" in url:
+            return mock_catalog_response
+        raise ValueError(f"Unexpected URL: {url}")
+
+    with patch("services.meal_plans.crud.service_request", new=mock_service_req):
+        result = await generate_shopping_list(
+            ShoppingListRequest(start_date=MONDAY, end_date=MONDAY + timedelta(days=6)),
+            mock_meal_plans_db,
+        )
+
+    item = result.items_by_category["Baking"][0]
+    assert item.is_on_promotion is True
+    assert item.promotion_until_date == date(2099, 12, 31)
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_generate_shopping_list_expired_promotion(mock_meal_plans_db):
+    """Items with a past promotion_until_date are NOT flagged as on promotion."""
+    await create_meal_plan(
+        MealPlanCreate(date=MONDAY, meal_type=MealTypeEnum.BREAKFAST, recipe_id=TEST_RECIPE_A),
+        mock_meal_plans_db,
+    )
+
+    catalog_id = "11111111-1111-4111-b111-111111111111"
+
+    mock_recipes_response = MagicMock()
+    mock_recipes_response.json.return_value = {
+        "items": {
+            str(TEST_RECIPE_A): {
+                "title": "Test Recipe",
+                "ingredients": [
+                    {"catalog_item_id": catalog_id, "qty": 500.0, "unit": "g"},
+                ],
+            }
+        }
+    }
+
+    mock_catalog_response = MagicMock()
+    mock_catalog_response.json.return_value = {
+        "items": {
+            catalog_id: {
+                "canonical_name": "Flour",
+                "raw_name": "flour",
+                "price": 2.50,
+                "net_quantity_value": 1000.0,
+                "net_quantity_unit": "g",
+                "category": "Baking",
+                "promotion_until_date": "2020-01-01",
+            }
+        }
+    }
+
+    async def mock_service_req(method, url, **kwargs):
+        if "/recipes/batch" in url:
+            return mock_recipes_response
+        if "/catalog/batch" in url:
+            return mock_catalog_response
+        raise ValueError(f"Unexpected URL: {url}")
+
+    with patch("services.meal_plans.crud.service_request", new=mock_service_req):
+        result = await generate_shopping_list(
+            ShoppingListRequest(start_date=MONDAY, end_date=MONDAY + timedelta(days=6)),
+            mock_meal_plans_db,
+        )
+
+    item = result.items_by_category["Baking"][0]
+    assert item.is_on_promotion is False
+    assert item.promotion_until_date is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_generate_shopping_list_unit_conversion(mock_meal_plans_db):
+    """500g + 1kg of same item should merge into 1.5kg."""
+    await create_meal_plan(
+        MealPlanCreate(date=MONDAY, meal_type=MealTypeEnum.BREAKFAST, recipe_id=TEST_RECIPE_A),
+        mock_meal_plans_db,
+    )
+    await create_meal_plan(
+        MealPlanCreate(date=TUESDAY, meal_type=MealTypeEnum.BREAKFAST, recipe_id=TEST_RECIPE_B),
+        mock_meal_plans_db,
+    )
+
+    catalog_id = "11111111-1111-4111-b111-111111111111"
+
+    mock_recipes_response = MagicMock()
+    mock_recipes_response.json.return_value = {
+        "items": {
+            str(TEST_RECIPE_A): {
+                "title": "Recipe A",
+                "ingredients": [{"catalog_item_id": catalog_id, "qty": 500.0, "unit": "g"}],
+            },
+            str(TEST_RECIPE_B): {
+                "title": "Recipe B",
+                "ingredients": [{"catalog_item_id": catalog_id, "qty": 1.0, "unit": "kg"}],
+            },
+        }
+    }
+
+    mock_catalog_response = MagicMock()
+    mock_catalog_response.json.return_value = {
+        "items": {
+            catalog_id: {
+                "canonical_name": "Flour",
+                "raw_name": "flour",
+                "price": 2.50,
+                "net_quantity_value": 1000.0,
+                "net_quantity_unit": "g",
+                "category": "Baking",
+            }
+        }
+    }
+
+    async def mock_service_req(method, url, **kwargs):
+        if "/recipes/batch" in url:
+            return mock_recipes_response
+        if "/catalog/batch" in url:
+            return mock_catalog_response
+        raise ValueError(f"Unexpected URL: {url}")
+
+    with patch("services.meal_plans.crud.service_request", new=mock_service_req):
+        result = await generate_shopping_list(
+            ShoppingListRequest(start_date=MONDAY, end_date=TUESDAY),
+            mock_meal_plans_db,
+        )
+
+    assert result.total_items == 1
+    item = result.items_by_category["Baking"][0]
+    assert item.total_qty == 1.5
+    assert item.unit == "kg"
+    assert item.packages_needed == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_generate_shopping_list_incompatible_units(mock_meal_plans_db):
+    """Same item with incompatible units (g + pc) should appear as separate lines."""
+    await create_meal_plan(
+        MealPlanCreate(date=MONDAY, meal_type=MealTypeEnum.BREAKFAST, recipe_id=TEST_RECIPE_A),
+        mock_meal_plans_db,
+    )
+    await create_meal_plan(
+        MealPlanCreate(date=TUESDAY, meal_type=MealTypeEnum.BREAKFAST, recipe_id=TEST_RECIPE_B),
+        mock_meal_plans_db,
+    )
+
+    catalog_id = "11111111-1111-4111-b111-111111111111"
+
+    mock_recipes_response = MagicMock()
+    mock_recipes_response.json.return_value = {
+        "items": {
+            str(TEST_RECIPE_A): {
+                "title": "Recipe A",
+                "ingredients": [{"catalog_item_id": catalog_id, "qty": 500.0, "unit": "g"}],
+            },
+            str(TEST_RECIPE_B): {
+                "title": "Recipe B",
+                "ingredients": [{"catalog_item_id": catalog_id, "qty": 2.0, "unit": "pc"}],
+            },
+        }
+    }
+
+    mock_catalog_response = MagicMock()
+    mock_catalog_response.json.return_value = {
+        "items": {
+            catalog_id: {
+                "canonical_name": "Eggs",
+                "raw_name": "eggs",
+                "price": 3.00,
+                "net_quantity_value": 1.0,
+                "category": "Dairy",
+            }
+        }
+    }
+
+    async def mock_service_req(method, url, **kwargs):
+        if "/recipes/batch" in url:
+            return mock_recipes_response
+        if "/catalog/batch" in url:
+            return mock_catalog_response
+        raise ValueError(f"Unexpected URL: {url}")
+
+    with patch("services.meal_plans.crud.service_request", new=mock_service_req):
+        result = await generate_shopping_list(
+            ShoppingListRequest(start_date=MONDAY, end_date=TUESDAY),
+            mock_meal_plans_db,
+        )
+
+    assert result.total_items == 2
+    dairy_items = result.items_by_category["Dairy"]
+    units = {item.unit for item in dairy_items}
+    assert "g" in units
+    assert "pc" in units
+
+
+# ===== CACHE AUTH =====
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_get_meal_plan_cache_hit_with_string_uuids(mock_meal_plans_db):
+    """Cached data stores UUIDs as strings; get_meal_plan must convert them for auth."""
+    from services.framework.user_context import require_user_context
+
+    user_ctx = require_user_context()
+
+    created = await create_meal_plan(
+        MealPlanCreate(date=MONDAY, meal_type=MealTypeEnum.BREAKFAST, recipe_id=TEST_RECIPE_A),
+        mock_meal_plans_db,
+    )
+
+    cached_data = {
+        "id": str(created.id),
+        "date": str(created.date),
+        "meal_type": "breakfast",
+        "recipe_id": str(created.recipe_id),
+        "recipe_title": "Test Recipe",
+        "created_at": created.created_at.isoformat(),
+        "updated_at": created.updated_at.isoformat(),
+        "_user_id": str(user_ctx.user_id),
+        "_group_id": str(user_ctx.group_ids[0]),
+    }
+
+    with patch("services.meal_plans.crud.cache") as mock_cache:
+        mock_cache.get_json.return_value = cached_data
+        result = await get_meal_plan(created.id, mock_meal_plans_db)
+
+    assert result.id == created.id
+    assert result.meal_type == MealTypeEnum.BREAKFAST
+
+
+# ===== PACKAGE-AWARE QUANTITIES =====
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_shopping_list_package_rounding_up(mock_meal_plans_db):
+    """Need 500g, sold as 150g packages -> packages_needed=4, line_total = price * 4."""
+    await create_meal_plan(
+        MealPlanCreate(date=MONDAY, meal_type=MealTypeEnum.BREAKFAST, recipe_id=TEST_RECIPE_A),
+        mock_meal_plans_db,
+    )
+
+    catalog_id = "11111111-1111-4111-b111-111111111111"
+
+    mock_recipes_response = MagicMock()
+    mock_recipes_response.json.return_value = {
+        "items": {
+            str(TEST_RECIPE_A): {
+                "title": "Test Recipe",
+                "ingredients": [{"catalog_item_id": catalog_id, "qty": 500.0, "unit": "g"}],
+            }
+        }
+    }
+
+    mock_catalog_response = MagicMock()
+    mock_catalog_response.json.return_value = {
+        "items": {
+            catalog_id: {
+                "canonical_name": "Cheese",
+                "raw_name": "cheese",
+                "price": 3.00,
+                "net_quantity_value": 150.0,
+                "net_quantity_unit": "g",
+                "category": "Dairy",
+            }
+        }
+    }
+
+    async def mock_service_req(method, url, **kwargs):
+        if "/recipes/batch" in url:
+            return mock_recipes_response
+        if "/catalog/batch" in url:
+            return mock_catalog_response
+        raise ValueError(f"Unexpected URL: {url}")
+
+    with patch("services.meal_plans.crud.service_request", new=mock_service_req):
+        result = await generate_shopping_list(
+            ShoppingListRequest(start_date=MONDAY, end_date=MONDAY + timedelta(days=6)),
+            mock_meal_plans_db,
+        )
+
+    item = result.items_by_category["Dairy"][0]
+    assert item.packages_needed == 4
+    assert item.package_size == 150.0
+    assert item.package_unit == "g"
+    assert item.line_total == pytest.approx(12.00)
+    assert result.estimated_total == pytest.approx(12.00)
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_shopping_list_package_exact_fit(mock_meal_plans_db):
+    """Need 300g, sold as 150g packages -> packages_needed=2."""
+    await create_meal_plan(
+        MealPlanCreate(date=MONDAY, meal_type=MealTypeEnum.BREAKFAST, recipe_id=TEST_RECIPE_A),
+        mock_meal_plans_db,
+    )
+
+    catalog_id = "11111111-1111-4111-b111-111111111111"
+
+    mock_recipes_response = MagicMock()
+    mock_recipes_response.json.return_value = {
+        "items": {
+            str(TEST_RECIPE_A): {
+                "title": "Test Recipe",
+                "ingredients": [{"catalog_item_id": catalog_id, "qty": 300.0, "unit": "g"}],
+            }
+        }
+    }
+
+    mock_catalog_response = MagicMock()
+    mock_catalog_response.json.return_value = {
+        "items": {
+            catalog_id: {
+                "canonical_name": "Cheese",
+                "raw_name": "cheese",
+                "price": 3.00,
+                "net_quantity_value": 150.0,
+                "net_quantity_unit": "g",
+                "category": "Dairy",
+            }
+        }
+    }
+
+    async def mock_service_req(method, url, **kwargs):
+        if "/recipes/batch" in url:
+            return mock_recipes_response
+        if "/catalog/batch" in url:
+            return mock_catalog_response
+        raise ValueError(f"Unexpected URL: {url}")
+
+    with patch("services.meal_plans.crud.service_request", new=mock_service_req):
+        result = await generate_shopping_list(
+            ShoppingListRequest(start_date=MONDAY, end_date=MONDAY + timedelta(days=6)),
+            mock_meal_plans_db,
+        )
+
+    item = result.items_by_category["Dairy"][0]
+    assert item.packages_needed == 2
+    assert item.line_total == pytest.approx(6.00)
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_shopping_list_package_discrete(mock_meal_plans_db):
+    """Need 3pc apples, sold in 6pc packs -> packages_needed=1."""
+    await create_meal_plan(
+        MealPlanCreate(date=MONDAY, meal_type=MealTypeEnum.BREAKFAST, recipe_id=TEST_RECIPE_A),
+        mock_meal_plans_db,
+    )
+
+    catalog_id = "11111111-1111-4111-b111-111111111111"
+
+    mock_recipes_response = MagicMock()
+    mock_recipes_response.json.return_value = {
+        "items": {
+            str(TEST_RECIPE_A): {
+                "title": "Test Recipe",
+                "ingredients": [{"catalog_item_id": catalog_id, "qty": 3.0, "unit": "pc"}],
+            }
+        }
+    }
+
+    mock_catalog_response = MagicMock()
+    mock_catalog_response.json.return_value = {
+        "items": {
+            catalog_id: {
+                "canonical_name": "Apples",
+                "raw_name": "apples",
+                "price": 4.50,
+                "net_quantity_value": 6.0,
+                "net_quantity_unit": "pc",
+                "category": "Produce",
+            }
+        }
+    }
+
+    async def mock_service_req(method, url, **kwargs):
+        if "/recipes/batch" in url:
+            return mock_recipes_response
+        if "/catalog/batch" in url:
+            return mock_catalog_response
+        raise ValueError(f"Unexpected URL: {url}")
+
+    with patch("services.meal_plans.crud.service_request", new=mock_service_req):
+        result = await generate_shopping_list(
+            ShoppingListRequest(start_date=MONDAY, end_date=MONDAY + timedelta(days=6)),
+            mock_meal_plans_db,
+        )
+
+    item = result.items_by_category["Produce"][0]
+    assert item.packages_needed == 1
+    assert item.package_size == 6.0
+    assert item.package_unit == "pc"
+    assert item.line_total == pytest.approx(4.50)
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_shopping_list_no_package_info(mock_meal_plans_db):
+    """No net_quantity_value -> packages_needed=None, line_total falls back to unit price."""
+    await create_meal_plan(
+        MealPlanCreate(date=MONDAY, meal_type=MealTypeEnum.BREAKFAST, recipe_id=TEST_RECIPE_A),
+        mock_meal_plans_db,
+    )
+
+    catalog_id = "11111111-1111-4111-b111-111111111111"
+
+    mock_recipes_response = MagicMock()
+    mock_recipes_response.json.return_value = {
+        "items": {
+            str(TEST_RECIPE_A): {
+                "title": "Test Recipe",
+                "ingredients": [{"catalog_item_id": catalog_id, "qty": 500.0, "unit": "g"}],
+            }
+        }
+    }
+
+    mock_catalog_response = MagicMock()
+    mock_catalog_response.json.return_value = {
+        "items": {
+            catalog_id: {
+                "canonical_name": "Spice",
+                "raw_name": "spice",
+                "price": 5.00,
+                "category": "Spices",
+            }
+        }
+    }
+
+    async def mock_service_req(method, url, **kwargs):
+        if "/recipes/batch" in url:
+            return mock_recipes_response
+        if "/catalog/batch" in url:
+            return mock_catalog_response
+        raise ValueError(f"Unexpected URL: {url}")
+
+    with patch("services.meal_plans.crud.service_request", new=mock_service_req):
+        result = await generate_shopping_list(
+            ShoppingListRequest(start_date=MONDAY, end_date=MONDAY + timedelta(days=6)),
+            mock_meal_plans_db,
+        )
+
+    item = result.items_by_category["Spices"][0]
+    assert item.packages_needed is None
+    assert item.package_size is None
+    assert item.package_unit is None
+    assert item.line_total == pytest.approx(5.00)
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_shopping_list_same_recipe_multiple_meals(mock_meal_plans_db):
+    """Same recipe scheduled 3 times should multiply ingredients by 3."""
+    await create_meal_plan(
+        MealPlanCreate(date=MONDAY, meal_type=MealTypeEnum.BREAKFAST, recipe_id=TEST_RECIPE_A),
+        mock_meal_plans_db,
+    )
+    await create_meal_plan(
+        MealPlanCreate(date=MONDAY, meal_type=MealTypeEnum.LUNCH, recipe_id=TEST_RECIPE_A),
+        mock_meal_plans_db,
+    )
+    await create_meal_plan(
+        MealPlanCreate(date=MONDAY, meal_type=MealTypeEnum.DINNER, recipe_id=TEST_RECIPE_A),
+        mock_meal_plans_db,
+    )
+
+    catalog_id = "11111111-1111-4111-b111-111111111111"
+
+    mock_recipes_response = MagicMock()
+    mock_recipes_response.json.return_value = {
+        "items": {
+            str(TEST_RECIPE_A): {
+                "title": "Test Recipe",
+                "ingredients": [{"catalog_item_id": catalog_id, "qty": 200.0, "unit": "g"}],
+            }
+        }
+    }
+
+    mock_catalog_response = MagicMock()
+    mock_catalog_response.json.return_value = {
+        "items": {
+            catalog_id: {
+                "canonical_name": "Rice",
+                "raw_name": "rice",
+                "price": 2.00,
+                "net_quantity_value": 500.0,
+                "net_quantity_unit": "g",
+                "category": "Grains",
+            }
+        }
+    }
+
+    async def mock_service_req(method, url, **kwargs):
+        if "/recipes/batch" in url:
+            return mock_recipes_response
+        if "/catalog/batch" in url:
+            return mock_catalog_response
+        raise ValueError(f"Unexpected URL: {url}")
+
+    with patch("services.meal_plans.crud.service_request", new=mock_service_req):
+        result = await generate_shopping_list(
+            ShoppingListRequest(start_date=MONDAY, end_date=MONDAY),
+            mock_meal_plans_db,
+        )
+
+    assert result.total_items == 1
+    item = result.items_by_category["Grains"][0]
+    assert item.total_qty == 600.0
+    assert item.unit == "g"
+    assert item.packages_needed == 2
+    assert item.line_total == pytest.approx(4.00)

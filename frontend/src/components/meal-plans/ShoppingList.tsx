@@ -1,12 +1,25 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import { useGenerateShoppingList } from '@/hooks/useMealPlans'
-import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Icon } from '@/components/ui/icon'
 
 interface ShoppingListProps {
   weekStart: Date
   weekEnd: Date
+}
+
+const getErrorMessage = (error: unknown): string => {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const axiosError = error as { response?: { status?: number } }
+    if (axiosError.response?.status === 404) {
+      return 'No meals planned for this week. Add some recipes first!'
+    }
+    if (axiosError.response?.status && axiosError.response.status >= 500) {
+      return 'Something went wrong generating your shopping list.'
+    }
+  }
+  return 'Failed to generate shopping list.'
 }
 
 const getCategoryIcon = (category: string) => {
@@ -78,6 +91,20 @@ export const ShoppingList = ({ weekStart, weekEnd }: ShoppingListProps) => {
         </div>
       )}
 
+      {generateMutation.isError && (
+        <Alert variant="destructive">
+          <AlertDescription className="flex items-center justify-between">
+            <span>{getErrorMessage(generateMutation.error)}</span>
+            <button
+              onClick={handleGenerate}
+              className="ml-4 underline font-semibold whitespace-nowrap"
+            >
+              Try again
+            </button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {showList && data && (
         <div className="space-y-4">
           {Object.entries(data.items_by_category).map(([category, items]) => (
@@ -131,7 +158,7 @@ export const ShoppingList = ({ weekStart, weekEnd }: ShoppingListProps) => {
                           onChange={() => toggleCheck(item.catalog_item_id)}
                           className="w-6 h-6 rounded border-outline text-primary focus:ring-primary accent-primary"
                         />
-                        <div>
+                        <div className="flex items-center flex-wrap gap-y-1">
                           <span
                             className={`text-label-md text-on-surface ${checkedItems.has(item.catalog_item_id) ? 'line-through' : ''}`}
                           >
@@ -140,11 +167,23 @@ export const ShoppingList = ({ weekStart, weekEnd }: ShoppingListProps) => {
                           <span className="text-label-sm text-on-surface-variant ml-2">
                             {item.total_qty} {item.unit}
                           </span>
+                          {item.packages_needed != null && (
+                            <span className="text-label-sm text-outline ml-1">
+                              — buy {item.packages_needed} x {item.package_size}
+                              {item.package_unit}
+                            </span>
+                          )}
+                          {item.is_on_promotion && (
+                            <span className="ml-2 inline-flex items-center gap-1 bg-tertiary-container text-on-tertiary-container text-xs px-2 py-0.5 rounded-full font-semibold">
+                              <Icon name="local_offer" size={12} />
+                              Promo
+                            </span>
+                          )}
                         </div>
                       </div>
-                      {item.price && (
+                      {item.line_total != null && (
                         <span className="text-label-md font-semibold text-primary">
-                          &euro;{item.price.toFixed(2)}
+                          &euro;{item.line_total.toFixed(2)}
                         </span>
                       )}
                     </div>
@@ -154,37 +193,22 @@ export const ShoppingList = ({ weekStart, weekEnd }: ShoppingListProps) => {
             </div>
           ))}
 
-          <div className="sticky bottom-16 md:bottom-0 bg-primary/5 border border-outline-variant p-4 rounded-lg flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex gap-6">
-              <div>
-                <span className="text-label-sm text-on-surface-variant uppercase tracking-wider block">
-                  Total Items
-                </span>
-                <span className="text-headline-md font-heading font-semibold">
-                  {data.total_items}
-                </span>
-              </div>
-              <div>
-                <span className="text-label-sm text-on-surface-variant uppercase tracking-wider block">
-                  Estimated Total
-                </span>
-                <span className="text-headline-md font-heading font-semibold text-primary">
-                  {data.estimated_total ? `€${data.estimated_total.toFixed(2)}` : '—'}
-                </span>
-              </div>
+          <div className="bg-primary/5 border border-outline-variant p-4 rounded-lg flex gap-6">
+            <div>
+              <span className="text-label-sm text-on-surface-variant uppercase tracking-wider block">
+                Total Items
+              </span>
+              <span className="text-headline-md font-heading font-semibold">
+                {data.total_items}
+              </span>
             </div>
-            <div className="flex gap-3 w-full md:w-auto">
-              <Button
-                variant="outline"
-                className="flex-1 md:flex-initial flex items-center gap-2 border-outline-variant"
-              >
-                <Icon name="ios_share" size={18} />
-                Export
-              </Button>
-              <Button className="flex-1 md:flex-initial flex items-center gap-2">
-                <Icon name="print" size={18} />
-                Print List
-              </Button>
+            <div>
+              <span className="text-label-sm text-on-surface-variant uppercase tracking-wider block">
+                Estimated Total
+              </span>
+              <span className="text-headline-md font-heading font-semibold text-primary">
+                {data.estimated_total ? `€${data.estimated_total.toFixed(2)}` : '—'}
+              </span>
             </div>
           </div>
         </div>

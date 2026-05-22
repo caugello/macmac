@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import HTTPException
 from pydantic import UUID4
 from sqlalchemy import or_
@@ -262,9 +264,9 @@ async def get_recipe(recipe_id: UUID4, db: Session) -> rs.RecipeOut:
     cache_key = f"recipe:{recipe_id}"
     cached = cache.get_json(cache_key)
     if cached:
-        check_owner_or_group(cached.get("_user_id"), cached.get("_group_id"), "recipe")
-        cached.pop("_user_id", None)
-        cached.pop("_group_id", None)
+        uid = cached.pop("_user_id", None)
+        gid = cached.pop("_group_id", None)
+        check_owner_or_group(UUID(uid) if uid else None, UUID(gid) if gid else None, "recipe")
         return rs.RecipeOut(**cached)
 
     with Span("db_query_recipe"):

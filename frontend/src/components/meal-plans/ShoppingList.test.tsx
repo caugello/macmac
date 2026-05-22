@@ -6,6 +6,8 @@ import { ShoppingList } from './ShoppingList'
 const mockMutate = vi.fn()
 let mockData: ReturnType<typeof createMockData> | undefined
 let mockIsPending = false
+let mockIsError = false
+let mockError: unknown = null
 
 function createMockData() {
   return {
@@ -17,7 +19,13 @@ function createMockData() {
           total_qty: 2,
           unit: 'l',
           price: 1.5,
+          line_total: 3.0,
           category: 'Dairy',
+          is_on_promotion: true,
+          promotion_until_date: '2099-12-31',
+          package_size: 1,
+          package_unit: 'l',
+          packages_needed: 2,
         },
         {
           catalog_item_id: 'c2',
@@ -25,7 +33,13 @@ function createMockData() {
           total_qty: 1,
           unit: 'pc',
           price: 2.0,
+          line_total: 2.0,
           category: 'Dairy',
+          is_on_promotion: false,
+          promotion_until_date: null,
+          package_size: null,
+          package_unit: null,
+          packages_needed: null,
         },
       ],
       Produce: [
@@ -35,12 +49,18 @@ function createMockData() {
           total_qty: 500,
           unit: 'g',
           price: null,
+          line_total: null,
           category: 'Produce',
+          is_on_promotion: false,
+          promotion_until_date: null,
+          package_size: null,
+          package_unit: null,
+          packages_needed: null,
         },
       ],
     },
     total_items: 3,
-    estimated_total: 3.5 as number | null,
+    estimated_total: 5.0 as number | null,
   }
 }
 
@@ -49,6 +69,8 @@ vi.mock('@/hooks/useMealPlans', () => ({
     mutate: mockMutate,
     data: mockData,
     isPending: mockIsPending,
+    isError: mockIsError,
+    error: mockError,
   }),
 }))
 
@@ -60,6 +82,8 @@ describe('ShoppingList Component', () => {
     vi.clearAllMocks()
     mockData = undefined
     mockIsPending = false
+    mockIsError = false
+    mockError = null
   })
 
   describe('rendering', () => {
@@ -134,21 +158,7 @@ describe('ShoppingList Component', () => {
       await user.click(screen.getByText('Generate Shopping List'))
 
       expect(screen.getByText('3')).toBeInTheDocument()
-      expect(screen.getByText('€3.50')).toBeInTheDocument()
-    })
-
-    it('should render export and print buttons', async () => {
-      const user = userEvent.setup()
-      mockData = createMockData()
-      mockMutate.mockImplementation((_data: unknown, options: { onSuccess: () => void }) => {
-        options.onSuccess()
-      })
-
-      render(<ShoppingList weekStart={weekStart} weekEnd={weekEnd} />)
-      await user.click(screen.getByText('Generate Shopping List'))
-
-      expect(screen.getByText('Export')).toBeInTheDocument()
-      expect(screen.getByText('Print List')).toBeInTheDocument()
+      expect(screen.getByText('€5.00')).toBeInTheDocument()
     })
 
     it('should show dash when estimated_total is null', async () => {
@@ -164,6 +174,36 @@ describe('ShoppingList Component', () => {
       expect(screen.getByText('—')).toBeInTheDocument()
     })
 
+    it('should show promotion badge for items on promotion', async () => {
+      const user = userEvent.setup()
+      mockData = createMockData()
+      mockMutate.mockImplementation((_data: unknown, options: { onSuccess: () => void }) => {
+        options.onSuccess()
+      })
+
+      render(<ShoppingList weekStart={weekStart} weekEnd={weekEnd} />)
+      await user.click(screen.getByText('Generate Shopping List'))
+
+      expect(screen.getByText('Promo')).toBeInTheDocument()
+    })
+
+    it('should show need and package info when packages_needed is set', async () => {
+      const user = userEvent.setup()
+      mockData = createMockData()
+      mockMutate.mockImplementation((_data: unknown, options: { onSuccess: () => void }) => {
+        options.onSuccess()
+      })
+
+      render(<ShoppingList weekStart={weekStart} weekEnd={weekEnd} />)
+      await user.click(screen.getByText('Generate Shopping List'))
+
+      expect(screen.getByText('2 l')).toBeInTheDocument()
+      expect(screen.getByText(/buy 2 x 1l/)).toBeInTheDocument()
+      expect(screen.getByText('1 pc')).toBeInTheDocument()
+      expect(screen.queryByText(/buy.*pc/)).not.toBeInTheDocument()
+      expect(screen.getByText('500 g')).toBeInTheDocument()
+    })
+
     it('should render category item counts as badges', async () => {
       const user = userEvent.setup()
       mockData = createMockData()
@@ -176,6 +216,36 @@ describe('ShoppingList Component', () => {
 
       expect(screen.getByText('2')).toBeInTheDocument()
       expect(screen.getByText('1')).toBeInTheDocument()
+    })
+  })
+
+  describe('error states', () => {
+    it('should show "Add some recipes" message on 404 error', () => {
+      mockIsError = true
+      mockError = { response: { status: 404 } }
+      render(<ShoppingList weekStart={weekStart} weekEnd={weekEnd} />)
+      expect(screen.getByText(/Add some recipes first/)).toBeInTheDocument()
+    })
+
+    it('should show generic error message on 500 error', () => {
+      mockIsError = true
+      mockError = { response: { status: 500 } }
+      render(<ShoppingList weekStart={weekStart} weekEnd={weekEnd} />)
+      expect(screen.getByText(/Something went wrong/)).toBeInTheDocument()
+    })
+
+    it('should show fallback error message for unknown errors', () => {
+      mockIsError = true
+      mockError = new Error('Network error')
+      render(<ShoppingList weekStart={weekStart} weekEnd={weekEnd} />)
+      expect(screen.getByText('Failed to generate shopping list.')).toBeInTheDocument()
+    })
+
+    it('should show retry button on error', () => {
+      mockIsError = true
+      mockError = { response: { status: 500 } }
+      render(<ShoppingList weekStart={weekStart} weekEnd={weekEnd} />)
+      expect(screen.getByText('Try again')).toBeInTheDocument()
     })
   })
 })
