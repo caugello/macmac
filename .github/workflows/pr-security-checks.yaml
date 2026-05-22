@@ -1,0 +1,49 @@
+name: PR Security Checks
+on:
+  pull_request:
+    paths:
+      - "requirements*.txt"
+      - "frontend/package*.json"
+      - "Containerfile"
+      - "frontend/Containerfile"
+      - ".github/workflows/**"
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+        with:
+          fail-on-severity: critical
+          comment-summary-in-pr: always
+
+  vulnerability-scan:
+    name: Scan dependencies for CVEs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Scan Python dependencies
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
+        id: grype-scan
+        with:
+          path: .
+          fail-build: true
+          severity-cutoff: critical
+          output-format: sarif
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3.35.5
+        with:
+          sarif_file: ${{ steps.grype-scan.outputs.sarif }}
+          category: pr-dependency-scan

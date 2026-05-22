@@ -60,14 +60,14 @@ jobs:
             target: ""
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
 
       - name: Build Image
         id: build-image
-        uses: redhat-actions/buildah-build@v2
+        uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2
         with:
           image: ${{ matrix.image }}
           tags: latest ${{ github.sha }} ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
@@ -75,17 +75,18 @@ jobs:
           containerfiles: |
             ${{ matrix.containerfile }}
           extra-args: |
+            --timestamp 0
             ${{ matrix.target && format('--target {0}', matrix.target) || '' }}
 
       - name: Cache Grype DB
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.cache/grype
           key: grype-db-${{ runner.os }}-${{ hashFiles('**/Containerfile') }}
           restore-keys: grype-db-${{ runner.os }}-
 
       - name: Cache Trivy DB
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.cache/trivy
           key: trivy-db-${{ runner.os }}
@@ -93,7 +94,7 @@ jobs:
 
       - name: Scan with Grype
         id: grype-scan
-        uses: anchore/scan-action@v4
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
         with:
           image: ${{ steps.build-image.outputs.image }}:${{ github.sha }}
           fail-build: true
@@ -102,28 +103,35 @@ jobs:
 
       - name: Upload Grype SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3.35.5
         with:
           sarif_file: ${{ steps.grype-scan.outputs.sarif }}
           category: grype-${{ matrix.image }}
 
       - name: Scan with Trivy
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ steps.build-image.outputs.image }}:${{ github.sha }}
           format: sarif
           output: trivy-results.sarif
-          exit-code: "1"
+          exit-code: "0"
           severity: "CRITICAL,HIGH"
           ignore-unfixed: true
           timeout: 10m
 
       - name: Upload Trivy SARIF
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3.35.5
         with:
           sarif_file: trivy-results.sarif
           category: trivy-${{ matrix.image }}
+
+      - name: Fail on Trivy findings
+        run: |
+          trivy_results=$(cat trivy-results.sarif | jq '.runs[0].results | length')
+          if [ "$trivy_results" -gt 0 ]; then
+            echo "Trivy found $trivy_results vulnerabilities"
+            exit 1
+          fi
 
       - name: Generate SBOM
         run: |
@@ -133,7 +141,7 @@ jobs:
 
       - name: Push To quay.io
         id: push-to-quay
-        uses: redhat-actions/push-to-registry@v2
+        uses: redhat-actions/push-to-registry@5ed88d269cf581ea9ef6dd6806d01562096bee9c # v2
         with:
           image: ${{ steps.build-image.outputs.image }}
           tags: ${{ steps.build-image.outputs.tags }}
@@ -142,13 +150,13 @@ jobs:
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
       - name: Attest Build Provenance
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-name: quay.io/caugello/${{ matrix.image }}
           subject-digest: ${{ steps.push-to-quay.outputs.digest }}
 
       - name: Attest SBOM
-        uses: actions/attest-sbom@v1
+        uses: actions/attest-sbom@5026d3663739160db546203eeaffa6aa1c51a4d6 # v1.4.1
         with:
           subject-name: quay.io/caugello/${{ matrix.image }}
           subject-digest: ${{ steps.push-to-quay.outputs.digest }}
