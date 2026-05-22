@@ -160,6 +160,24 @@ def mock_meal_plans_db() -> Generator[Session, None, None]:
 
 
 @pytest.fixture(autouse=True)
+def mock_all_caches():
+    """Replace all service caches with no-op mocks to avoid Redis timeouts."""
+    noop_cache = MagicMock()
+    noop_cache.get.return_value = None
+    noop_cache.get_json.return_value = None
+    noop_cache.set_json.return_value = None
+    noop_cache.delete.return_value = None
+    noop_cache.delete_pattern.return_value = 0
+
+    with (
+        patch("services.catalog.crud.cache", noop_cache),
+        patch("services.recipes.crud.cache", noop_cache),
+        patch("services.meal_plans.crud.cache", noop_cache),
+    ):
+        yield
+
+
+@pytest.fixture(autouse=True)
 def mock_meal_plans_http_calls():
     """Mock HTTP calls in meal_plans.crud to avoid real requests."""
 

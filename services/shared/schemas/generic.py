@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel
 
@@ -11,7 +11,7 @@ class DeleteResponse(BaseModel):
     success: bool
 
 
-class UnitEnum(str, Enum):
+class UnitEnum(StrEnum):
     """
     Units of measurement
     """

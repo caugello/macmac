@@ -1,11 +1,11 @@
 from datetime import date as DateType
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import UUID4, BaseModel, ConfigDict, Field
 
 
-class MealTypeEnum(str, Enum):
+class MealTypeEnum(StrEnum):
     """Matches database enum"""
 
     BREAKFAST = "breakfast"
