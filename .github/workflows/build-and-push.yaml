@@ -100,6 +100,7 @@ jobs:
           fail-build: true
           severity-cutoff: high
           output-format: sarif
+          config: .grype.yaml
 
       - name: Upload Grype SARIF
         if: always()
