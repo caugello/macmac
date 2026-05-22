@@ -70,6 +70,11 @@ dist/
 *.egg
 *.whl
 
+# SBOM (generated locally by `make sbom`)
+sbom-local.spdx.json
+sbom.spdx.json
+image-sbom.spdx.json
+
 # Database
 *.db
 *.sqlite

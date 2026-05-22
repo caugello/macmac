@@ -8,6 +8,12 @@ on:
     tags: ["v*"]
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+  security-events: write
+  id-token: write
+  attestations: write
+
 jobs:
   build:
     name: Build and push ${{ matrix.image }}
@@ -56,6 +62,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
       - name: Build Image
         id: build-image
         uses: redhat-actions/buildah-build@v2
@@ -68,6 +77,60 @@ jobs:
           extra-args: |
             ${{ matrix.target && format('--target {0}', matrix.target) || '' }}
 
+      - name: Cache Grype DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/grype
+          key: grype-db-${{ runner.os }}-${{ hashFiles('**/Containerfile') }}
+          restore-keys: grype-db-${{ runner.os }}-
+
+      - name: Cache Trivy DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/trivy
+          key: trivy-db-${{ runner.os }}
+          restore-keys: trivy-db-
+
+      - name: Scan with Grype
+        id: grype-scan
+        uses: anchore/scan-action@v4
+        with:
+          image: ${{ steps.build-image.outputs.image }}:${{ github.sha }}
+          fail-build: true
+          severity-cutoff: high
+          output-format: sarif
+
+      - name: Upload Grype SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.grype-scan.outputs.sarif }}
+          category: grype-${{ matrix.image }}
+
+      - name: Scan with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.build-image.outputs.image }}:${{ github.sha }}
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: "1"
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+          timeout: 10m
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-${{ matrix.image }}
+
+      - name: Generate SBOM
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          syft ${{ steps.build-image.outputs.image }}:${{ github.sha }} \
+            -o spdx-json > sbom.spdx.json
+
       - name: Push To quay.io
         id: push-to-quay
         uses: redhat-actions/push-to-registry@v2
@@ -77,6 +140,26 @@ jobs:
           registry: quay.io/caugello
           username: caugello+macmac
           password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Attest Build Provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: quay.io/caugello/${{ matrix.image }}
+          subject-digest: ${{ steps.push-to-quay.outputs.digest }}
+
+      - name: Attest SBOM
+        uses: actions/attest-sbom@v1
+        with:
+          subject-name: quay.io/caugello/${{ matrix.image }}
+          subject-digest: ${{ steps.push-to-quay.outputs.digest }}
+          sbom-path: sbom.spdx.json
+
+      - name: Sign Container Image
+        run: |
+          cosign sign --yes \
+            quay.io/caugello/${{ matrix.image }}@${{ steps.push-to-quay.outputs.digest }}
+        env:
+          COSIGN_EXPERIMENTAL: "1"
 
       - name: Print image url
         run: echo "Image pushed to ${{ steps.push-to-quay.outputs.registry-paths }}"
