@@ -140,6 +140,7 @@ jobs:
           image: ${{ steps.build-image.outputs.image }}:${{ github.sha }}
           format: spdx-json
           output-file: sbom.spdx.json
+          config: .syft.yaml
 
       - name: Push To quay.io
         id: push-to-quay
