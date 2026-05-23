@@ -70,7 +70,7 @@ describe('Button Component', () => {
     it('should apply sm size', () => {
       render(<Button size="sm">Small</Button>)
       const button = screen.getByRole('button')
-      expect(button.className).toContain('h-9')
+      expect(button.className).toContain('h-11')
     })
 
     it('should apply lg size', () => {
@@ -82,8 +82,8 @@ describe('Button Component', () => {
     it('should apply icon size', () => {
       render(<Button size="icon">+</Button>)
       const button = screen.getByRole('button')
-      expect(button.className).toContain('h-10')
-      expect(button.className).toContain('w-10')
+      expect(button.className).toContain('h-11')
+      expect(button.className).toContain('w-11')
     })
   })
 

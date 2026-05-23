@@ -32,7 +32,7 @@ export const BottomNav = () => {
             >
               <Icon name={icon} size={24} filled={isActive} />
             </div>
-            <span className="text-[11px] font-medium mt-0.5">{label}</span>
+            <span className="text-xs sm:text-[11px] font-medium mt-0.5">{label}</span>
           </Link>
         )
       })}

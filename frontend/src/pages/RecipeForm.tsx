@@ -122,7 +122,7 @@ export const RecipeForm = () => {
       </h1>
 
       {/* Image placeholder */}
-      <div className="w-full aspect-video rounded-lg dashed-outline bg-surface-container-low flex flex-col items-center justify-center gap-2 cursor-pointer mb-8 hover:bg-surface-container transition-colors">
+      <div className="w-full aspect-square sm:aspect-video rounded-lg dashed-outline bg-surface-container-low flex flex-col items-center justify-center gap-2 cursor-pointer mb-8 hover:bg-surface-container transition-colors">
         <Icon name="add_a_photo" size={48} className="text-on-surface-variant/40" />
         <span className="text-label-md text-on-surface-variant">Add a photo</span>
       </div>

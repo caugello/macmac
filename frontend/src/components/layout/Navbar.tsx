@@ -75,9 +75,6 @@ export const Navbar = () => {
 
         {/* Right section: search (mobile) + user info/auth (desktop) */}
         <div className="flex items-center gap-2">
-          <button className="md:hidden p-2 text-on-surface-variant hover:text-primary transition-colors">
-            <Icon name="search" size={24} />
-          </button>
           {isAuthenticated ? (
             <div className="hidden md:flex items-center gap-4">
               <span className="text-on-surface-variant text-label-md">{user?.username}</span>
@@ -102,8 +99,8 @@ export const Navbar = () => {
 
       {/* Mobile menu panel */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-b border-outline-variant bg-surface-container-lowest animate-fade">
-          <div className="container mx-auto px-4 py-4 flex flex-col gap-4">
+        <div className="md:hidden border-b border-outline-variant bg-surface-container-lowest animate-fade max-h-[calc(100vh-80px)] overflow-y-auto">
+          <div className="container mx-auto px-4 py-2 flex flex-col">
             {[
               { to: '/recipes', label: 'Recipes' },
               { to: '/meal-plans', label: 'Meal Plans' },
@@ -116,8 +113,8 @@ export const Navbar = () => {
                 onClick={() => setMobileMenuOpen(false)}
                 className={
                   isActiveLink(to)
-                    ? 'text-primary font-semibold'
-                    : 'text-on-surface-variant hover:text-primary transition-colors'
+                    ? 'py-3 px-4 text-primary font-semibold rounded-lg'
+                    : 'py-3 px-4 text-on-surface-variant hover:text-primary hover:bg-surface-container-low rounded-lg transition-colors'
                 }
               >
                 {label}

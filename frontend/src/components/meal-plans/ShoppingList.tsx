@@ -193,7 +193,7 @@ export const ShoppingList = ({ weekStart, weekEnd }: ShoppingListProps) => {
             </div>
           ))}
 
-          <div className="bg-primary/5 border border-outline-variant p-4 rounded-lg flex gap-6">
+          <div className="bg-primary/5 border border-outline-variant p-4 rounded-lg flex flex-col sm:flex-row gap-4 sm:gap-6">
             <div>
               <span className="text-label-sm text-on-surface-variant uppercase tracking-wider block">
                 Total Items
