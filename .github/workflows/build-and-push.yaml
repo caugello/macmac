@@ -141,6 +141,8 @@ jobs:
           format: spdx-json
           output-file: sbom.spdx.json
           config: .syft.yaml
+        env:
+          SYFT_EXCLUDE: "**/playwright-browsers/**"
 
       - name: Push To quay.io
         id: push-to-quay
