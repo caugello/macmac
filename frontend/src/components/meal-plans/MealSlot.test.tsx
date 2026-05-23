@@ -17,6 +17,8 @@ vi.mock('./RecipeSelectorModal', () => ({
     onSelect,
     onClose,
   }: {
+    date: string
+    mealType: string
     onSelect: (id: string) => void
     onClose: () => void
   }) => (
