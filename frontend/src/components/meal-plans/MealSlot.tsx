@@ -61,6 +61,8 @@ export const MealSlot = ({ date, mealType, mealPlan }: MealSlotProps) => {
 
       {showSelector && (
         <RecipeSelectorModal
+          date={date}
+          mealType={mealType}
           onSelect={handleRecipeSelected}
           onClose={() => setShowSelector(false)}
         />
