@@ -1,0 +1,2 @@
+exclude:
+  - "/opt/playwright-browsers/**"
