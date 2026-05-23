@@ -166,10 +166,14 @@ jobs:
 
       - name: Sign Container Image
         run: |
+          cosign login quay.io \
+            -u caugello+macmac \
+            -p "$REGISTRY_PASSWORD"
           cosign sign --yes \
             quay.io/caugello/${{ matrix.image }}@${{ steps.push-to-quay.outputs.digest }}
         env:
           COSIGN_EXPERIMENTAL: "1"
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
 
       - name: Print image url
         run: echo "Image pushed to ${{ steps.push-to-quay.outputs.registry-paths }}"
