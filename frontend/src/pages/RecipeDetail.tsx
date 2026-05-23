@@ -120,7 +120,7 @@ export const RecipeDetail = () => {
       </div>
 
       {/* Two-column layout: ingredients sidebar + steps */}
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] gap-4 lg:gap-8">
         {/* Ingredients */}
         <div className="lg:sticky lg:top-20 lg:self-start bg-surface-container-low rounded-lg wireframe-border p-6 space-y-1">
           <div className="flex items-center gap-2 mb-4">

@@ -26,7 +26,7 @@ export const FilterChips = ({ items, activeItem, onItemChange, className }: Filt
     <div className={className}>
       <div
         ref={containerRef}
-        className={cn('flex flex-wrap gap-2 py-3', !expanded && 'overflow-hidden')}
+        className={cn('flex flex-wrap gap-2 sm:gap-3 py-3', !expanded && 'overflow-hidden')}
         style={!expanded ? { maxHeight: COLLAPSED_MAX_HEIGHT } : undefined}
       >
         {items.map((item) => (
@@ -34,7 +34,7 @@ export const FilterChips = ({ items, activeItem, onItemChange, className }: Filt
             key={item}
             onClick={() => onItemChange(item)}
             className={cn(
-              'px-4 py-2 rounded-full text-label-md font-medium whitespace-nowrap transition-colors',
+              'px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-label-md font-medium whitespace-nowrap transition-colors',
               activeItem === item
                 ? 'bg-primary text-on-primary'
                 : 'bg-surface-container-low text-on-surface-variant wireframe-border hover:bg-surface-container'

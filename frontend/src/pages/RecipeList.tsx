@@ -31,7 +31,7 @@ export const RecipeList = () => {
       <div className="max-w-7xl mx-auto px-4 md:px-12 pt-6 pb-32">
         <h1 className="text-headline-xl font-heading font-bold mb-6">Recipes</h1>
         <p className="sr-only">Loading recipes...</p>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
           {[1, 2, 3].map((n) => (
             <div
               key={n}
@@ -135,7 +135,7 @@ export const RecipeList = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6 stagger-grid">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 mt-6 stagger-grid">
             {data?.data.map((recipe) => (
               <Link key={recipe.id} to={`/recipes/${recipe.id}`} className="group">
                 <div className="bg-surface-container-lowest wireframe-border rounded-lg overflow-hidden card-hover-shadow">
@@ -148,7 +148,7 @@ export const RecipeList = () => {
                     >
                       <Icon name="restaurant_menu" size={48} className="text-outline-variant/30" />
                     </div>
-                    <span className="absolute bottom-2 right-2 bg-surface-container-lowest/90 backdrop-blur-sm text-primary text-label-sm px-2 py-1 rounded-full border border-outline-variant">
+                    <span className="absolute bottom-2 right-2 bg-surface-container-lowest/90 backdrop-blur-sm text-primary text-sm md:text-label-sm px-2 py-1 rounded-full border border-outline-variant">
                       {recipe.ingredients.length} ingredient
                       {recipe.ingredients.length !== 1 ? 's' : ''}
                     </span>
@@ -175,7 +175,7 @@ export const RecipeList = () => {
                       </div>
                     )}
                     <div className="flex items-center justify-between mt-2 pt-2 border-t border-outline-variant/30">
-                      <span className="text-label-sm text-on-surface-variant">
+                      <span className="text-sm md:text-label-sm text-on-surface-variant">
                         {new Date(recipe.created_at).toLocaleDateString()}
                       </span>
                       <Icon name="favorite" size={18} className="text-outline-variant" />
@@ -193,7 +193,7 @@ export const RecipeList = () => {
       {/* FAB */}
       <Link
         to="/recipes/new"
-        className="fixed bottom-24 right-6 md:bottom-12 md:right-12 z-40 px-6 py-4 bg-primary text-on-primary rounded-xl shadow-lg flex items-center gap-2 hover:shadow-xl active:scale-95 transition-all"
+        className="fixed bottom-32 right-6 md:bottom-12 md:right-12 z-40 px-6 py-4 bg-primary text-on-primary rounded-xl shadow-lg flex items-center gap-2 hover:shadow-xl active:scale-95 transition-all"
       >
         <Icon name="add" size={20} />
         <span className="font-label-md">Create Recipe</span>

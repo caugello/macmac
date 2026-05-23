@@ -23,7 +23,7 @@ export const Pagination = ({ total, limit, page, onPageChange }: PaginationProps
   }
 
   return (
-    <div className="flex items-center justify-center gap-2">
+    <div className="flex items-center justify-center gap-2 mt-6">
       <Button
         variant="outline"
         size="icon"
@@ -34,26 +34,34 @@ export const Pagination = ({ total, limit, page, onPageChange }: PaginationProps
         <Icon name="chevron_left" size={16} />
       </Button>
 
-      {pages.map((p, i) =>
-        p === -1 ? (
-          <span key={`ellipsis-${i}`} className="px-2 text-muted-foreground">
-            ...
-          </span>
-        ) : (
-          <Button
-            key={p}
-            size="icon"
-            onClick={() => onPageChange(p)}
-            className={
-              p === page
-                ? 'bg-primary hover:bg-primary-container text-primary-foreground font-semibold'
-                : 'border border-outline-variant bg-transparent text-foreground hover:bg-surface-variant'
-            }
-          >
-            {p + 1}
-          </Button>
-        )
-      )}
+      {/* Mobile: current page only */}
+      <span className="sm:hidden text-label-md font-medium text-on-surface-variant">
+        {page + 1} / {totalPages}
+      </span>
+
+      {/* Desktop: full page buttons */}
+      <div className="hidden sm:flex items-center gap-2">
+        {pages.map((p, i) =>
+          p === -1 ? (
+            <span key={`ellipsis-${i}`} className="px-2 text-muted-foreground">
+              ...
+            </span>
+          ) : (
+            <Button
+              key={p}
+              size="icon"
+              onClick={() => onPageChange(p)}
+              className={
+                p === page
+                  ? 'bg-primary hover:bg-primary-container text-primary-foreground font-semibold'
+                  : 'border border-outline-variant bg-transparent text-foreground hover:bg-surface-variant'
+              }
+            >
+              {p + 1}
+            </Button>
+          )
+        )}
+      </div>
 
       <Button
         variant="outline"

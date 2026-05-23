@@ -33,9 +33,12 @@ export const WeeklyCalendar = () => {
     return (
       <div className="space-y-4">
         <div className="h-10 w-64 mx-auto rounded skeleton-shimmer" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+        <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 no-scrollbar md:grid md:grid-cols-2 lg:grid-cols-7 md:overflow-x-visible md:snap-none md:pb-0">
           {[1, 2, 3].map((n) => (
-            <div key={n} className="h-64 rounded-lg skeleton-shimmer" />
+            <div
+              key={n}
+              className="min-w-[85vw] snap-center md:min-w-0 h-64 rounded-lg skeleton-shimmer"
+            />
           ))}
         </div>
       </div>
@@ -62,13 +65,13 @@ export const WeeklyCalendar = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4 stagger-grid">
+      <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 no-scrollbar md:grid md:grid-cols-2 lg:grid-cols-7 md:overflow-x-visible md:snap-none md:pb-0 stagger-grid">
         {weekDays.map((day) => {
           const dateStr = format(day, 'yyyy-MM-dd')
           return (
             <div
               key={day.toISOString()}
-              className="bg-surface-container-lowest rounded-lg wireframe-border overflow-hidden"
+              className="min-w-[85vw] snap-center md:min-w-0 bg-surface-container-lowest rounded-lg wireframe-border overflow-hidden"
             >
               <div className="bg-primary/5 px-4 py-3 border-b border-outline-variant/50 flex items-center justify-between">
                 <div>

@@ -60,7 +60,7 @@ export const Login: React.FC = () => {
 
       {/* Login form panel */}
       <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-12 bg-background relative">
-        <div className="md:hidden absolute -top-32 -right-32 w-96 h-96 rounded-full border-2 border-dashed border-outline-variant/20" />
+        <div className="hidden md:block absolute -top-32 -right-32 w-96 h-96 rounded-full border-2 border-dashed border-outline-variant/20" />
 
         <div
           className="w-full max-w-[440px] bg-surface-container-lowest border border-outline-variant rounded-lg p-6 md:p-8 shadow-sm relative z-10 animate-enter"

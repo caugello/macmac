@@ -131,7 +131,7 @@ export const CatalogList = () => {
                   {/* Card body */}
                   <div className="p-3 flex flex-col flex-grow">
                     {item.brand && (
-                      <span className="text-on-surface-variant text-[11px] font-medium mb-0.5">
+                      <span className="text-on-surface-variant text-xs sm:text-[11px] font-medium mb-0.5">
                         {item.brand}
                       </span>
                     )}
@@ -147,11 +147,11 @@ export const CatalogList = () => {
                         <span />
                       )}
                       <button
-                        className="bg-primary text-on-primary w-8 h-8 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+                        className="bg-primary text-on-primary w-12 h-12 rounded-full flex items-center justify-center active:scale-90 transition-transform"
                         onClick={(e) => e.preventDefault()}
                         aria-label="Add to list"
                       >
-                        <Icon name="add" size={18} />
+                        <Icon name="add" size={24} />
                       </button>
                     </div>
                   </div>
