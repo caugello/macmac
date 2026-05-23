@@ -1,8 +1,8 @@
 only-fixed: true
 
 ignore:
-  # Playwright-managed Chromium — not updatable until Playwright ships a new release
-  - vulnerability: CVE-2026-9123
-    package:
+  # Playwright-managed Chromium — not updatable until Playwright ships a new release (see #71)
+  - package:
       type: binary
       name: chrome
+      location: "/opt/playwright-browsers/**"
