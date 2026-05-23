@@ -1,2 +1,2 @@
 exclude:
-  - "/opt/playwright-browsers/**"
+  - "**/playwright-browsers/**"
