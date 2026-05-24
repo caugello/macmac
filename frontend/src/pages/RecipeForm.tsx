@@ -18,6 +18,7 @@ export const RecipeForm = () => {
   const [ingredients, setIngredients] = useState<
     (IngredientCreate & { _catalog_item?: CatalogItemOut })[]
   >([])
+  const [servings, setServings] = useState<string>('')
   const [stepsText, setStepsText] = useState('')
 
   const navigate = useNavigate()
@@ -42,6 +43,7 @@ export const RecipeForm = () => {
           } as CatalogItemOut,
         }))
       )
+      setServings(existingRecipe.servings != null ? String(existingRecipe.servings) : '')
       setStepsText(existingRecipe.steps?.join('\n') || '')
     }
   }, [existingRecipe])
@@ -67,9 +69,12 @@ export const RecipeForm = () => {
       })
     )
 
+    const parsedServings = servings ? parseInt(servings, 10) : undefined
+
     const recipeData = {
       title,
       description: description || undefined,
+      servings: parsedServings && parsedServings >= 1 ? parsedServings : undefined,
       ingredients: cleanIngredients,
       steps: steps.length > 0 ? steps : undefined,
     }
@@ -163,6 +168,24 @@ export const RecipeForm = () => {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="servings"
+                className="block text-label-md font-semibold mb-2 text-on-surface"
+              >
+                Servings
+              </label>
+              <Input
+                id="servings"
+                type="number"
+                placeholder="e.g., 4"
+                value={servings}
+                onChange={(e) => setServings(e.target.value)}
+                min={1}
+                max={100}
               />
             </div>
           </div>

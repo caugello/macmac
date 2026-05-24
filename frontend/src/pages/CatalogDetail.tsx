@@ -103,12 +103,8 @@ export const CatalogDetail = () => {
       </div>
 
       {/* Action buttons */}
-      <div className="flex gap-3 mb-8">
-        <Button className="flex-1 h-12 gap-2">
-          <Icon name="shopping_basket" size={20} />
-          Add to List
-        </Button>
-        <Button variant="outline" asChild className="flex-1 h-12 gap-2 border-outline-variant">
+      <div className="mb-8">
+        <Button variant="outline" asChild className="w-full h-12 gap-2 border-outline-variant">
           <a href={item.product_url} target="_blank" rel="noopener noreferrer">
             <Icon name="open_in_new" size={18} />
             View on Vendor Site

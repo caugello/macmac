@@ -163,6 +163,33 @@ describe('RecipeDetail Page', () => {
       expect(screen.queryByText('Steps')).not.toBeInTheDocument()
     })
 
+    it('should not render servings when missing', () => {
+      render(<RecipeDetail />, { wrapper: createWrapper() })
+      expect(screen.queryByText(/serving/)).not.toBeInTheDocument()
+    })
+
+    it('should render servings when present', () => {
+      mockUseRecipe.mockReturnValue({
+        data: { ...mockRecipe, servings: 4 },
+        isLoading: false,
+        error: null,
+      })
+
+      render(<RecipeDetail />, { wrapper: createWrapper() })
+      expect(screen.getByText('4 servings')).toBeInTheDocument()
+    })
+
+    it('should render singular serving for 1', () => {
+      mockUseRecipe.mockReturnValue({
+        data: { ...mockRecipe, servings: 1 },
+        isLoading: false,
+        error: null,
+      })
+
+      render(<RecipeDetail />, { wrapper: createWrapper() })
+      expect(screen.getByText('1 serving')).toBeInTheDocument()
+    })
+
     it('should render creation date', () => {
       render(<RecipeDetail />, { wrapper: createWrapper() })
       expect(screen.getByText(/Created:/)).toBeInTheDocument()
