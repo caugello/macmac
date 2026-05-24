@@ -29,6 +29,7 @@ export interface IngredientOut {
 export interface RecipeCreate {
   title: string
   description?: string
+  servings?: number
   ingredients: IngredientCreate[]
   steps?: string[]
 }
@@ -36,6 +37,7 @@ export interface RecipeCreate {
 export interface RecipeUpdate {
   title?: string
   description?: string
+  servings?: number
   ingredients?: IngredientCreate[]
   steps?: string[]
 }
@@ -45,6 +47,7 @@ export interface RecipeOut {
   title: string
   normalized_title: string
   description: string | null
+  servings: number | null
   ingredients: IngredientOut[]
   steps: string[] | null
   created_at: string

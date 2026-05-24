@@ -99,6 +99,7 @@ async def create_recipe(data: rs.RecipeCreate, db: Session):
             title=data.title,
             normalized_title=normalized_title,
             description=data.description,
+            servings=data.servings,
             steps=data.steps,
             user_id=user_ctx.user_id,
             group_id=group_id,
@@ -146,6 +147,7 @@ async def create_recipe(data: rs.RecipeCreate, db: Session):
             title=recipe.title,
             normalized_title=recipe.normalized_title,
             description=recipe.description,
+            servings=recipe.servings,
             ingredients=ingredients_out,
             steps=recipe.steps,
             created_at=recipe.created_at,
@@ -231,6 +233,7 @@ async def list_recipes(
                     title=recipe.title,
                     normalized_title=recipe.normalized_title,
                     description=recipe.description,
+                    servings=recipe.servings,
                     ingredients=ingredients_out,
                     steps=recipe.steps,
                     created_at=recipe.created_at,
@@ -303,6 +306,7 @@ async def get_recipe(recipe_id: UUID4, db: Session) -> rs.RecipeOut:
             title=recipe.title,
             normalized_title=recipe.normalized_title,
             description=recipe.description,
+            servings=recipe.servings,
             ingredients=ingredients_out,
             steps=recipe.steps,
             created_at=recipe.created_at,
@@ -340,6 +344,8 @@ async def update_recipe(recipe_id: UUID4, data: rs.RecipeUpdate, db: Session):
             recipe.normalized_title = data.title.strip().lower()
         if data.description is not None:
             recipe.description = data.description
+        if data.servings is not None:
+            recipe.servings = data.servings
         if data.steps is not None:
             recipe.steps = data.steps
 
@@ -452,6 +458,7 @@ async def batch_get_recipes(data: rs.BatchRecipeRequest, db: Session) -> rs.Batc
                 title=recipe.title,
                 normalized_title=recipe.normalized_title,
                 description=recipe.description,
+                servings=recipe.servings,
                 ingredients=ingredients_out,
                 steps=recipe.steps,
                 created_at=recipe.created_at,

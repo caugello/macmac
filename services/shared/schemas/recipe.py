@@ -12,6 +12,7 @@ class RecipeCreate(BaseModel):
 
     title: str = Field(..., min_length=2, max_length=200)
     description: str | None = None
+    servings: int | None = Field(None, ge=1, le=100)
     ingredients: list[IngredientCreate]
     steps: list[str] | None = None
 
@@ -23,6 +24,7 @@ class RecipeUpdate(BaseModel):
 
     title: str | None = None
     description: str | None = None
+    servings: int | None = Field(None, ge=1, le=100)
     ingredients: list[IngredientCreate] | None = None
     steps: list[str] | None = None
 
@@ -36,6 +38,7 @@ class RecipeOut(BaseModel):
     title: str
     normalized_title: str
     description: str | None
+    servings: int | None = None
     ingredients: list[Ingredient]
     steps: list[str] | None
     created_at: datetime

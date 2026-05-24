@@ -106,6 +106,12 @@ export const RecipeDetail = () => {
           </p>
         )}
         <div className="flex items-center gap-4 mt-4 text-label-sm text-on-surface-variant">
+          {recipe.servings != null && (
+            <span className="flex items-center gap-1">
+              <Icon name="group" size={16} />
+              {recipe.servings} serving{recipe.servings !== 1 ? 's' : ''}
+            </span>
+          )}
           <span className="flex items-center gap-1">
             <Icon name="shopping_basket" size={16} />
             {recipe.ingredients.length} ingredient{recipe.ingredients.length !== 1 ? 's' : ''}

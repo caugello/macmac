@@ -1,4 +1,4 @@
-from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Index, String, func
+from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Index, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -20,6 +20,7 @@ class Recipe(BaseModel, UserOwnershipMixin, Base):
     normalized_title = Column(String, nullable=False)
 
     description = Column(String)
+    servings = Column(Integer, nullable=True)
     steps = Column(JSON)
 
     # Relationship to ingredients

@@ -352,6 +352,66 @@ async def test_delete_recipe_not_found(mock_db):
 
 @pytest.mark.asyncio
 @pytest.mark.unit
+async def test_create_recipe_with_servings(mock_db):
+    """Test creating a recipe with servings."""
+    recipe_data = RecipeCreate(
+        title="Servings Test Recipe",
+        ingredients=[
+            IngredientCreate(
+                catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=500.0, unit=UnitEnum.GRAM
+            ),
+        ],
+        servings=4,
+    )
+
+    result = await create_recipe(recipe_data, mock_db)
+
+    assert result.title == "Servings Test Recipe"
+    assert result.servings == 4
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_create_recipe_without_servings(mock_db):
+    """Test creating a recipe without servings defaults to None."""
+    recipe_data = RecipeCreate(
+        title="No Servings Recipe",
+        ingredients=[
+            IngredientCreate(
+                catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+            ),
+        ],
+    )
+
+    result = await create_recipe(recipe_data, mock_db)
+
+    assert result.servings is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_update_recipe_servings(mock_db):
+    """Test updating servings on an existing recipe."""
+    created = await create_recipe(
+        RecipeCreate(
+            title="Update Servings Recipe",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                ),
+            ],
+            servings=2,
+        ),
+        mock_db,
+    )
+
+    result = await update_recipe(created.id, RecipeUpdate(servings=6), mock_db)
+
+    assert result.servings == 6
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
 @pytest.mark.skip(
     reason="Ingredient filter uses JSONB which is not supported by SQLite test database"
 )
@@ -490,6 +550,7 @@ async def test_get_recipe_cache_hit_with_string_uuids(mock_db):
         "title": "Cache Test Recipe",
         "normalized_title": "cache test recipe",
         "description": None,
+        "servings": None,
         "ingredients": [
             {
                 "catalog_item_id": str(TEST_CATALOG_ITEM_FLOUR),

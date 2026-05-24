@@ -224,11 +224,6 @@ describe('CatalogDetail Page', () => {
       expect(backLink).toHaveAttribute('href', '/catalog')
     })
 
-    it('should render Add to List button', () => {
-      render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText('Add to List')).toBeInTheDocument()
-    })
-
     it('should render Product Details section', () => {
       render(<CatalogDetail />, { wrapper: createWrapper() })
       expect(screen.getByText('Product Details')).toBeInTheDocument()

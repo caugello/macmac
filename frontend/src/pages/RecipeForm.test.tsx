@@ -85,6 +85,7 @@ describe('RecipeForm Page', () => {
       render(<RecipeForm />, { wrapper: createWrapper() })
       expect(screen.getByLabelText('Recipe Title *')).toBeInTheDocument()
       expect(screen.getByLabelText('Description')).toBeInTheDocument()
+      expect(screen.getByLabelText('Servings')).toBeInTheDocument()
       expect(screen.getByTestId('ingredient-editor')).toBeInTheDocument()
     })
 
@@ -121,6 +122,7 @@ describe('RecipeForm Page', () => {
 
       await user.type(screen.getByLabelText('Recipe Title *'), 'My Recipe')
       await user.type(screen.getByLabelText('Description'), 'Delicious dish')
+      await user.type(screen.getByLabelText('Servings'), '4')
       await user.click(screen.getByText('Mock Add Ingredient'))
       await user.type(
         screen.getByPlaceholderText('Enter each step on a new line...'),
@@ -133,6 +135,7 @@ describe('RecipeForm Page', () => {
         {
           title: 'My Recipe',
           description: 'Delicious dish',
+          servings: 4,
           ingredients: [{ catalog_item_id: 'cat-1', qty: 100, unit: 'g' }],
           steps: ['Step 1', 'Step 2'],
         },
@@ -140,6 +143,24 @@ describe('RecipeForm Page', () => {
           onSuccess: expect.any(Function),
           onError: expect.any(Function),
         })
+      )
+    })
+
+    it('should omit servings when not provided', async () => {
+      const user = userEvent.setup()
+      render(<RecipeForm />, { wrapper: createWrapper() })
+
+      await user.type(screen.getByLabelText('Recipe Title *'), 'No Servings')
+      await user.click(screen.getByText('Mock Add Ingredient'))
+
+      await user.click(screen.getByRole('button', { name: /Create Recipe/ }))
+
+      expect(mockCreateMutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'No Servings',
+          servings: undefined,
+        }),
+        expect.any(Object)
       )
     })
 
@@ -158,6 +179,7 @@ describe('RecipeForm Page', () => {
         id: 'r1',
         title: 'Existing Recipe',
         description: 'Existing description',
+        servings: 6,
         ingredients: [
           { catalog_item_id: 'cat-1', catalog_item_name: 'Flour', qty: 500, unit: 'g' },
         ],
@@ -178,6 +200,11 @@ describe('RecipeForm Page', () => {
     it('should pre-fill description from existing recipe', () => {
       render(<RecipeForm />, { wrapper: createWrapper('/recipes/r1/edit') })
       expect(screen.getByDisplayValue('Existing description')).toBeInTheDocument()
+    })
+
+    it('should pre-fill servings from existing recipe', () => {
+      render(<RecipeForm />, { wrapper: createWrapper('/recipes/r1/edit') })
+      expect(screen.getByDisplayValue('6')).toBeInTheDocument()
     })
 
     it('should render update button instead of create', () => {
