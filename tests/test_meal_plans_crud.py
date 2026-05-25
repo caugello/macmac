@@ -1042,3 +1042,49 @@ async def test_update_meal_plan_notes(mock_meal_plans_db):
     )
 
     assert result.notes == "Use leftovers for lunch"
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_update_meal_plan_clear_notes(mock_meal_plans_db):
+    created = await create_meal_plan(
+        MealPlanCreate(
+            date=MONDAY,
+            meal_type=MealTypeEnum.BREAKFAST,
+            recipe_id=TEST_RECIPE_A,
+            notes="Will be cleared",
+        ),
+        mock_meal_plans_db,
+    )
+    assert created.notes == "Will be cleared"
+
+    result = await update_meal_plan(
+        created.id,
+        MealPlanUpdate(notes=""),
+        mock_meal_plans_db,
+    )
+
+    assert result.notes == ""
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_update_meal_plan_unauthorized(mock_meal_plans_db):
+    created = await create_meal_plan(
+        MealPlanCreate(date=MONDAY, meal_type=MealTypeEnum.LUNCH, recipe_id=TEST_RECIPE_A),
+        mock_meal_plans_db,
+    )
+
+    # Switch to a different user
+    from services.framework.user_context import set_user_context
+
+    set_user_context(user_id=uuid.uuid4(), username="otheruser", group_ids=[])
+
+    with pytest.raises(HTTPException) as exc_info:
+        await update_meal_plan(
+            created.id,
+            MealPlanUpdate(notes="Hijacked"),
+            mock_meal_plans_db,
+        )
+
+    assert exc_info.value.status_code == 403
