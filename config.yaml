@@ -136,6 +136,15 @@ services:
         description: List user's groups
         tags:
           - groups
+      - name: update_group
+        method: patch
+        path: /auth/groups/{group_id}
+        request_model: services.shared.schemas.auth.GroupUpdate
+        response_model: services.shared.schemas.auth.GroupOut
+        handler: services.auth.crud.update_group
+        description: Rename a group (owner only)
+        tags:
+          - groups
       - name: list_group_invitations
         method: get
         path: /auth/groups/{group_id}/invitations

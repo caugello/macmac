@@ -43,6 +43,20 @@ class GroupCreate(BaseModel):
         return v
 
 
+class GroupUpdate(BaseModel):
+    """Request to rename a group"""
+
+    name: str = Field(..., min_length=1, max_length=100, description="New group name")
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Group name cannot be empty")
+        return v
+
+
 class GroupMember(BaseModel):
     """A member within a group"""
 

@@ -143,6 +143,27 @@ def _group_out(group: Group) -> auth_schemas.GroupOut:
 
 
 @traced
+async def update_group(
+    group_id: str, data: auth_schemas.GroupUpdate, db: Session
+) -> auth_schemas.GroupOut:
+    user_ctx = require_user_context()
+    group_id = uuid.UUID(group_id)
+
+    group = db.query(Group).filter(Group.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    if group.owner_id != user_ctx.user_id:
+        raise HTTPException(status_code=403, detail="Only group owner can rename the group")
+
+    group.name = data.name
+    db.commit()
+    db.refresh(group)
+
+    return _group_out(group)
+
+
+@traced
 async def list_groups(
     db: Session, limit: int = 20, offset: int = 0, search: str | None = None, **kwargs
 ) -> auth_schemas.GroupListResponse:

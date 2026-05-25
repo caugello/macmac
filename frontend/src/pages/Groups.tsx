@@ -85,6 +85,8 @@ export const Groups: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [confirmLeaveGroupId, setConfirmLeaveGroupId] = useState<string | null>(null)
   const [confirmDeleteGroupId, setConfirmDeleteGroupId] = useState<string | null>(null)
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState('')
 
   const { data: groupsData, isLoading } = useQuery({
     queryKey: ['groups'],
@@ -178,6 +180,21 @@ export const Groups: React.FC = () => {
       const detail = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
       setError(detail || 'Failed to delete group')
       setConfirmDeleteGroupId(null)
+    },
+  })
+
+  const updateGroupMutation = useMutation({
+    mutationFn: ({ groupId, name }: { groupId: string; name: string }) =>
+      authApi.updateGroup(groupId, { name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['groups'] })
+      setEditingGroupId(null)
+      setError(null)
+    },
+    onError: (err) => {
+      const detail = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+      setError(detail || 'Failed to rename group')
+      setEditingGroupId(null)
     },
   })
 
@@ -359,8 +376,49 @@ export const Groups: React.FC = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h2 className="text-headline-md font-heading">{group.name}</h2>
-                          {group.owner_id === user?.id && (
+                          {editingGroupId === group.id ? (
+                            <Input
+                              autoFocus
+                              value={editDraft}
+                              onChange={(e) => setEditDraft(e.target.value)}
+                              onBlur={() => {
+                                const trimmed = editDraft.trim()
+                                if (trimmed && trimmed !== group.name) {
+                                  updateGroupMutation.mutate({ groupId: group.id, name: trimmed })
+                                } else {
+                                  setEditingGroupId(null)
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault()
+                                  ;(e.target as HTMLInputElement).blur()
+                                } else if (e.key === 'Escape') {
+                                  e.preventDefault()
+                                  setEditingGroupId(null)
+                                }
+                              }}
+                              className="text-headline-md font-heading h-auto py-1 px-2"
+                              maxLength={100}
+                            />
+                          ) : (
+                            <>
+                              <h2 className="text-headline-md font-heading">{group.name}</h2>
+                              {group.owner_id === user?.id && (
+                                <button
+                                  onClick={() => {
+                                    setEditDraft(group.name)
+                                    setEditingGroupId(group.id)
+                                  }}
+                                  className="p-1 text-on-surface-variant/60 hover:text-primary transition-colors"
+                                  aria-label="Rename group"
+                                >
+                                  <Icon name="edit" size={18} />
+                                </button>
+                              )}
+                            </>
+                          )}
+                          {group.owner_id === user?.id && editingGroupId !== group.id && (
                             <span className="bg-tertiary-container text-on-tertiary-container text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold">
                               Owner
                             </span>

@@ -22,6 +22,10 @@ export interface GroupCreate {
   name: string
 }
 
+export interface GroupUpdate {
+  name: string
+}
+
 export interface GroupMember {
   id: string
   username: string
@@ -75,6 +79,9 @@ export const authApi = {
     apiClient.post<Group>('/auth/groups', data).then((res) => res.data),
 
   listGroups: () => apiClient.get<GroupListResponse>('/auth/groups').then((res) => res.data),
+
+  updateGroup: (groupId: string, data: GroupUpdate) =>
+    apiClient.patch<Group>(`/auth/groups/${groupId}`, data).then((res) => res.data),
 
   inviteMember: (groupId: string, data: InviteMemberRequest) =>
     apiClient.post(`/auth/groups/${groupId}/invitations`, data).then((res) => res.data),
