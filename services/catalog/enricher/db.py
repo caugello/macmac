@@ -1,4 +1,5 @@
 import logging
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -22,6 +23,7 @@ MUTABLE_FIELDS = [
     "promotion_until_date",
     "image_url",
     "is_food",
+    "last_enriched_at",
 ]
 
 
@@ -38,11 +40,16 @@ def create_catalog_item(data: rs.CatalogItemCreate, db: Session):
                     setattr(existing, field, new_value)
                     updated_fields.append(field)
 
+        # Always stamp enrichment time
+        existing.last_enriched_at = datetime.now(UTC)
+
         if updated_fields:
             db.commit()
             db.refresh(existing)
             logger.info(f"Updated {data.product_url}: {', '.join(updated_fields)}")
         else:
+            db.commit()
+            db.refresh(existing)
             logger.debug(f"No changes for {data.product_url}")
 
         return rs.CatalogItemOut.model_validate(existing)
@@ -65,6 +72,7 @@ def create_catalog_item(data: rs.CatalogItemCreate, db: Session):
         nutriscore_svg=data.nutriscore_svg,
         promotion_until_date=data.promotion_until_date,
         image_url=data.image_url,
+        last_enriched_at=datetime.now(UTC),
     )
 
     db.add(item)

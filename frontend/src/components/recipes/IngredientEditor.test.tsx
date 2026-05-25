@@ -25,6 +25,7 @@ const mockCatalogData = {
       nutriscore_svg: null,
       promotion_until_date: null,
       image_url: null,
+      last_enriched_at: null,
       created_at: '',
       updated_at: '',
     },

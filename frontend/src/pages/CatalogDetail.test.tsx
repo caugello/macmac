@@ -247,6 +247,53 @@ describe('CatalogDetail Page', () => {
     })
   })
 
+  describe('freshness badge', () => {
+    const baseProduct = {
+      id: '1',
+      canonical_name: 'Test Product',
+      raw_name: 'Test Product Raw',
+      vendor_name: 'Vendor',
+      is_food: true,
+      product_url: 'https://example.com/product',
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-02T00:00:00Z',
+    }
+
+    it('should show "Updated today" for recently enriched items', () => {
+      mockUseCatalogItem.mockReturnValue({
+        data: { ...baseProduct, last_enriched_at: new Date().toISOString() },
+        isLoading: false,
+        error: null,
+      })
+
+      render(<CatalogDetail />, { wrapper: createWrapper() })
+      expect(screen.getByText('Updated today')).toBeInTheDocument()
+    })
+
+    it('should show stale badge for items enriched 7+ days ago', () => {
+      const staleDate = new Date(Date.now() - 10 * 86_400_000).toISOString()
+      mockUseCatalogItem.mockReturnValue({
+        data: { ...baseProduct, last_enriched_at: staleDate },
+        isLoading: false,
+        error: null,
+      })
+
+      render(<CatalogDetail />, { wrapper: createWrapper() })
+      expect(screen.getByText('Updated 10 days ago')).toBeInTheDocument()
+    })
+
+    it('should not show freshness badge when last_enriched_at is null', () => {
+      mockUseCatalogItem.mockReturnValue({
+        data: { ...baseProduct, last_enriched_at: null },
+        isLoading: false,
+        error: null,
+      })
+
+      render(<CatalogDetail />, { wrapper: createWrapper() })
+      expect(screen.queryByText(/Updated/)).not.toBeInTheDocument()
+    })
+  })
+
   describe('with nutrition information', () => {
     const mockProductWithNutrition = {
       id: '1',

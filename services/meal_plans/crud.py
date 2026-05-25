@@ -574,6 +574,7 @@ async def generate_shopping_list(
                         package_size=package_size,
                         package_unit=package_unit,
                         packages_needed=packages_needed,
+                        last_enriched_at=catalog_item.get("last_enriched_at"),
                     )
                 )
             else:
