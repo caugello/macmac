@@ -26,11 +26,13 @@ const mockListGroupInvitations = vi.fn()
 const mockCancelInvitation = vi.fn()
 const mockLeaveGroup = vi.fn()
 const mockDeleteGroup = vi.fn()
+const mockUpdateGroup = vi.fn()
 
 vi.mock('@/api/auth', () => ({
   authApi: {
     listGroups: (...args: unknown[]) => mockListGroups(...args),
     createGroup: (...args: unknown[]) => mockCreateGroup(...args),
+    updateGroup: (...args: unknown[]) => mockUpdateGroup(...args),
     inviteMember: (...args: unknown[]) => mockInviteMember(...args),
     removeMember: (...args: unknown[]) => mockRemoveMember(...args),
     listInvitations: (...args: unknown[]) => mockListInvitations(...args),
@@ -210,6 +212,109 @@ describe('Groups Page', () => {
       await user.click(screen.getByText('Accept'))
 
       expect(mockRespondToInvitation).toHaveBeenCalledWith('inv-1', { action: 'accept' })
+    })
+  })
+
+  describe('rename group', () => {
+    const ownedGroup = {
+      data: [
+        {
+          id: 'g1',
+          name: 'Old Name',
+          owner_id: 'user-1',
+          member_count: 1,
+          members: [{ id: 'user-1', username: 'testuser', email: 'test@test.com' }],
+        },
+      ],
+      total: 1,
+    }
+
+    const nonOwnedGroup = {
+      data: [
+        {
+          id: 'g2',
+          name: 'Other Group',
+          owner_id: 'user-2',
+          member_count: 1,
+          members: [],
+        },
+      ],
+      total: 1,
+    }
+
+    it('should show edit icon for owned groups', async () => {
+      mockListGroups.mockResolvedValue(ownedGroup)
+      render(<Groups />, { wrapper: createWrapper() })
+
+      await screen.findByText('Old Name')
+      expect(screen.getByLabelText('Rename group')).toBeInTheDocument()
+    })
+
+    it('should not show edit icon for non-owned groups', async () => {
+      mockListGroups.mockResolvedValue(nonOwnedGroup)
+      render(<Groups />, { wrapper: createWrapper() })
+
+      await screen.findByText('Other Group')
+      expect(screen.queryByLabelText('Rename group')).not.toBeInTheDocument()
+    })
+
+    it('should show input with current name when edit is clicked', async () => {
+      const user = userEvent.setup()
+      mockListGroups.mockResolvedValue(ownedGroup)
+      render(<Groups />, { wrapper: createWrapper() })
+
+      await screen.findByText('Old Name')
+      await user.click(screen.getByLabelText('Rename group'))
+
+      const input = screen.getByDisplayValue('Old Name')
+      expect(input).toBeInTheDocument()
+      expect(input).toHaveFocus()
+    })
+
+    it('should call updateGroup on blur with new name', async () => {
+      const user = userEvent.setup()
+      mockListGroups.mockResolvedValue(ownedGroup)
+      mockUpdateGroup.mockResolvedValue({ ...ownedGroup.data[0], name: 'New Name' })
+      render(<Groups />, { wrapper: createWrapper() })
+
+      await screen.findByText('Old Name')
+      await user.click(screen.getByLabelText('Rename group'))
+
+      const input = screen.getByDisplayValue('Old Name')
+      await user.clear(input)
+      await user.type(input, 'New Name')
+      await user.tab()
+
+      expect(mockUpdateGroup).toHaveBeenCalledWith('g1', { name: 'New Name' })
+    })
+
+    it('should cancel editing on Escape without calling API', async () => {
+      const user = userEvent.setup()
+      mockListGroups.mockResolvedValue(ownedGroup)
+      render(<Groups />, { wrapper: createWrapper() })
+
+      await screen.findByText('Old Name')
+      await user.click(screen.getByLabelText('Rename group'))
+
+      const input = screen.getByDisplayValue('Old Name')
+      await user.clear(input)
+      await user.type(input, 'Will be cancelled')
+      await user.keyboard('{Escape}')
+
+      expect(mockUpdateGroup).not.toHaveBeenCalled()
+      expect(screen.getByText('Old Name')).toBeInTheDocument()
+    })
+
+    it('should not call API when name is unchanged', async () => {
+      const user = userEvent.setup()
+      mockListGroups.mockResolvedValue(ownedGroup)
+      render(<Groups />, { wrapper: createWrapper() })
+
+      await screen.findByText('Old Name')
+      await user.click(screen.getByLabelText('Rename group'))
+      await user.tab()
+
+      expect(mockUpdateGroup).not.toHaveBeenCalled()
     })
   })
 
