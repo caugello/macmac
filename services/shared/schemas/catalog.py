@@ -45,6 +45,7 @@ class CatalogItemCreate(BaseModel):
     nutriscore_svg: str | None = Field(None, max_length=50000)
     promotion_until_date: date | None = None
     image_url: str | None = Field(None, max_length=2048)
+    last_enriched_at: datetime | None = None
 
     @field_validator("nutrition", mode="before")
     @classmethod

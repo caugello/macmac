@@ -107,6 +107,7 @@ class ShoppingListItem(BaseModel):
     packages_needed: int | None = Field(
         None, description="Whole packages to buy: ceil(total_qty / package_size)"
     )
+    last_enriched_at: datetime | None = None
 
 
 class ShoppingListResponse(BaseModel):

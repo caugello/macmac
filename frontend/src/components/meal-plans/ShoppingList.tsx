@@ -22,6 +22,14 @@ const getErrorMessage = (error: unknown): string => {
   return 'Failed to generate shopping list.'
 }
 
+const STALE_DAYS = 7
+
+const isPriceStale = (lastEnrichedAt: string | null): boolean => {
+  if (!lastEnrichedAt) return false
+  const days = Math.floor((Date.now() - new Date(lastEnrichedAt).getTime()) / 86_400_000)
+  return days >= STALE_DAYS
+}
+
 const getCategoryIcon = (category: string) => {
   const icons: Record<string, string> = {
     Dairy: 'egg',
@@ -177,6 +185,14 @@ export const ShoppingList = ({ weekStart, weekEnd }: ShoppingListProps) => {
                             <span className="ml-2 inline-flex items-center gap-1 bg-tertiary-container text-on-tertiary-container text-xs px-2 py-0.5 rounded-full font-semibold">
                               <Icon name="local_offer" size={12} />
                               Promo
+                            </span>
+                          )}
+                          {isPriceStale(item.last_enriched_at) && (
+                            <span
+                              className="ml-2 inline-flex items-center gap-1 text-error text-xs"
+                              title="Price may be outdated"
+                            >
+                              <Icon name="warning" size={14} />
                             </span>
                           )}
                         </div>

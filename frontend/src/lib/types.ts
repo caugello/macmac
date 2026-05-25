@@ -113,6 +113,7 @@ export interface CatalogItemOut {
   nutriscore_svg: string | null
   promotion_until_date: string | null
   image_url: string | null
+  last_enriched_at: string | null
   created_at: string
   updated_at: string
 }
@@ -200,6 +201,7 @@ export interface ShoppingListItem {
   package_size: number | null
   package_unit: string | null
   packages_needed: number | null
+  last_enriched_at: string | null
 }
 
 export interface ShoppingListResponse {

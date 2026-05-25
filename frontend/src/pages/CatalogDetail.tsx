@@ -5,6 +5,20 @@ import { ProductImage } from '@/components/catalog/ProductImage'
 import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/ui/icon'
 
+const STALE_DAYS = 7
+
+function freshnessBadge(lastEnrichedAt: string | null): {
+  label: string
+  stale: boolean
+} | null {
+  if (!lastEnrichedAt) return null
+  const diffMs = Date.now() - new Date(lastEnrichedAt).getTime()
+  const days = Math.floor(diffMs / 86_400_000)
+  if (days < 1) return { label: 'Updated today', stale: false }
+  if (days === 1) return { label: 'Updated yesterday', stale: false }
+  return { label: `Updated ${days} days ago`, stale: days >= STALE_DAYS }
+}
+
 export const CatalogDetail = () => {
   const { id } = useParams<{ id: string }>()
   const { data: item, isLoading, error } = useCatalogItem(id!)
@@ -100,6 +114,24 @@ export const CatalogDetail = () => {
             Promo until {new Date(item.promotion_until_date).toLocaleDateString()}
           </div>
         )}
+
+        {/* Freshness badge */}
+        {(() => {
+          const badge = freshnessBadge(item.last_enriched_at)
+          if (!badge) return null
+          return (
+            <div
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-label-sm font-semibold mt-3 ${
+                badge.stale
+                  ? 'bg-error-container text-on-error-container'
+                  : 'bg-secondary-container text-on-secondary-container'
+              }`}
+            >
+              <Icon name={badge.stale ? 'warning' : 'check_circle'} size={16} />
+              {badge.label}
+            </div>
+          )
+        })()}
       </div>
 
       {/* Action buttons */}

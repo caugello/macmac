@@ -26,6 +26,7 @@ function createMockData() {
           package_size: 1,
           package_unit: 'l',
           packages_needed: 2,
+          last_enriched_at: new Date().toISOString(),
         },
         {
           catalog_item_id: 'c2',
@@ -40,6 +41,7 @@ function createMockData() {
           package_size: null,
           package_unit: null,
           packages_needed: null,
+          last_enriched_at: null,
         },
       ],
       Produce: [
@@ -56,6 +58,7 @@ function createMockData() {
           package_size: null,
           package_unit: null,
           packages_needed: null,
+          last_enriched_at: new Date(Date.now() - 10 * 86_400_000).toISOString(),
         },
       ],
     },
@@ -216,6 +219,38 @@ describe('ShoppingList Component', () => {
 
       expect(screen.getByText('2')).toBeInTheDocument()
       expect(screen.getByText('1')).toBeInTheDocument()
+    })
+  })
+
+  describe('stale price warning', () => {
+    it('should show warning icon for items with stale prices', async () => {
+      const user = userEvent.setup()
+      mockData = createMockData()
+      mockMutate.mockImplementation((_data: unknown, options: { onSuccess: () => void }) => {
+        options.onSuccess()
+      })
+
+      render(<ShoppingList weekStart={weekStart} weekEnd={weekEnd} />)
+      await user.click(screen.getByText('Generate Shopping List'))
+
+      const warningIcons = screen.getAllByText('warning')
+      expect(warningIcons.length).toBeGreaterThanOrEqual(1)
+    })
+
+    it('should not show warning icon for fresh items', async () => {
+      const user = userEvent.setup()
+      const freshData = createMockData()
+      freshData.items_by_category.Produce[0].last_enriched_at = new Date().toISOString()
+      mockData = freshData
+      mockMutate.mockImplementation((_data: unknown, options: { onSuccess: () => void }) => {
+        options.onSuccess()
+      })
+
+      render(<ShoppingList weekStart={weekStart} weekEnd={weekEnd} />)
+      await user.click(screen.getByText('Generate Shopping List'))
+
+      const warningIcons = screen.queryAllByText('warning')
+      expect(warningIcons.length).toBe(0)
     })
   })
 

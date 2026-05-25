@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Date, Float, Index, String, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, Index, String, Text
 from sqlalchemy.dialects.postgresql import JSON
 
 from services.catalog.db import Base
@@ -32,6 +32,7 @@ class CatalogItem(BaseModel, Base):
     nutriscore_svg = Column(Text)
     promotion_until_date = Column(Date)
     image_url = Column(String)
+    last_enriched_at = Column(DateTime(timezone=True), nullable=True)
     __table_args__ = (
         Index("ix_catalog_normalized_name", "normalized_name"),
         Index("ix_catalog_product_url", "product_url", unique=True),
