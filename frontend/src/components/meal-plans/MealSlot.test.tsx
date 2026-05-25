@@ -69,6 +69,7 @@ describe('MealSlot Component', () => {
       meal_type: MealTypeEnum.LUNCH,
       recipe_id: 'r-1',
       recipe_title: 'Pasta Carbonara',
+      notes: null,
       created_at: '',
       updated_at: '',
     }

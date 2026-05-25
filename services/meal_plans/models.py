@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import Column, Date, Index, UniqueConstraint
+from sqlalchemy import Column, Date, Index, Text, UniqueConstraint
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -34,6 +34,8 @@ class MealPlan(BaseModel, UserOwnershipMixin, Base):
 
     # Recipe reference (validated against recipes service via httpx)
     recipe_id = Column(UUID(as_uuid=True), nullable=False)
+
+    notes = Column(Text, nullable=True)
 
     # Indexes & Constraints
     __table_args__ = (

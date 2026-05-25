@@ -145,12 +145,14 @@ export interface MealPlanCreate {
   date: string // ISO 8601 YYYY-MM-DD
   meal_type: MealTypeEnum
   recipe_id: string
+  notes?: string
 }
 
 export interface MealPlanUpdate {
   date?: string
   meal_type?: MealTypeEnum
   recipe_id?: string
+  notes?: string
 }
 
 export interface MealPlanOut {
@@ -159,6 +161,7 @@ export interface MealPlanOut {
   meal_type: MealTypeEnum
   recipe_id: string
   recipe_title: string | null
+  notes: string | null
   created_at: string
   updated_at: string
 }

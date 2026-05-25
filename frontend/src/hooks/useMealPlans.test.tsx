@@ -36,6 +36,7 @@ const mockMealPlanOut = {
   meal_type: MealTypeEnum.DINNER,
   recipe_id: 'r1',
   recipe_title: null,
+  notes: null,
   created_at: '',
   updated_at: '',
 }
