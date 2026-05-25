@@ -76,6 +76,7 @@ async def create_meal_plan(data: mp.MealPlanCreate, db: Session) -> mp.MealPlanO
             date=data.date,
             meal_type=data.meal_type.value,
             recipe_id=data.recipe_id,
+            notes=data.notes,
             user_id=user_ctx.user_id,
             group_id=group_id,
         )
@@ -96,6 +97,7 @@ async def create_meal_plan(data: mp.MealPlanCreate, db: Session) -> mp.MealPlanO
             meal_type=meal_plan.meal_type.value,
             recipe_id=meal_plan.recipe_id,
             recipe_title=recipe_title,
+            notes=meal_plan.notes,
             created_at=meal_plan.created_at,
             updated_at=meal_plan.updated_at,
         )
@@ -155,6 +157,7 @@ async def list_meal_plans(
                 meal_type=meal_plan.meal_type.value,
                 recipe_id=meal_plan.recipe_id,
                 recipe_title=titles.get(meal_plan.recipe_id),
+                notes=meal_plan.notes,
                 created_at=meal_plan.created_at,
                 updated_at=meal_plan.updated_at,
             )
@@ -202,6 +205,7 @@ async def get_meal_plan(meal_plan_id: UUID4, db: Session) -> mp.MealPlanOut:
             meal_type=meal_plan.meal_type.value,
             recipe_id=meal_plan.recipe_id,
             recipe_title=recipe_title,
+            notes=meal_plan.notes,
             created_at=meal_plan.created_at,
             updated_at=meal_plan.updated_at,
         )
@@ -239,6 +243,9 @@ async def update_meal_plan(
             meal_plan.date = data.date
         if data.meal_type is not None:
             meal_plan.meal_type = MealTypeEnum(data.meal_type)
+
+        if data.notes is not None:
+            meal_plan.notes = data.notes
 
         with safe_commit(
             db, f"Cannot update: meal slot {meal_plan.date} {meal_plan.meal_type} already occupied"
@@ -322,6 +329,7 @@ async def copy_day(data: mp.CopyDayRequest, db: Session) -> mp.CopyResponse:
                 date=data.target_date,
                 meal_type=source_meal.meal_type,
                 recipe_id=source_meal.recipe_id,
+                notes=source_meal.notes,
                 user_id=user_ctx.user_id,
                 group_id=group_id,
             )
@@ -400,6 +408,7 @@ async def copy_week(data: mp.CopyWeekRequest, db: Session) -> mp.CopyResponse:
                 date=new_date,
                 meal_type=source_meal.meal_type,
                 recipe_id=source_meal.recipe_id,
+                notes=source_meal.notes,
                 user_id=user_ctx.user_id,
                 group_id=group_id,
             )

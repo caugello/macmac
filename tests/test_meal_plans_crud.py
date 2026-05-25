@@ -995,3 +995,50 @@ async def test_shopping_list_same_recipe_multiple_meals(mock_meal_plans_db):
     assert item.unit == "g"
     assert item.packages_needed == 2
     assert item.line_total == pytest.approx(4.00)
+
+
+# ===== NOTES =====
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_create_meal_plan_with_notes(mock_meal_plans_db):
+    data = MealPlanCreate(
+        date=MONDAY,
+        meal_type=MealTypeEnum.BREAKFAST,
+        recipe_id=TEST_RECIPE_A,
+        notes="Prep the night before",
+    )
+    result = await create_meal_plan(data, mock_meal_plans_db)
+
+    assert result.notes == "Prep the night before"
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_create_meal_plan_without_notes(mock_meal_plans_db):
+    data = MealPlanCreate(
+        date=MONDAY,
+        meal_type=MealTypeEnum.LUNCH,
+        recipe_id=TEST_RECIPE_A,
+    )
+    result = await create_meal_plan(data, mock_meal_plans_db)
+
+    assert result.notes is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_update_meal_plan_notes(mock_meal_plans_db):
+    created = await create_meal_plan(
+        MealPlanCreate(date=MONDAY, meal_type=MealTypeEnum.DINNER, recipe_id=TEST_RECIPE_A),
+        mock_meal_plans_db,
+    )
+
+    result = await update_meal_plan(
+        created.id,
+        MealPlanUpdate(notes="Use leftovers for lunch"),
+        mock_meal_plans_db,
+    )
+
+    assert result.notes == "Use leftovers for lunch"

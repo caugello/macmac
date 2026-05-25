@@ -22,6 +22,7 @@ class MealPlanCreate(BaseModel):
     date: DateType = Field(..., description="Date for the meal (YYYY-MM-DD)")
     meal_type: MealTypeEnum = Field(..., description="breakfast, lunch, or dinner")
     recipe_id: UUID4 = Field(..., description="UUID of recipe to schedule")
+    notes: str | None = Field(None, max_length=1000)
 
 
 class MealPlanUpdate(BaseModel):
@@ -30,6 +31,7 @@ class MealPlanUpdate(BaseModel):
     date: DateType | None = None
     meal_type: MealTypeEnum | None = None
     recipe_id: UUID4 | None = None
+    notes: str | None = Field(None, max_length=1000)
 
 
 # ===== OUTPUT =====
@@ -43,6 +45,7 @@ class MealPlanOut(BaseModel):
     meal_type: MealTypeEnum
     recipe_id: UUID4
     recipe_title: str | None = Field(None, description="Denormalized from recipes service")
+    notes: str | None = None
     created_at: datetime
     updated_at: datetime
 
