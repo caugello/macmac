@@ -1,5 +1,5 @@
 # CI lint tools — single source of truth for linter versions.
 # Used by both CI and requirements-dev.txt.
-ruff==0.15.14
+ruff==0.15.15
 black==26.5.1
 mypy==2.1.0
