@@ -126,7 +126,8 @@ jobs:
 
       - name: Fix Trivy SARIF URI scheme
         run: |
-          jq '(.runs[].results[].locations[].physicalLocation.artifactLocation.uri) |= sub("^[^:]+://"; "file://")' \
+          jq '(.runs[].results[].locations[].physicalLocation.artifactLocation.uri) |=
+            if test(":") then "Containerfile" else . end' \
             trivy-results.sarif > trivy-results-fixed.sarif
           mv trivy-results-fixed.sarif trivy-results.sarif
 
