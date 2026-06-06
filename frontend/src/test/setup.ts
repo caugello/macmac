@@ -30,6 +30,9 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 })
 
+// Mock scrollIntoView (not implemented in jsdom)
+Element.prototype.scrollIntoView = vi.fn()
+
 // Mock IntersectionObserver
 global.IntersectionObserver = class MockIntersectionObserver {
   constructor() {}

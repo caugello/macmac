@@ -107,6 +107,22 @@ describe('RecipeSelectorModal', () => {
       expect(screen.getByText('Create New Recipe')).toBeInTheDocument()
     })
 
+    it('should render category quick filters above the search bar', () => {
+      render(<RecipeSelectorModal {...defaultProps} />, { wrapper: createWrapper() })
+      expect(screen.getByRole('button', { name: /Breakfast/ })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Dessert/ })).toBeInTheDocument()
+    })
+
+    it('should toggle a category quick filter when clicked', async () => {
+      const user = userEvent.setup()
+      render(<RecipeSelectorModal {...defaultProps} />, { wrapper: createWrapper() })
+
+      const chip = screen.getByRole('button', { name: /Dessert/ })
+      expect(chip).toHaveAttribute('aria-pressed', 'false')
+      await user.click(chip)
+      expect(chip).toHaveAttribute('aria-pressed', 'true')
+    })
+
     it('should call onSelect with recipe id when recipe is clicked', async () => {
       const user = userEvent.setup()
       render(<RecipeSelectorModal {...defaultProps} />, { wrapper: createWrapper() })

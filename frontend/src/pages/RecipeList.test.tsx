@@ -186,6 +186,47 @@ describe('RecipeList Page', () => {
     })
   })
 
+  describe('category filtering', () => {
+    beforeEach(() => {
+      mockUseRecipes.mockReturnValue({
+        data: {
+          data: [
+            { id: '1', title: 'Pancakes', category: 'breakfast', ingredients: [] },
+            { id: '2', title: 'Steak', category: 'main', ingredients: [] },
+          ],
+          total: 2,
+        },
+        isLoading: false,
+        error: null,
+      })
+    })
+
+    it('should render category filter chips', () => {
+      render(<RecipeList />, { wrapper: createWrapper() })
+      expect(screen.getByRole('button', { name: /Breakfast/ })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Dessert/ })).toBeInTheDocument()
+    })
+
+    it('should render category badges on recipe cards', () => {
+      render(<RecipeList />, { wrapper: createWrapper() })
+      // Badge label "Breakfast" appears on the card (filter chip also exists -> 2 total)
+      expect(screen.getAllByText('Breakfast').length).toBeGreaterThanOrEqual(2)
+    })
+
+    it('should call useRecipes with the selected category on toggle', async () => {
+      const user = userEvent.setup()
+      render(<RecipeList />, { wrapper: createWrapper() })
+
+      await user.click(screen.getByRole('button', { name: /Dessert/ }))
+
+      await waitFor(() => {
+        expect(mockUseRecipes).toHaveBeenCalledWith(
+          expect.objectContaining({ category: 'dessert' })
+        )
+      })
+    })
+  })
+
   describe('search functionality', () => {
     it('should call useRecipes with search term', async () => {
       const user = userEvent.setup()

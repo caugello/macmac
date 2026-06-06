@@ -5,8 +5,9 @@ import { useCreateMealPlan } from '@/hooks/useMealPlans'
 import { SearchBar } from '@/components/shared/SearchBar'
 import { Icon } from '@/components/ui/icon'
 import { InlineRecipeForm } from '@/components/recipes/InlineRecipeForm'
+import { RecipeCategoryFilter } from '@/components/recipes/RecipeCategoryFilter'
 import { useToast } from '@/components/ui/use-toast'
-import type { MealTypeEnum } from '@/lib/types'
+import { RecipeCategoryEnum, type MealTypeEnum } from '@/lib/types'
 
 interface RecipeSelectorModalProps {
   date: string
@@ -23,7 +24,14 @@ export const RecipeSelectorModal = ({
 }: RecipeSelectorModalProps) => {
   const [mode, setMode] = useState<'select' | 'create'>('select')
   const [search, setSearch] = useState('')
-  const { data, isLoading, error } = useRecipes({ limit: 20, search })
+  const [selectedCategories, setSelectedCategories] = useState<RecipeCategoryEnum[]>([])
+  const categoryParam = selectedCategories.length > 0 ? selectedCategories.join(',') : undefined
+  const { data, isLoading, error } = useRecipes({ limit: 20, search, category: categoryParam })
+
+  const toggleCategory = (category: RecipeCategoryEnum) =>
+    setSelectedCategories((prev) =>
+      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
+    )
   const createMealPlan = useCreateMealPlan()
   const { toast } = useToast()
 
@@ -67,6 +75,7 @@ export const RecipeSelectorModal = ({
         {mode === 'select' ? (
           <>
             <div className="px-4 pt-4 space-y-3">
+              <RecipeCategoryFilter selected={selectedCategories} onToggle={toggleCategory} />
               <SearchBar value={search} onChange={setSearch} placeholder="Search recipes..." />
               <button
                 onClick={() => setMode('create')}

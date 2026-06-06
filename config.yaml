@@ -248,6 +248,10 @@ services:
             type: str
             default: null
             example: "title:asc"
+          category:
+            type: str
+            default: null
+            example: "breakfast,dessert"
         tags:
           - recipe
       - name: get_recipe

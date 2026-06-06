@@ -1,8 +1,21 @@
 from datetime import datetime
+from enum import StrEnum
 
 from pydantic import UUID4, BaseModel, ConfigDict, Field
 
 from .ingredient import Ingredient, IngredientCreate
+
+
+class RecipeCategoryEnum(StrEnum):
+    """Recipe categories - matches database enum"""
+
+    BREAKFAST = "breakfast"
+    MAIN = "main"
+    DESSERT = "dessert"
+    SNACK = "snack"
+    APPETIZER = "appetizer"
+    BEVERAGE = "beverage"
+    OTHER = "other"
 
 
 class RecipeCreate(BaseModel):
@@ -13,6 +26,7 @@ class RecipeCreate(BaseModel):
     title: str = Field(..., min_length=2, max_length=200)
     description: str | None = None
     servings: int | None = Field(None, ge=1, le=100)
+    category: RecipeCategoryEnum | None = None
     ingredients: list[IngredientCreate]
     steps: list[str] | None = None
 
@@ -20,11 +34,16 @@ class RecipeCreate(BaseModel):
 class RecipeUpdate(BaseModel):
     """
     Model for updating an existing recipe.
+
+    PATCH semantics: an omitted ``category`` leaves the existing value unchanged,
+    while an explicit ``"category": null`` clears it to uncategorized. The update
+    handler distinguishes these cases via ``model_fields_set``.
     """
 
     title: str | None = None
     description: str | None = None
     servings: int | None = Field(None, ge=1, le=100)
+    category: RecipeCategoryEnum | None = None
     ingredients: list[IngredientCreate] | None = None
     steps: list[str] | None = None
 
@@ -39,6 +58,7 @@ class RecipeOut(BaseModel):
     normalized_title: str
     description: str | None
     servings: int | None = None
+    category: RecipeCategoryEnum | None = None
     ingredients: list[Ingredient]
     steps: list[str] | None
     created_at: datetime

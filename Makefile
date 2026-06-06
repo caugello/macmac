@@ -63,30 +63,30 @@ update-deps:
 	uv lock --upgrade
 
 test:
-	pytest tests/ -v
+	uv run pytest tests/ -v
 
 test-unit:
-	pytest tests/ -m unit -v
+	uv run pytest tests/ -m unit -v
 
 test-integration:
-	pytest tests/ -m integration -v
+	uv run pytest tests/ -m integration -v
 
 test-cov:
-	pytest tests/ -m unit --cov=services --cov-report=xml --cov-report=term
+	uv run pytest tests/ -m unit --cov=services --cov-report=xml --cov-report=term
 
 lint:
 	@echo "Running ruff..."
-	ruff check services/ tests/
+	uv run ruff check services/ tests/
 	@echo ""
 	@echo "Running black check..."
-	black --check services/ tests/
+	uv run black --check services/ tests/
 	@echo ""
 	@echo "Running mypy (advisory)..."
-	mypy services/ --ignore-missing-imports || true
+	uv run mypy services/ --ignore-missing-imports || true
 
 format:
-	black services/ tests/
-	ruff check --fix services/ tests/
+	uv run black services/ tests/
+	uv run ruff check --fix services/ tests/
 
 clean:
 	rm -rf .pytest_cache

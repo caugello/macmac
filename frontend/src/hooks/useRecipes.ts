@@ -8,6 +8,8 @@ export const useRecipes = (params?: {
   search?: string
   ingredient?: string
   sort?: string
+  /** Comma-separated category values, e.g. "breakfast,dessert". */
+  category?: string
 }) => {
   return useQuery({
     queryKey: ['recipes', params],

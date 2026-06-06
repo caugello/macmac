@@ -26,10 +26,21 @@ export interface IngredientOut {
 }
 
 // Mirror services/shared/schemas/recipe.py
+export enum RecipeCategoryEnum {
+  BREAKFAST = 'breakfast',
+  MAIN = 'main',
+  DESSERT = 'dessert',
+  SNACK = 'snack',
+  APPETIZER = 'appetizer',
+  BEVERAGE = 'beverage',
+  OTHER = 'other',
+}
+
 export interface RecipeCreate {
   title: string
   description?: string
   servings?: number
+  category?: RecipeCategoryEnum
   ingredients: IngredientCreate[]
   steps?: string[]
 }
@@ -38,6 +49,8 @@ export interface RecipeUpdate {
   title?: string
   description?: string
   servings?: number
+  // `null` explicitly clears the category back to Uncategorized; `undefined` leaves it unchanged.
+  category?: RecipeCategoryEnum | null
   ingredients?: IngredientCreate[]
   steps?: string[]
 }
@@ -48,6 +61,7 @@ export interface RecipeOut {
   normalized_title: string
   description: string | null
   servings: number | null
+  category: RecipeCategoryEnum | null
   ingredients: IngredientOut[]
   steps: string[] | null
   created_at: string

@@ -51,6 +51,16 @@ describe('recipesApi', () => {
 
       expect(apiClient.get).toHaveBeenCalledWith('/recipes', { params })
     })
+
+    it('should pass a comma-separated category filter', async () => {
+      const mockResponse = { data: { total: 0, limit: 20, offset: 0, data: [] } }
+      vi.mocked(apiClient.get).mockResolvedValue(mockResponse)
+
+      const params = { category: 'breakfast,dessert' }
+      await recipesApi.list(params)
+
+      expect(apiClient.get).toHaveBeenCalledWith('/recipes', { params })
+    })
   })
 
   describe('get', () => {

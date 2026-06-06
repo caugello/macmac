@@ -1,9 +1,11 @@
 from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Index, Integer, String, func
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from services.recipes.db import Base
 from services.shared.models import BaseModel, UserOwnershipMixin, UUIDPrimaryKeyMixin
+from services.shared.schemas.recipe import RecipeCategoryEnum
 
 
 class Recipe(BaseModel, UserOwnershipMixin, Base):
@@ -21,6 +23,10 @@ class Recipe(BaseModel, UserOwnershipMixin, Base):
 
     description = Column(String)
     servings = Column(Integer, nullable=True)
+    category = Column(
+        SQLEnum(RecipeCategoryEnum, values_callable=lambda x: [e.value for e in x]),
+        nullable=True,
+    )
     steps = Column(JSON)
 
     # Relationship to ingredients
@@ -34,6 +40,7 @@ class Recipe(BaseModel, UserOwnershipMixin, Base):
         Index("ix_recipe_group_id", "group_id"),
         # Composite index for efficient user+group queries
         Index("ix_recipe_user_group", "user_id", "group_id"),
+        Index("idx_recipes_category", "category"),
     )
 
 
