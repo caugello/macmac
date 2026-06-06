@@ -31,7 +31,6 @@ def parse_vendor_catalog_item_xml(xml_content: str, vendor: Vendor) -> Iterable[
     root = ET.fromstring(xml_content)
 
     for loc in root.iter("{http://www.sitemaps.org/schemas/sitemap/0.9}loc"):
-
         link = loc.text.strip()
 
         if f"{vendor.product_url_identifier}" not in link:

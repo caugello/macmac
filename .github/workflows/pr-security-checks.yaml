@@ -1,6 +1,11 @@
 name: PR Security Checks
 on:
   pull_request:
+    # Python deps are managed by uv: pyproject.toml (direct deps) + uv.lock
+    # (pinned transitive set). Both are watched so any dependency change runs
+    # this gate. CVE coverage for both comes from the vulnerability-scan job
+    # below (Grype/Syft parse uv.lock + pyproject.toml); dependency-review
+    # covers manifests in GitHub's dependency graph.
     paths:
       - "pyproject.toml"
       - "uv.lock"
@@ -39,8 +44,9 @@ jobs:
         with:
           path: .
           fail-build: true
-          severity-cutoff: critical
+          severity-cutoff: high
           output-format: sarif
+          config: .grype.yaml
 
       - name: Upload SARIF
         if: always()

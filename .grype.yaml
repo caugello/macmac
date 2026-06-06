@@ -1,13 +1,19 @@
+# Severity policy: HIGH + CRITICAL (matches .trivy.yaml)
+# All exceptions below must be time-bounded and reviewed quarterly.
+# See .github/SLSA_L3_REQUIREMENTS.md for the full scanner alignment rationale.
+
 ignore:
-  # Playwright-managed Chromium — not updatable until Playwright ships a new release (see #71)
+  # EXCEPTION: Playwright-managed Chromium — not updatable until Playwright ships a new
+  # release. Review when Playwright bumps its bundled Chromium version. (see #71)
   - package:
       type: binary
       name: chrome
       location: "/opt/playwright-browsers/**"
 
-  # Unfixed OS-level CVEs in UBI9 images (crawler/enricher only — they require
-  # Playwright system libraries incompatible with distroless). Hardened images
-  # have no RPM packages so this rule is a no-op for them.
+  # EXCEPTION: Unfixed OS-level CVEs in UBI9 images (crawler/enricher only — they require
+  # Playwright system libraries incompatible with distroless). Once UBI9 ships fixes these
+  # will surface again. Hardened distroless images have no RPM packages so this rule
+  # is a no-op for them.
   - fix-state: not-fixed
     package:
       type: rpm

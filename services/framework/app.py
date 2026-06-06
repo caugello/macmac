@@ -37,7 +37,6 @@ def create_microservice(service_name: str, get_db=None) -> FastAPI:
 
     # Register all routes listed under this service config
     for route in service.routes:
-
         # load crud config
         handler_fn = resolve_handler(route.handler)
         endpoint = make_endpoint(route, handler_fn, get_db)  # dynamic body/no-body logic

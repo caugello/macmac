@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 """Verify Red Hat Trusted Libraries packages: SBOM provenance + RECORD integrity + crypto.
 
-Usage: python scripts/verify-packages.py [site-packages-path]
-Default: .venv/lib/python3.12/site-packages
+Usage: python scripts/verify-packages.py [--lockfile uv.lock] [site-packages-path]
+Default site-packages: .venv/lib/python3.12/site-packages
+
+Options:
+  --lockfile <path>   Path to uv.lock. When provided, packages listed as
+                      RHTL-sourced in the lockfile must have a redhat.spdx.json
+                      SBOM — a missing SBOM is a FAIL, not a SKIP.
+                      Without --lockfile, missing SBOMs are silently skipped.
 
 Verification layers:
   1. SBOM provenance  — Red Hat creator + fromager tool in redhat.spdx.json
@@ -69,8 +75,30 @@ def verify_record(site_packages: Path, dist_info: Path) -> str | None:
     return None
 
 
+_RHTL_REGISTRY = "https://packages.redhat.com/trusted-libraries/python"
+
+
 def _normalize_name(name: str) -> str:
     return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def _get_rhtl_packages(lockfile_path: Path) -> set[str]:
+    """Return normalized names of packages sourced from RHTL in uv.lock.
+
+    A missing SBOM for any returned package is a build-blocking FAIL, not a skip.
+    """
+    try:
+        import tomllib
+        with open(lockfile_path, "rb") as f:
+            data = tomllib.load(f)
+    except Exception as exc:
+        print(f"WARNING: could not parse lockfile {lockfile_path}: {exc}", file=sys.stderr)
+        return set()
+    return {
+        _normalize_name(pkg["name"])
+        for pkg in data.get("package", [])
+        if pkg.get("source", {}).get("registry") == _RHTL_REGISTRY
+    }
 
 
 def _rhtl_credentials() -> tuple[str, str] | None:
@@ -173,10 +201,25 @@ def verify_crypto(attestation: dict) -> str | None:
 
 
 def main() -> int:
-    site_packages = Path(sys.argv[1] if len(sys.argv) > 1 else DEFAULT_PATH)
+    # Parse args: [--lockfile <path>] [site-packages-path]
+    args = sys.argv[1:]
+    lockfile_path: Path | None = None
+    site_packages_arg: str | None = None
+    i = 0
+    while i < len(args):
+        if args[i] == "--lockfile" and i + 1 < len(args):
+            lockfile_path = Path(args[i + 1])
+            i += 2
+        else:
+            site_packages_arg = args[i]
+            i += 1
+
+    site_packages = Path(site_packages_arg if site_packages_arg else DEFAULT_PATH)
     if not site_packages.is_dir():
         print(f"ERROR: Directory not found: {site_packages}", file=sys.stderr)
         return 1
+
+    rhtl_packages = _get_rhtl_packages(lockfile_path) if lockfile_path else set()
 
     creds = _rhtl_credentials()
     has_cosign = shutil.which("cosign") is not None
@@ -186,6 +229,8 @@ def main() -> int:
     print("=== Red Hat Trusted Libraries Package Verification ===")
     print(f"Timestamp: {datetime.now(timezone.utc).isoformat()}")
     print(f"Packages:  {site_packages}")
+    print(f"Lockfile:  {lockfile_path or '(not provided — RHTL-miss treated as SKIP)'}")
+    print(f"RHTL pkgs: {len(rhtl_packages)} expected from RHTL per lockfile")
     print(f"Crypto:    {'enabled' if crypto_enabled else 'disabled'}")
     if not creds:
         print("  (no RHTL credentials — skipping attestation)")
@@ -208,8 +253,15 @@ def main() -> int:
         sbom = dist_info / "sboms" / "redhat.spdx.json"
 
         if not sbom.exists():
-            print(f"SKIP  {pkg_name} (not from RHTL)")
-            skipped += 1
+            normalized = _normalize_name(pkg_name)
+            if normalized in rhtl_packages:
+                # Package is recorded as RHTL-sourced in uv.lock but has no SBOM.
+                # This indicates a PyPI fallback slipped in during the build.
+                print(f"FAIL  {pkg_name} (RHTL package has no SBOM — PyPI fallback?)")
+                failed += 1
+            else:
+                print(f"SKIP  {pkg_name} (not from RHTL)")
+                skipped += 1
             continue
 
         err = verify_sbom(sbom)

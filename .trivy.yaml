@@ -1,0 +1,10 @@
+# Severity policy: HIGH + CRITICAL (matches .grype.yaml)
+# Note: Grype ignores unfixed CVEs for rpm-type packages only (via .grype.yaml fix-state rule).
+# Trivy has no per-package-type ignore-unfixed scope, so we do NOT set ignore-unfixed here —
+# that would globally suppress unfixed Python library CVEs that Grype would still report.
+# Unfixed OS-level CVEs are reported by both scanners; address per-CVE in .trivyignore if needed.
+# See .github/SLSA_L3_REQUIREMENTS.md for scanner alignment rationale.
+
+severity:
+  - HIGH
+  - CRITICAL

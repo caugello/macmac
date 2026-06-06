@@ -16,8 +16,8 @@ help:
 	@echo "  make test-unit        Run Python unit tests only"
 	@echo "  make test-cov         Run Python unit tests with coverage (matches CI)"
 	@echo "  make test-integration Run Python integration tests only"
-	@echo "  make lint             Run Python linters (ruff, black check, mypy)"
-	@echo "  make format           Format Python code with black"
+	@echo "  make lint             Run Python linters (ruff, ruff format check, mypy)"
+	@echo "  make format           Format Python code with ruff"
 	@echo ""
 	@echo "Frontend:"
 	@echo "  make frontend-install Install frontend dependencies"
@@ -78,14 +78,14 @@ lint:
 	@echo "Running ruff..."
 	uv run ruff check services/ tests/
 	@echo ""
-	@echo "Running black check..."
-	uv run black --check services/ tests/
+	@echo "Running ruff format check..."
+	uv run ruff format --check services/ tests/
 	@echo ""
 	@echo "Running mypy (advisory)..."
 	uv run mypy services/ --ignore-missing-imports || true
 
 format:
-	uv run black services/ tests/
+	uv run ruff format services/ tests/
 	uv run ruff check --fix services/ tests/
 
 clean:
