@@ -111,6 +111,62 @@ describe('WeeklyCalendar Component', () => {
     })
   })
 
+  describe('today highlight and auto-scroll', () => {
+    beforeEach(() => {
+      mockUseMealPlans.mockReturnValue({
+        data: { data: [] },
+        isLoading: false,
+      })
+    })
+
+    it('should render a single "Today" badge on the current day card', () => {
+      // 2024-01-03 is Wednesday
+      render(<WeeklyCalendar />)
+      expect(screen.getAllByText('Today')).toHaveLength(1)
+    })
+
+    it("should apply highlight styling to today's card", () => {
+      const { container } = render(<WeeklyCalendar />)
+      const highlighted = container.querySelectorAll('.ring-2.ring-primary.shadow-lg')
+      expect(highlighted).toHaveLength(1)
+    })
+
+    it('should not render a "Today" badge when today is outside the displayed week', () => {
+      render(<WeeklyCalendar />)
+      fireEvent.click(screen.getByText('chevron_right').closest('button')!)
+      expect(screen.queryByText('Today')).not.toBeInTheDocument()
+    })
+
+    it("should scroll today's card into view on mount for a mid-week day", () => {
+      const scrollIntoView = vi.fn()
+      Element.prototype.scrollIntoView = scrollIntoView
+      render(<WeeklyCalendar />)
+      expect(scrollIntoView).toHaveBeenCalledWith({
+        behavior: 'smooth',
+        inline: 'center',
+        block: 'nearest',
+      })
+    })
+
+    it('should not scroll when today is the first day (Monday)', () => {
+      vi.setSystemTime(new Date('2024-01-01')) // Monday, first card
+      const scrollIntoView = vi.fn()
+      Element.prototype.scrollIntoView = scrollIntoView
+      render(<WeeklyCalendar />)
+      expect(screen.getAllByText('Today')).toHaveLength(1)
+      expect(scrollIntoView).not.toHaveBeenCalled()
+    })
+
+    it('should scroll when today is the last day (Sunday)', () => {
+      vi.setSystemTime(new Date('2024-01-07')) // Sunday, last card
+      const scrollIntoView = vi.fn()
+      Element.prototype.scrollIntoView = scrollIntoView
+      render(<WeeklyCalendar />)
+      expect(screen.getAllByText('Today')).toHaveLength(1)
+      expect(scrollIntoView).toHaveBeenCalledTimes(1)
+    })
+  })
+
   describe('meal plan data', () => {
     it('should call useMealPlans with correct date range', () => {
       mockUseMealPlans.mockReturnValue({

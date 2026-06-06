@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useCreateRecipe } from '@/hooks/useRecipes'
-import { type IngredientCreate, type CatalogItemOut } from '@/lib/types'
+import { RecipeCategoryEnum, type IngredientCreate, type CatalogItemOut } from '@/lib/types'
+import { RECIPE_CATEGORIES } from '@/lib/recipeCategory'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { IngredientEditor } from '@/components/recipes/IngredientEditor'
 import { Icon } from '@/components/ui/icon'
@@ -15,6 +17,7 @@ interface InlineRecipeFormProps {
 export const InlineRecipeForm = ({ onSuccess, onCancel }: InlineRecipeFormProps) => {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [category, setCategory] = useState<RecipeCategoryEnum | ''>('')
   const [ingredients, setIngredients] = useState<
     (IngredientCreate & { _catalog_item?: CatalogItemOut })[]
   >([])
@@ -49,6 +52,7 @@ export const InlineRecipeForm = ({ onSuccess, onCancel }: InlineRecipeFormProps)
       {
         title: trimmedTitle,
         description: description.trim() || undefined,
+        category: category || undefined,
         ingredients: cleanIngredients,
       },
       {
@@ -100,6 +104,25 @@ export const InlineRecipeForm = ({ onSuccess, onCancel }: InlineRecipeFormProps)
             rows={2}
             disabled={createRecipe.isPending}
           />
+        </div>
+
+        <div>
+          <label htmlFor="inline-category" className="block text-label-md font-semibold mb-1.5">
+            Category
+          </label>
+          <Select
+            id="inline-category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as RecipeCategoryEnum | '')}
+            disabled={createRecipe.isPending}
+          >
+            <option value="">Uncategorized</option>
+            {RECIPE_CATEGORIES.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </Select>
         </div>
 
         <div>

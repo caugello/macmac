@@ -166,6 +166,23 @@ describe('InlineRecipeForm', () => {
       expect(onSuccess).not.toHaveBeenCalled()
     })
 
+    it('should include the selected category in the payload', async () => {
+      const user = userEvent.setup()
+      render(<InlineRecipeForm onSuccess={onSuccess} onCancel={onCancel} />, {
+        wrapper: createWrapper(),
+      })
+
+      await user.type(screen.getByLabelText('Title *'), 'My Recipe')
+      await user.selectOptions(screen.getByLabelText('Category'), 'snack')
+      await user.click(screen.getByText('Mock Add Ingredient'))
+      await user.click(screen.getByRole('button', { name: 'Create & Add' }))
+
+      expect(mockCreateMutate).toHaveBeenCalledWith(
+        expect.objectContaining({ category: 'snack' }),
+        expect.anything()
+      )
+    })
+
     it('should omit description when empty', async () => {
       const user = userEvent.setup()
       render(<InlineRecipeForm onSuccess={onSuccess} onCancel={onCancel} />, {

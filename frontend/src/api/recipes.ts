@@ -14,6 +14,8 @@ export const recipesApi = {
     search?: string
     ingredient?: string
     sort?: string
+    /** Comma-separated category values, e.g. "breakfast,dessert". */
+    category?: string
   }) => apiClient.get<RecipeListResponse>('/recipes', { params }).then((res) => res.data),
 
   get: (id: string) => apiClient.get<RecipeOut>(`/recipes/${id}`).then((res) => res.data),

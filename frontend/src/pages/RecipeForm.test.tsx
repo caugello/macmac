@@ -105,6 +105,28 @@ describe('RecipeForm Page', () => {
       expect(screen.getByPlaceholderText('Enter each step on a new line...')).toBeInTheDocument()
     })
 
+    it('should render category dropdown defaulting to Uncategorized', () => {
+      render(<RecipeForm />, { wrapper: createWrapper() })
+      const select = screen.getByLabelText('Category') as HTMLSelectElement
+      expect(select).toBeInTheDocument()
+      expect(select.value).toBe('')
+    })
+
+    it('should include the selected category in the create payload', async () => {
+      const user = userEvent.setup()
+      render(<RecipeForm />, { wrapper: createWrapper() })
+
+      await user.type(screen.getByLabelText('Recipe Title *'), 'Cat Recipe')
+      await user.selectOptions(screen.getByLabelText('Category'), 'dessert')
+      await user.click(screen.getByText('Mock Add Ingredient'))
+      await user.click(screen.getByRole('button', { name: /Create Recipe/ }))
+
+      expect(mockCreateMutate).toHaveBeenCalledWith(
+        expect.objectContaining({ category: 'dessert' }),
+        expect.any(Object)
+      )
+    })
+
     it('should not submit if no ingredients', async () => {
       const user = userEvent.setup()
       render(<RecipeForm />, { wrapper: createWrapper() })
@@ -205,6 +227,46 @@ describe('RecipeForm Page', () => {
     it('should pre-fill servings from existing recipe', () => {
       render(<RecipeForm />, { wrapper: createWrapper('/recipes/r1/edit') })
       expect(screen.getByDisplayValue('6')).toBeInTheDocument()
+    })
+
+    it('should pre-fill category from existing recipe', () => {
+      mockRecipeData.mockReturnValue({
+        id: 'r1',
+        title: 'Existing Recipe',
+        description: 'Existing description',
+        servings: 6,
+        category: 'main',
+        ingredients: [
+          { catalog_item_id: 'cat-1', catalog_item_name: 'Flour', qty: 500, unit: 'g' },
+        ],
+        steps: ['Mix ingredients', 'Bake'],
+      })
+      render(<RecipeForm />, { wrapper: createWrapper('/recipes/r1/edit') })
+      expect((screen.getByLabelText('Category') as HTMLSelectElement).value).toBe('main')
+    })
+
+    it('should send category: null when clearing to Uncategorized on edit', async () => {
+      mockRecipeData.mockReturnValue({
+        id: 'r1',
+        title: 'Existing Recipe',
+        description: 'Existing description',
+        servings: 6,
+        category: 'main',
+        ingredients: [
+          { catalog_item_id: 'cat-1', catalog_item_name: 'Flour', qty: 500, unit: 'g' },
+        ],
+        steps: ['Mix ingredients', 'Bake'],
+      })
+      const user = userEvent.setup()
+      render(<RecipeForm />, { wrapper: createWrapper('/recipes/r1/edit') })
+
+      await user.selectOptions(screen.getByLabelText('Category'), '')
+      await user.click(screen.getByRole('button', { name: 'Update Recipe' }))
+
+      expect(mockUpdateMutate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ category: null }) }),
+        expect.any(Object)
+      )
     })
 
     it('should render update button instead of create', () => {

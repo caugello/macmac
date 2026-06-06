@@ -100,6 +100,7 @@ async def create_recipe(data: rs.RecipeCreate, db: Session):
             normalized_title=normalized_title,
             description=data.description,
             servings=data.servings,
+            category=data.category,
             steps=data.steps,
             user_id=user_ctx.user_id,
             group_id=group_id,
@@ -148,6 +149,7 @@ async def create_recipe(data: rs.RecipeCreate, db: Session):
             normalized_title=recipe.normalized_title,
             description=recipe.description,
             servings=recipe.servings,
+            category=recipe.category,
             ingredients=ingredients_out,
             steps=recipe.steps,
             created_at=recipe.created_at,
@@ -163,6 +165,7 @@ async def list_recipes(
     search: str | None = None,
     ingredient: str | None = None,
     sort: str | None = None,
+    category: str | None = None,
 ):
     """
     Lists recipes with optional filtering, searching, and sorting.
@@ -171,9 +174,32 @@ async def list_recipes(
     """
     user_ctx = require_user_context()
 
+    # Parse and validate comma-separated category filter (e.g. "breakfast,dessert")
+    categories: list[str] | None = None
+    if category:
+        valid_categories = {e.value for e in rs.RecipeCategoryEnum}
+        # Normalize (dedupe + sort) so cache keys are stable regardless of
+        # submitted order or duplicates (e.g. "dessert,breakfast" == "breakfast,dessert").
+        categories = sorted({c.strip() for c in category.split(",") if c.strip()})
+        # Cap distinct values: only len(valid_categories) are meaningful, so an
+        # oversized list is necessarily invalid input. Rejecting it here bounds the
+        # IN clause, the cache key, and the reflected error detail below
+        # (resource-amplification guard).
+        if len(categories) > len(valid_categories):
+            raise HTTPException(
+                status_code=422,
+                detail="Too many category values supplied.",
+            )
+        invalid = [c for c in categories if c not in valid_categories]
+        if invalid:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid category value(s): {', '.join(invalid)}",
+            )
+
     # Build cache key from query params + user_id + group_ids (user-specific cache)
     groups_key = ",".join(sorted(str(g) for g in user_ctx.group_ids))
-    cache_key = f"recipes:list:u={user_ctx.user_id}:g={groups_key}:l={limit}:o={offset}:s={search or ''}:i={ingredient or ''}:sort={sort or ''}"
+    cache_key = f"recipes:list:u={user_ctx.user_id}:g={groups_key}:l={limit}:o={offset}:s={search or ''}:i={ingredient or ''}:sort={sort or ''}:category={','.join(categories) if categories else ''}"
     cached = cache.get_json(cache_key)
     if cached:
         return cached
@@ -195,6 +221,10 @@ async def list_recipes(
             query = query.join(RecipeIngredient).filter(
                 RecipeIngredient.catalog_item_id == ingredient
             )
+
+        # ---- CATEGORY FILTER (single or comma-separated multi)
+        if categories:
+            query = query.filter(Recipe.category.in_(categories))
 
         # ---- SORTING
         query = apply_sorting(query, Recipe, sort)
@@ -234,6 +264,7 @@ async def list_recipes(
                     normalized_title=recipe.normalized_title,
                     description=recipe.description,
                     servings=recipe.servings,
+                    category=recipe.category,
                     ingredients=ingredients_out,
                     steps=recipe.steps,
                     created_at=recipe.created_at,
@@ -307,6 +338,7 @@ async def get_recipe(recipe_id: UUID4, db: Session) -> rs.RecipeOut:
             normalized_title=recipe.normalized_title,
             description=recipe.description,
             servings=recipe.servings,
+            category=recipe.category,
             ingredients=ingredients_out,
             steps=recipe.steps,
             created_at=recipe.created_at,
@@ -346,6 +378,11 @@ async def update_recipe(recipe_id: UUID4, data: rs.RecipeUpdate, db: Session):
             recipe.description = data.description
         if data.servings is not None:
             recipe.servings = data.servings
+        # Category uses explicit-null (PATCH) semantics: distinguish "field omitted"
+        # (leave unchanged) from "category": null (clear to uncategorized). An omitted
+        # field is absent from model_fields_set, whereas an explicit null is present.
+        if "category" in data.model_fields_set:
+            recipe.category = data.category
         if data.steps is not None:
             recipe.steps = data.steps
 
@@ -459,6 +496,7 @@ async def batch_get_recipes(data: rs.BatchRecipeRequest, db: Session) -> rs.Batc
                 normalized_title=recipe.normalized_title,
                 description=recipe.description,
                 servings=recipe.servings,
+                category=recipe.category,
                 ingredients=ingredients_out,
                 steps=recipe.steps,
                 created_at=recipe.created_at,

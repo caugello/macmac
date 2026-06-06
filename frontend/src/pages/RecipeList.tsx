@@ -1,10 +1,13 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useRecipes } from '@/hooks/useRecipes'
 import { FilterChips } from '@/components/shared/FilterChips'
 import { SearchBar } from '@/components/shared/SearchBar'
 import { Pagination } from '@/components/shared/Pagination'
+import { RecipeCategoryFilter } from '@/components/recipes/RecipeCategoryFilter'
+import { CategoryBadge } from '@/components/recipes/CategoryBadge'
 import { Icon } from '@/components/ui/icon'
+import { RecipeCategoryEnum } from '@/lib/types'
 
 const filterChips = ['All', 'Ingredients', 'Vegetarian', 'Quick']
 const sortOptions = ['Newest', 'A-Z', 'Z-A']
@@ -20,11 +23,37 @@ export const RecipeList = () => {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
   const [activeFilter, setActiveFilter] = useState('All')
+  const [selectedCategories, setSelectedCategories] = useState<RecipeCategoryEnum[]>([])
   const [showSort, setShowSort] = useState(false)
   const [activeSort, setActiveSort] = useState('Newest')
   const limit = 20
 
-  const { data, isLoading, error } = useRecipes({ limit, offset: page * limit, search })
+  const categoryParam = selectedCategories.length > 0 ? selectedCategories.join(',') : undefined
+
+  const { data, isLoading, error } = useRecipes({
+    limit,
+    offset: page * limit,
+    search,
+    category: categoryParam,
+  })
+
+  // Separate unfiltered-by-category query (scoped to the current search) so the
+  // chip counts stay stable as categories are toggled.
+  const { data: countData } = useRecipes({ limit: 100, search })
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    countData?.data.forEach((recipe) => {
+      if (recipe.category) counts[recipe.category] = (counts[recipe.category] || 0) + 1
+    })
+    return counts
+  }, [countData])
+
+  const toggleCategory = (category: RecipeCategoryEnum) => {
+    setPage(0)
+    setSelectedCategories((prev) =>
+      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
+    )
+  }
 
   if (isLoading) {
     return (
@@ -71,6 +100,14 @@ export const RecipeList = () => {
           <Icon name="filter_list" size={22} className="text-on-surface-variant" />
         </button>
       </div>
+
+      {/* Category filter chips */}
+      <RecipeCategoryFilter
+        selected={selectedCategories}
+        onToggle={toggleCategory}
+        counts={categoryCounts}
+        className="mt-4"
+      />
 
       {/* Filter pills + sort */}
       <div className="flex items-start gap-2 mt-4">
@@ -148,6 +185,10 @@ export const RecipeList = () => {
                     >
                       <Icon name="restaurant_menu" size={48} className="text-outline-variant/30" />
                     </div>
+                    <CategoryBadge
+                      category={recipe.category}
+                      className="absolute top-2 left-2 backdrop-blur-sm"
+                    />
                     <span className="absolute bottom-2 right-2 bg-surface-container-lowest/90 backdrop-blur-sm text-primary text-sm md:text-label-sm px-2 py-1 rounded-full border border-outline-variant">
                       {recipe.ingredients.length} ingredient
                       {recipe.ingredients.length !== 1 ? 's' : ''}

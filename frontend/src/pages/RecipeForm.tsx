@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useCreateRecipe, useUpdateRecipe, useRecipe } from '@/hooks/useRecipes'
-import { type IngredientCreate, type CatalogItemOut } from '@/lib/types'
+import { RecipeCategoryEnum, type IngredientCreate, type CatalogItemOut } from '@/lib/types'
+import { RECIPE_CATEGORIES } from '@/lib/recipeCategory'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { IngredientEditor } from '@/components/recipes/IngredientEditor'
 import { Icon } from '@/components/ui/icon'
@@ -19,6 +21,7 @@ export const RecipeForm = () => {
     (IngredientCreate & { _catalog_item?: CatalogItemOut })[]
   >([])
   const [servings, setServings] = useState<string>('')
+  const [category, setCategory] = useState<RecipeCategoryEnum | ''>('')
   const [stepsText, setStepsText] = useState('')
 
   const navigate = useNavigate()
@@ -44,6 +47,7 @@ export const RecipeForm = () => {
         }))
       )
       setServings(existingRecipe.servings != null ? String(existingRecipe.servings) : '')
+      setCategory(existingRecipe.category ?? '')
       setStepsText(existingRecipe.steps?.join('\n') || '')
     }
   }, [existingRecipe])
@@ -81,7 +85,8 @@ export const RecipeForm = () => {
 
     if (isEditMode && id) {
       updateRecipe.mutate(
-        { id, data: recipeData },
+        // Send `null` (not `undefined`) so selecting "Uncategorized" clears an existing category.
+        { id, data: { ...recipeData, category: category || null } },
         {
           onSuccess: () => {
             toast('Recipe updated', 'success')
@@ -94,16 +99,19 @@ export const RecipeForm = () => {
         }
       )
     } else {
-      createRecipe.mutate(recipeData, {
-        onSuccess: () => {
-          toast('Recipe created', 'success')
-          navigate('/recipes')
-        },
-        onError: (error) => {
-          console.error('Failed to create recipe:', error)
-          toast('Failed to create recipe. Please try again.', 'error')
-        },
-      })
+      createRecipe.mutate(
+        { ...recipeData, category: category || undefined },
+        {
+          onSuccess: () => {
+            toast('Recipe created', 'success')
+            navigate('/recipes')
+          },
+          onError: (error) => {
+            console.error('Failed to create recipe:', error)
+            toast('Failed to create recipe. Please try again.', 'error')
+          },
+        }
+      )
     }
   }
 
@@ -187,6 +195,27 @@ export const RecipeForm = () => {
                 min={1}
                 max={100}
               />
+            </div>
+
+            <div>
+              <label
+                htmlFor="category"
+                className="block text-label-md font-semibold mb-2 text-on-surface"
+              >
+                Category
+              </label>
+              <Select
+                id="category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value as RecipeCategoryEnum | '')}
+              >
+                <option value="">Uncategorized</option>
+                {RECIPE_CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </Select>
             </div>
           </div>
         </div>

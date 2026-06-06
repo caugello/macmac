@@ -15,7 +15,7 @@ from services.recipes.crud import (
 )
 from services.shared.schemas.generic import UnitEnum
 from services.shared.schemas.ingredient import IngredientCreate
-from services.shared.schemas.recipe import RecipeCreate, RecipeUpdate
+from services.shared.schemas.recipe import RecipeCategoryEnum, RecipeCreate, RecipeUpdate
 
 # Test catalog item IDs (these will be mocked by the fixture)
 # Using valid UUID4 format (version 4 bit pattern)
@@ -408,6 +408,304 @@ async def test_update_recipe_servings(mock_db):
     result = await update_recipe(created.id, RecipeUpdate(servings=6), mock_db)
 
     assert result.servings == 6
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_create_recipe_with_category(mock_db):
+    """Test creating a recipe with a category."""
+    recipe_data = RecipeCreate(
+        title="Category Test Recipe",
+        ingredients=[
+            IngredientCreate(
+                catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=500.0, unit=UnitEnum.GRAM
+            ),
+        ],
+        category=RecipeCategoryEnum.DESSERT,
+    )
+
+    result = await create_recipe(recipe_data, mock_db)
+
+    assert result.title == "Category Test Recipe"
+    assert result.category == RecipeCategoryEnum.DESSERT
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_create_recipe_without_category(mock_db):
+    """Test creating a recipe without a category defaults to None."""
+    recipe_data = RecipeCreate(
+        title="No Category Recipe",
+        ingredients=[
+            IngredientCreate(
+                catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+            ),
+        ],
+    )
+
+    result = await create_recipe(recipe_data, mock_db)
+
+    assert result.category is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_create_recipe_persists_category(mock_db):
+    """Test that a created recipe's category is persisted and retrievable."""
+    created = await create_recipe(
+        RecipeCreate(
+            title="Persisted Category Recipe",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+            category=RecipeCategoryEnum.BREAKFAST,
+        ),
+        mock_db,
+    )
+
+    result = await get_recipe(created.id, mock_db)
+
+    assert result.category == RecipeCategoryEnum.BREAKFAST
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_update_recipe_category(mock_db):
+    """Test updating the category on an existing recipe."""
+    created = await create_recipe(
+        RecipeCreate(
+            title="Update Category Recipe",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+            category=RecipeCategoryEnum.SNACK,
+        ),
+        mock_db,
+    )
+
+    result = await update_recipe(
+        created.id, RecipeUpdate(category=RecipeCategoryEnum.MAIN), mock_db
+    )
+
+    assert result.category == RecipeCategoryEnum.MAIN
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_update_recipe_clear_category_to_null(mock_db):
+    """Explicitly sending category=None clears the category to uncategorized."""
+    created = await create_recipe(
+        RecipeCreate(
+            title="Clear Category Recipe",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+            category=RecipeCategoryEnum.DESSERT,
+        ),
+        mock_db,
+    )
+
+    result = await update_recipe(created.id, RecipeUpdate(category=None), mock_db)
+
+    assert result.category is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_update_recipe_omitting_category_preserves_it(mock_db):
+    """Omitting category from the update leaves the existing category unchanged."""
+    created = await create_recipe(
+        RecipeCreate(
+            title="Preserve Category Recipe",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+            category=RecipeCategoryEnum.SNACK,
+        ),
+        mock_db,
+    )
+
+    result = await update_recipe(created.id, RecipeUpdate(title="Renamed"), mock_db)
+
+    assert result.title == "Renamed"
+    assert result.category == RecipeCategoryEnum.SNACK
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_list_recipes_includes_category(mock_db):
+    """Test that listed recipes include their category."""
+    await create_recipe(
+        RecipeCreate(
+            title="Listed Category Recipe",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+            category=RecipeCategoryEnum.BEVERAGE,
+        ),
+        mock_db,
+    )
+
+    result = await list_recipes(mock_db)
+
+    assert result["total"] == 1
+    assert result["data"][0].category == RecipeCategoryEnum.BEVERAGE
+
+
+async def _seed_categorized_recipes(mock_db):
+    """Helper: create three recipes with distinct categories."""
+    await create_recipe(
+        RecipeCreate(
+            title="Pancakes",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+            category=RecipeCategoryEnum.BREAKFAST,
+        ),
+        mock_db,
+    )
+    await create_recipe(
+        RecipeCreate(
+            title="Brownies",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_CHOCOLATE, qty=200.0, unit=UnitEnum.GRAM
+                )
+            ],
+            category=RecipeCategoryEnum.DESSERT,
+        ),
+        mock_db,
+    )
+    await create_recipe(
+        RecipeCreate(
+            title="Steak",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_SUGAR, qty=1.0, unit=UnitEnum.PIECE
+                )
+            ],
+            category=RecipeCategoryEnum.MAIN,
+        ),
+        mock_db,
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_list_recipes_filter_single_category(mock_db):
+    """Single category filter returns only matching recipes."""
+    await _seed_categorized_recipes(mock_db)
+
+    result = await list_recipes(mock_db, category="breakfast")
+
+    assert result["total"] == 1
+    assert result["data"][0].title == "Pancakes"
+    assert result["data"][0].category == RecipeCategoryEnum.BREAKFAST
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_list_recipes_filter_multiple_categories(mock_db):
+    """Comma-separated category filter returns recipes in any of the categories."""
+    await _seed_categorized_recipes(mock_db)
+
+    result = await list_recipes(mock_db, category="breakfast,dessert")
+
+    titles = {r.title for r in result["data"]}
+    assert result["total"] == 2
+    assert titles == {"Pancakes", "Brownies"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_list_recipes_no_category_filter_returns_all(mock_db):
+    """No category filter returns all recipes (backward compatible)."""
+    await _seed_categorized_recipes(mock_db)
+
+    result = await list_recipes(mock_db)
+
+    assert result["total"] == 3
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_list_recipes_invalid_category_returns_422(mock_db):
+    """An invalid category value raises a 422 error."""
+    await _seed_categorized_recipes(mock_db)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await list_recipes(mock_db, category="not_a_category")
+
+    assert exc_info.value.status_code == 422
+    assert "Invalid category" in str(exc_info.value.detail)
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_list_recipes_invalid_category_among_valid_returns_422(mock_db):
+    """A mix of valid and invalid category values still raises 422."""
+    await _seed_categorized_recipes(mock_db)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await list_recipes(mock_db, category="breakfast,bogus")
+
+    assert exc_info.value.status_code == 422
+    assert "bogus" in str(exc_info.value.detail)
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_list_recipes_category_cache_key_normalized(mock_db):
+    """Category orderings/duplicates normalize to the same cache key."""
+    with patch("services.recipes.crud.cache") as mock_cache:
+        mock_cache.get_json.return_value = None
+
+        await list_recipes(mock_db, category="dessert,breakfast")
+        key1 = mock_cache.get_json.call_args[0][0]
+
+        await list_recipes(mock_db, category="breakfast,dessert,breakfast")
+        key2 = mock_cache.get_json.call_args[0][0]
+
+    assert key1 == key2
+    assert "category=breakfast,dessert" in key1
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_list_recipes_too_many_categories_returns_422(mock_db):
+    """More distinct category values than exist is rejected (resource-amplification guard)."""
+    # 8 distinct values > 7 valid enum members
+    too_many = "a,b,c,d,e,f,g,h"
+
+    with pytest.raises(HTTPException) as exc_info:
+        await list_recipes(mock_db, category=too_many)
+
+    assert exc_info.value.status_code == 422
+    assert "Too many category" in str(exc_info.value.detail)
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_list_recipes_repeated_category_deduped(mock_db):
+    """Repeated category values collapse and still filter correctly."""
+    await _seed_categorized_recipes(mock_db)
+
+    result = await list_recipes(mock_db, category="breakfast,breakfast,breakfast")
+
+    assert result["total"] == 1
+    assert result["data"][0].title == "Pancakes"
 
 
 @pytest.mark.asyncio
