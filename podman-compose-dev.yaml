@@ -72,18 +72,18 @@ services:
       retries: 10
       start_period: 15s
 
-  # Migration services
+  # Migration services (use builder targets — they have a shell for wait loops)
   recipes_migration:
     build:
       context: .
       dockerfile: Containerfile
-      target: recipes
-    image: quay.io/caugello/macmac-recipes:dev
-    working_dir: /opt/app-root/src
+      target: builder-recipes
+    image: quay.io/caugello/macmac-recipes-builder:dev
+    working_dir: /app
     volumes:
-      - .:/opt/app-root/src
+      - .:/app
     environment:
-      PYTHONPATH: /opt/app-root/src
+      PYTHONPATH: /app
       ENVIRONMENT: "development"
       RECIPES_DATABASE_URL: "postgresql+psycopg2://dbuser:dbpass@recipes-db:5432/recipes"
     command: sh -c "until python -c 'import psycopg2; psycopg2.connect(\"host=recipes-db dbname=recipes user=dbuser password=dbpass\")' 2>/dev/null; do echo 'Waiting for recipes-db...'; sleep 2; done && alembic -c services/recipes/alembic.ini upgrade head"
@@ -96,13 +96,13 @@ services:
     build:
       context: .
       dockerfile: Containerfile
-      target: catalog
-    image: quay.io/caugello/macmac-catalog:dev
-    working_dir: /opt/app-root/src
+      target: builder-catalog
+    image: quay.io/caugello/macmac-catalog-builder:dev
+    working_dir: /app
     volumes:
-      - .:/opt/app-root/src
+      - .:/app
     environment:
-      PYTHONPATH: /opt/app-root/src
+      PYTHONPATH: /app
       ENVIRONMENT: "development"
       CATALOG_DATABASE_URL: "postgresql+psycopg2://dbuser:dbpass@catalog-db:5432/catalog"
     command: sh -c "until python -c 'import psycopg2; psycopg2.connect(\"host=catalog-db dbname=catalog user=dbuser password=dbpass\")' 2>/dev/null; do echo 'Waiting for catalog-db...'; sleep 2; done && alembic -c services/catalog/alembic.ini upgrade head"
@@ -134,13 +134,13 @@ services:
     build:
       context: .
       dockerfile: Containerfile
-      target: meal-plans
-    image: quay.io/caugello/macmac-meal-plans:dev
-    working_dir: /opt/app-root/src
+      target: builder-meal-plans
+    image: quay.io/caugello/macmac-meal-plans-builder:dev
+    working_dir: /app
     volumes:
-      - .:/opt/app-root/src
+      - .:/app
     environment:
-      PYTHONPATH: /opt/app-root/src
+      PYTHONPATH: /app
       ENVIRONMENT: "development"
       MEAL_PLANS_DATABASE_URL: "postgresql+psycopg2://dbuser:dbpass@meal-plans-db:5432/meal_plans"
     command: sh -c "until python -c 'import psycopg2; psycopg2.connect(\"host=meal-plans-db dbname=meal_plans user=dbuser password=dbpass\")' 2>/dev/null; do echo 'Waiting for meal-plans-db...'; sleep 2; done && alembic -c services/meal_plans/alembic.ini upgrade head"
@@ -172,13 +172,13 @@ services:
     build:
       context: .
       dockerfile: Containerfile
-      target: auth
-    image: quay.io/caugello/macmac-auth:dev
-    working_dir: /opt/app-root/src
+      target: builder-auth
+    image: quay.io/caugello/macmac-auth-builder:dev
+    working_dir: /app
     volumes:
-      - .:/opt/app-root/src
+      - .:/app
     environment:
-      PYTHONPATH: /opt/app-root/src
+      PYTHONPATH: /app
       ENVIRONMENT: "development"
       AUTH_DATABASE_URL: "postgresql+psycopg2://dbuser:dbpass@auth-db:5432/auth"
     command: sh -c "until python -c 'import psycopg2; psycopg2.connect(\"host=auth-db dbname=auth user=dbuser password=dbpass\")' 2>/dev/null; do echo 'Waiting for auth-db...'; sleep 2; done && alembic -c services/auth/alembic.ini upgrade head"
@@ -195,12 +195,12 @@ services:
       dockerfile: Containerfile
       target: auth
     image: quay.io/caugello/macmac-auth:dev
-    working_dir: /opt/app-root/src
+    working_dir: /app
     volumes:
-      - .:/opt/app-root/src
+      - .:/app
       - ${GOOGLE_APPLICATION_CREDENTIALS}:/secrets/firebase-service-account.json:ro
     environment:
-      PYTHONPATH: /opt/app-root/src
+      PYTHONPATH: /app
       ENVIRONMENT: "development"
       AUTH_DATABASE_URL: "postgresql+psycopg2://dbuser:dbpass@auth-db:5432/auth"
       JWT_SECRET_KEY: "dev-secret-key-change-in-production-min-32-chars"
@@ -222,11 +222,11 @@ services:
       dockerfile: Containerfile
       target: gateway
     image: quay.io/caugello/macmac-gateway:dev
-    working_dir: /opt/app-root/src
+    working_dir: /app
     volumes:
-      - .:/opt/app-root/src
+      - .:/app
     environment:
-      PYTHONPATH: /opt/app-root/src
+      PYTHONPATH: /app
       ENVIRONMENT: "development"
       JWT_SECRET_KEY: "dev-secret-key-change-in-production-min-32-chars"
       REDIS_PASSWORD: ${REDIS_PASSWORD:-devpassword}
@@ -252,11 +252,11 @@ services:
       dockerfile: Containerfile
       target: recipes
     image: quay.io/caugello/macmac-recipes:dev
-    working_dir: /opt/app-root/src
+    working_dir: /app
     volumes:
-      - .:/opt/app-root/src
+      - .:/app
     environment:
-      PYTHONPATH: /opt/app-root/src
+      PYTHONPATH: /app
       RECIPES_DATABASE_URL: "postgresql+psycopg2://dbuser:dbpass@recipes-db:5432/recipes"
       REDIS_PASSWORD: ${REDIS_PASSWORD:-devpassword}
     ports:
@@ -275,11 +275,11 @@ services:
       dockerfile: Containerfile
       target: catalog
     image: quay.io/caugello/macmac-catalog:dev
-    working_dir: /opt/app-root/src
+    working_dir: /app
     volumes:
-      - .:/opt/app-root/src
+      - .:/app
     environment:
-      PYTHONPATH: /opt/app-root/src
+      PYTHONPATH: /app
       CATALOG_DATABASE_URL: "postgresql+psycopg2://dbuser:dbpass@catalog-db:5432/catalog"
       REDIS_PASSWORD: ${REDIS_PASSWORD:-devpassword}
     ports:
@@ -341,11 +341,11 @@ services:
       dockerfile: Containerfile
       target: meal-plans
     image: quay.io/caugello/macmac-meal-plans:dev
-    working_dir: /opt/app-root/src
+    working_dir: /app
     volumes:
-      - .:/opt/app-root/src
+      - .:/app
     environment:
-      PYTHONPATH: /opt/app-root/src
+      PYTHONPATH: /app
       MEAL_PLANS_DATABASE_URL: "postgresql+psycopg2://dbuser:dbpass@meal-plans-db:5432/meal_plans"
       REDIS_PASSWORD: ${REDIS_PASSWORD:-devpassword}
     ports:

@@ -1,54 +1,68 @@
-# ── Base stage ──────────────────────────────────────────────
-FROM registry.access.redhat.com/ubi9/python-312 AS base
-
-USER root
-RUN dnf update -y && \
-    dnf install -y libpq-devel gcc && \
-    dnf remove -y nodejs npm nodejs-docs nodejs-full-i18n 2>/dev/null; \
-    dnf clean all && rm -rf /var/cache/dnf
+# ── Builder stage (hi/python builder — has shell, no dnf) ──
+FROM registry.access.redhat.com/hi/python:3.12-builder AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-WORKDIR /opt/app-root/src
+USER 0
+WORKDIR /build
 COPY pyproject.toml uv.lock ./
-RUN uv pip install --system --no-cache --python /opt/app-root/bin/python -r pyproject.toml
 
-COPY . .
-USER 1001
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN uv pip install --no-cache --python /opt/venv/bin/python -r pyproject.toml
+
+# ── Per-service builder stages (install extras) ────────────
+FROM builder AS builder-gateway
+RUN uv pip install --no-cache --python /opt/venv/bin/python -r pyproject.toml --extra cache
+
+FROM builder AS builder-recipes
+RUN uv pip install --no-cache --python /opt/venv/bin/python -r pyproject.toml --extra cache
+
+FROM builder AS builder-catalog
+RUN uv pip install --no-cache --python /opt/venv/bin/python -r pyproject.toml --extra cache --extra messaging
+
+FROM builder AS builder-meal-plans
+RUN uv pip install --no-cache --python /opt/venv/bin/python -r pyproject.toml --extra cache
+
+FROM builder AS builder-auth
+RUN uv pip install --no-cache --python /opt/venv/bin/python -r pyproject.toml --extra auth
+
+# ── Runtime base (hi/python distroless — no shell) ─────────
+FROM registry.access.redhat.com/hi/python:3.12 AS runtime
+
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+WORKDIR /app
 
 # ── Gateway ─────────────────────────────────────────────────
-FROM base AS gateway
-USER root
-RUN uv pip install --system --no-cache --python /opt/app-root/bin/python -r pyproject.toml --extra cache
-USER 1001
+FROM runtime AS gateway
+COPY --from=builder-gateway /opt/venv /opt/venv
+COPY . .
 EXPOSE 8000
 
 # ── Recipes API ─────────────────────────────────────────────
-FROM base AS recipes
-USER root
-RUN uv pip install --system --no-cache --python /opt/app-root/bin/python -r pyproject.toml --extra cache
-USER 1001
+FROM runtime AS recipes
+COPY --from=builder-recipes /opt/venv /opt/venv
+COPY . .
 EXPOSE 8001
 
 # ── Catalog API ─────────────────────────────────────────────
-FROM base AS catalog
-USER root
-RUN uv pip install --system --no-cache --python /opt/app-root/bin/python -r pyproject.toml --extra cache --extra messaging
-USER 1001
+FROM runtime AS catalog
+COPY --from=builder-catalog /opt/venv /opt/venv
+COPY . .
 EXPOSE 8002
 
 # ── Meal Plans API ──────────────────────────────────────────
-FROM base AS meal-plans
-USER root
-RUN uv pip install --system --no-cache --python /opt/app-root/bin/python -r pyproject.toml --extra cache
-USER 1001
+FROM runtime AS meal-plans
+COPY --from=builder-meal-plans /opt/venv /opt/venv
+COPY . .
 EXPOSE 8003
 
 # ── Auth API ────────────────────────────────────────────────
-FROM base AS auth
-USER root
-RUN uv pip install --system --no-cache --python /opt/app-root/bin/python -r pyproject.toml --extra auth
-USER 1001
+FROM runtime AS auth
+COPY --from=builder-auth /opt/venv /opt/venv
+COPY . .
 EXPOSE 8004
 
 # ── Catalog Crawler ─────────────────────────────────────────

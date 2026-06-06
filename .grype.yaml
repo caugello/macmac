@@ -1,8 +1,13 @@
-only-fixed: true
-
 ignore:
   # Playwright-managed Chromium — not updatable until Playwright ships a new release (see #71)
   - package:
       type: binary
       name: chrome
       location: "/opt/playwright-browsers/**"
+
+  # Unfixed OS-level CVEs in UBI9 images (crawler/enricher only — they require
+  # Playwright system libraries incompatible with distroless). Hardened images
+  # have no RPM packages so this rule is a no-op for them.
+  - fix-state: not-fixed
+    package:
+      type: rpm
