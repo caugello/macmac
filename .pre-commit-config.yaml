@@ -8,9 +8,9 @@ repos:
         pass_filenames: false
         stages: [pre-commit]
 
-      - id: black-check
-        name: Format (black)
-        entry: uv run black --check services/ tests/
+      - id: ruff-format-check
+        name: Format (ruff)
+        entry: uv run ruff format --check services/ tests/
         language: system
         pass_filenames: false
         stages: [pre-commit]

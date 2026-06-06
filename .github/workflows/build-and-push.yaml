@@ -74,6 +74,10 @@ jobs:
           UV_INDEX_RHTL_USERNAME: ${{ secrets.UV_INDEX_RHTL_USERNAME }}
           UV_INDEX_RHTL_PASSWORD: ${{ secrets.UV_INDEX_RHTL_PASSWORD }}
 
+      - name: Get cache rotation key
+        id: cache-key
+        run: echo "week=$(date +%Y-%U)" >> "$GITHUB_OUTPUT"
+
       - name: Build Image
         id: build-image
         uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2
@@ -93,62 +97,115 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.cache/grype
-          key: grype-db-${{ runner.os }}-${{ hashFiles('**/Containerfile') }}
-          restore-keys: grype-db-${{ runner.os }}-
+          # "build" prefix scopes this cache to build-and-push.yaml only — no
+          # other workflow writes to grype-db-build-* so PR runs cannot poison it.
+          key: grype-db-build-${{ runner.os }}-${{ steps.cache-key.outputs.week }}
+          restore-keys: grype-db-build-${{ runner.os }}-
 
       - name: Cache Trivy DB
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.cache/trivy
-          key: trivy-db-${{ runner.os }}
-          restore-keys: trivy-db-
+          # "build" prefix scopes this cache to build-and-push.yaml only.
+          key: trivy-db-build-${{ runner.os }}-${{ steps.cache-key.outputs.week }}
+          restore-keys: trivy-db-build-
 
       - name: Scan with Grype
         id: grype-scan
+        continue-on-error: true
         uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
         with:
           image: ${{ steps.build-image.outputs.image }}:${{ github.sha }}
-          fail-build: true
+          fail-build: false
+          severity-cutoff: high
+          output-format: sarif
+          config: .grype.yaml
+
+      - name: Retry Grype scan on transient failure
+        id: grype-scan-retry
+        if: steps.grype-scan.outcome == 'failure' && steps.grype-scan.outputs.sarif == ''
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
+        with:
+          image: ${{ steps.build-image.outputs.image }}:${{ github.sha }}
+          fail-build: false
           severity-cutoff: high
           output-format: sarif
           config: .grype.yaml
 
       - name: Upload Grype SARIF
-        if: always()
+        if: always() && (steps.grype-scan.outputs.sarif != '' || steps.grype-scan-retry.outputs.sarif != '')
         uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
         with:
-          sarif_file: ${{ steps.grype-scan.outputs.sarif }}
+          sarif_file: ${{ steps.grype-scan-retry.outputs.sarif || steps.grype-scan.outputs.sarif }}
           category: grype-${{ matrix.image }}
 
       - name: Scan with Trivy
+        id: trivy-scan
+        continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ steps.build-image.outputs.image }}:${{ github.sha }}
           format: sarif
           output: trivy-results.sarif
           exit-code: "0"
-          severity: "CRITICAL,HIGH"
-          ignore-unfixed: true
+          trivy-config: .trivy.yaml
+          timeout: 10m
+
+      - name: Retry Trivy scan on transient failure
+        id: trivy-scan-retry
+        if: steps.trivy-scan.outcome == 'failure' && !hashFiles('trivy-results.sarif')
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.build-image.outputs.image }}:${{ github.sha }}
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: "0"
+          trivy-config: .trivy.yaml
           timeout: 10m
 
       - name: Fix Trivy SARIF URI scheme
+        if: always()
         run: |
+          if [ ! -f trivy-results.sarif ]; then exit 0; fi
           jq '(.runs[].results[].locations[].physicalLocation.artifactLocation.uri) |=
             if test(":") then "Containerfile" else . end' \
             trivy-results.sarif > trivy-results-fixed.sarif
           mv trivy-results-fixed.sarif trivy-results.sarif
 
       - name: Upload Trivy SARIF
+        if: always()
         uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
         with:
           sarif_file: trivy-results.sarif
           category: trivy-${{ matrix.image }}
 
-      - name: Fail on Trivy findings
+      - name: Verify scan outputs
+        if: always()
         run: |
-          trivy_results=$(cat trivy-results.sarif | jq '.runs[0].results | length')
-          if [ "$trivy_results" -gt 0 ]; then
-            echo "Trivy found $trivy_results vulnerabilities"
+          missing=0
+          grype_sarif="${{ steps.grype-scan-retry.outputs.sarif || steps.grype-scan.outputs.sarif }}"
+          if [ -z "$grype_sarif" ] || [ ! -f "$grype_sarif" ]; then
+            echo "::error::Grype scan did not produce SARIF output — job may have been cancelled or scanner failed"
+            missing=1
+          fi
+          if [ ! -f trivy-results.sarif ]; then
+            echo "::error::Trivy scan did not produce SARIF output — job may have been cancelled or scanner failed"
+            missing=1
+          fi
+          [ "$missing" -eq 0 ]
+
+      - name: Fail on scan findings
+        run: |
+          grype_sarif="${{ steps.grype-scan-retry.outputs.sarif || steps.grype-scan.outputs.sarif }}"
+          # Filter Grype SARIF to level=="error" (HIGH+CRITICAL only).
+          # Grype's SARIF carries ALL severities regardless of severity-cutoff;
+          # level=="error" maps to HIGH and CRITICAL per the SARIF spec.
+          grype_results=$(jq '[.runs[0].results[] | select(.level == "error")] | length' "$grype_sarif")
+          # Trivy SARIF is pre-filtered by .trivy.yaml to HIGH+CRITICAL only.
+          trivy_results=$(jq '.runs[0].results | length' trivy-results.sarif)
+          total=$((grype_results + trivy_results))
+          if [ "$total" -gt 0 ]; then
+            echo "::error::Scanners found $grype_results Grype + $trivy_results Trivy HIGH/CRITICAL vulnerabilities"
             exit 1
           fi
 
@@ -175,13 +232,61 @@ jobs:
           subject-name: quay.io/caugello/${{ matrix.image }}
           subject-digest: ${{ steps.push-to-quay.outputs.digest }}
 
+      - name: Log in to quay.io for attestation push
+        # actions/attest pushes the SBOM attestation as an OCI referrer, which
+        # requires registry credentials in the Docker config on the runner.
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: quay.io
+          username: caugello+macmac
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
       - name: Attest SBOM
-        continue-on-error: true
-        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        # Migrated from the deprecated actions/attest-sbom to actions/attest
+        # (sbom-path auto-detects SBOM mode). push-to-registry attaches the
+        # attestation to the image in quay as an OCI referrer so it is
+        # retrievable via `cosign verify-attestation` and `gh attestation verify`.
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
         with:
           subject-name: quay.io/caugello/${{ matrix.image }}
           subject-digest: ${{ steps.push-to-quay.outputs.digest }}
           sbom-path: sbom.spdx.json
+          push-to-registry: true
+
+      - name: Capture base image digests
+        id: base-images
+        run: |
+          # Match any FROM or COPY --from= line that carries an @sha256: digest.
+          # Strips the --from= prefix so both FROM and COPY --from contribute entries.
+          # Deduplicates by ref (e.g. uv binary appears in multiple stages).
+          awk '
+            /@sha256:/ {
+              for (i = 1; i <= NF; i++) {
+                if ($i ~ /@sha256:/) {
+                  ref = $i
+                  sub(/^--from=/, "", ref)
+                  split(ref, a, "@")
+                  printf "{\"ref\":\"%s\",\"digest\":\"%s\"}\n", ref, a[2]
+                }
+              }
+            }
+          ' "${{ matrix.containerfile }}" | \
+          jq -s 'unique_by(.ref) | {baseImages: .}' > base-image-digests.json
+          echo "Base image digests captured:"
+          jq . base-image-digests.json
+
+      - name: Attest base image digests
+        run: |
+          cosign login quay.io \
+            -u caugello+macmac \
+            -p "$REGISTRY_PASSWORD"
+          cosign attest --yes \
+            --predicate base-image-digests.json \
+            --type https://macmac.dev/base-images/v1 \
+            quay.io/caugello/${{ matrix.image }}@${{ steps.push-to-quay.outputs.digest }}
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
 
       - name: Sign Container Image
         run: |

@@ -41,7 +41,6 @@ crawler = [
 ]
 lint = [
     "ruff>=0.15.16",
-    "black>=26.5.1,<27",
     "mypy>=2.1.0,<3",
 ]
 test = [
@@ -75,25 +74,6 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["services"]
 
-[tool.black]
-line-length = 100
-target-version = ['py312']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-  | __pycache__
-)/
-'''
-
 [tool.ruff]
 line-length = 100
 target-version = "py312"
@@ -109,7 +89,7 @@ select = [
     "UP", # pyupgrade
 ]
 ignore = [
-    "E501",  # line too long (handled by black)
+    "E501",  # line too long (handled by ruff format)
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
 ]
