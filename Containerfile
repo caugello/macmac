@@ -1,10 +1,10 @@
 # ── Builder stage (hi/python builder — has shell, no dnf) ──
-FROM --platform=linux/amd64 registry.access.redhat.com/hi/python:3.12-builder AS builder
+FROM --platform=linux/amd64 registry.access.redhat.com/hi/python:3.12-builder@sha256:3d37bf07a9b663ac561e94dab30d771d0cb4a1dffbcd6aa4785af1d9b6bc5848 AS builder
 
 ARG UV_INDEX_RHTL_USERNAME=""
 ARG UV_INDEX_RHTL_PASSWORD=""
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.19@sha256:b46b03ddfcfbf8f547af7e9eaefdf8a39c8cebcba7c98858d3162bd28cf536f6 /uv /usr/local/bin/uv
 
 USER 0
 WORKDIR /build
@@ -65,7 +65,7 @@ RUN --mount=type=secret,id=UV_INDEX_RHTL_USERNAME,required=false \
     uv pip install --no-cache --only-binary :all: --python /opt/venv/bin/python -r pyproject.toml --extra auth
 
 # ── Runtime base (hi/python distroless — no shell) ─────────
-FROM --platform=linux/amd64 registry.access.redhat.com/hi/python:3.12 AS runtime
+FROM --platform=linux/amd64 registry.access.redhat.com/hi/python:3.12@sha256:227cd08bc68a2fb2d79ed21d198c5dad0d130238feb4088881670296902c2754 AS runtime
 
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
@@ -105,7 +105,7 @@ EXPOSE 8004
 # ── Shared browser base (ubi9-minimal + system deps) ────────
 # System deps only. pip extras + Chromium install happen per-service:
 # Playwright's `install` reads a version manifest written by the pip package.
-FROM --platform=linux/amd64 registry.access.redhat.com/ubi9-minimal AS browser-base
+FROM --platform=linux/amd64 registry.access.redhat.com/ubi9-minimal@sha256:ae09ecc3d754bc1726cbda3e2599cc7839e09fe1cc547ce173cf669b645be3cc AS browser-base
 
 USER root
 RUN microdnf update -y --nodocs --setopt=install_weak_deps=0 && \
@@ -119,7 +119,7 @@ RUN microdnf update -y --nodocs --setopt=install_weak_deps=0 && \
     && microdnf clean all && rm -rf /var/cache/yum \
     && ln -s /usr/bin/python3.12 /usr/bin/python
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.19@sha256:b46b03ddfcfbf8f547af7e9eaefdf8a39c8cebcba7c98858d3162bd28cf536f6 /uv /usr/local/bin/uv
 
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers \
     PYTHONUNBUFFERED=1 \
