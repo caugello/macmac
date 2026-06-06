@@ -2,7 +2,8 @@ name: PR Security Checks
 on:
   pull_request:
     paths:
-      - "requirements*.txt"
+      - "pyproject.toml"
+      - "uv.lock"
       - "frontend/package*.json"
       - "Containerfile"
       - "frontend/Containerfile"
