@@ -131,6 +131,7 @@ RUN --mount=type=secret,id=UV_INDEX_RHTL_USERNAME,required=false \
     uv pip install --system --no-cache --only-binary :all: --python /opt/app-root/bin/python -r pyproject.toml --extra crawler --extra messaging
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
 RUN mkdir -p /opt/playwright-browsers && playwright install chromium
+RUN pip uninstall -y pip setuptools 2>/dev/null; true
 
 COPY . .
 USER 1001
@@ -164,6 +165,7 @@ RUN --mount=type=secret,id=UV_INDEX_RHTL_USERNAME,required=false \
     uv pip install --system --no-cache --only-binary :all: --python /opt/app-root/bin/python -r pyproject.toml --extra enricher --extra cache --extra messaging
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
 RUN mkdir -p /opt/playwright-browsers && playwright install chromium
+RUN pip uninstall -y pip setuptools 2>/dev/null; true
 
 COPY . .
 USER 1001
