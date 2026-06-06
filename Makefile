@@ -1,4 +1,4 @@
-.PHONY: help test test-unit test-integration lint format clean install crawl enricher-stop \
+.PHONY: help test test-unit test-integration lint format clean install install-test install-lint update-deps crawl enricher-stop \
 	catalog-backup catalog-restore openshift-catalog-backup openshift-catalog-local-restore \
 	frontend-install frontend-test frontend-lint frontend-format frontend-build \
 	build-all build-gateway build-recipes build-catalog build-meal-plans build-auth build-crawler build-enricher \
@@ -8,7 +8,10 @@ help:
 	@echo "MacMac Development Commands"
 	@echo ""
 	@echo "Backend:"
-	@echo "  make install          Install Python dependencies"
+	@echo "  make install          Install Python dependencies (uv preferred, pip fallback)"
+	@echo "  make install-test     Install test dependencies only (CI test profile)"
+	@echo "  make install-lint     Install lint dependencies only (CI lint profile)"
+	@echo "  make update-deps      Update all dependencies (uv lock --upgrade)"
 	@echo "  make test             Run all Python unit tests"
 	@echo "  make test-unit        Run Python unit tests only"
 	@echo "  make test-cov         Run Python unit tests with coverage (matches CI)"
@@ -48,7 +51,16 @@ help:
 	@echo ""
 
 install:
-	pip install -r requirements.txt
+	@command -v uv >/dev/null 2>&1 && uv sync --extra dev || pip install -r requirements.txt
+
+install-test:
+	@command -v uv >/dev/null 2>&1 && uv sync --extra test || pip install -r requirements-test.txt
+
+install-lint:
+	@command -v uv >/dev/null 2>&1 && uv sync --extra lint || pip install -r requirements-lint.txt
+
+update-deps:
+	uv lock --upgrade
 
 test:
 	pytest tests/ -v

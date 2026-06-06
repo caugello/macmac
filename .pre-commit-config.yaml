@@ -3,21 +3,21 @@ repos:
     hooks:
       - id: ruff-check
         name: Lint (ruff)
-        entry: ruff check services/ tests/
+        entry: uv run ruff check services/ tests/
         language: system
         pass_filenames: false
         stages: [pre-commit]
 
       - id: black-check
         name: Format (black)
-        entry: black --check services/ tests/
+        entry: uv run black --check services/ tests/
         language: system
         pass_filenames: false
         stages: [pre-commit]
 
       - id: unit-tests
         name: Unit tests (pytest)
-        entry: pytest tests/ -m unit -q --no-header --tb=line
+        entry: uv run pytest tests/ -m unit -q --no-header --tb=line
         language: system
         pass_filenames: false
         stages: [pre-commit]
