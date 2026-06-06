@@ -24,6 +24,7 @@ jobs:
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
 
     strategy:
+      max-parallel: 2
       matrix:
         include:
           - image: macmac-gateway
