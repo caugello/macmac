@@ -63,13 +63,11 @@ class DatabaseConfig:
                 "pool_recycle": 300,  # Recycle every 5 min (prevent stale connections)
                 "pool_pre_ping": True,  # Always verify connection health
                 "echo_pool": False,
-                # Additional production settings
+                # pg8000 connect_args: only "timeout" is supported (pure-Python driver).
+                # TCP keepalives are not configurable via pg8000 connect_args;
+                # configure them at the OS level (net.ipv4.tcp_keepalive_*) if needed.
                 "connect_args": {
-                    "connect_timeout": 3,
-                    "keepalives": 1,
-                    "keepalives_idle": 30,
-                    "keepalives_interval": 10,
-                    "keepalives_count": 5,
+                    "timeout": 3,
                 },
             },
         }
