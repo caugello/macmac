@@ -74,6 +74,9 @@ jobs:
           context: ${{ matrix.context }}
           containerfiles: |
             ${{ matrix.containerfile }}
+          build-args: |
+            UV_INDEX_RHTL_USERNAME=${{ secrets.UV_INDEX_RHTL_USERNAME }}
+            UV_INDEX_RHTL_PASSWORD=${{ secrets.UV_INDEX_RHTL_PASSWORD }}
           extra-args: |
             --timestamp 0
             ${{ matrix.target && format('--target {0}', matrix.target) || '' }}
