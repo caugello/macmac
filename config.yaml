@@ -92,7 +92,7 @@ services:
     title: Authentication API
     version: 0.1.0
     url: "http://auth-api:8004"
-    db: "postgresql+psycopg2://dbuser:dbpass@auth-db:5432/auth"
+    db: "postgresql+pg8000://dbuser:dbpass@auth-db:5432/auth"
     routes:
       - name: login
         method: post
@@ -211,7 +211,7 @@ services:
     title: Recipes API
     version: 0.1.0
     url: "http://recipes-api:8001"
-    db: "postgresql+psycopg2://dbuser:dbpass@recipes-db:5432/recipes"
+    db: "postgresql+pg8000://dbuser:dbpass@recipes-db:5432/recipes"
     routes:
       - name: create_recipe
         method: post
@@ -289,7 +289,7 @@ services:
     title: catalog API
     version: 0.1.0
     url: "http://catalog-api:8002"
-    db: "postgresql+psycopg2://dbuser:dbpass@catalog-db:5432/catalog"
+    db: "postgresql+pg8000://dbuser:dbpass@catalog-db:5432/catalog"
     enricher:
       batch_size: 5
       delay_between_requests: 5
@@ -371,7 +371,7 @@ services:
     title: Meal Plans API
     version: 0.1.0
     url: "http://meal-plans-api:8003"
-    db: "postgresql+psycopg2://dbuser:dbpass@meal-plans-db:5432/meal_plans"
+    db: "postgresql+pg8000://dbuser:dbpass@meal-plans-db:5432/meal_plans"
     routes:
       - name: create_meal_plan
         method: post
