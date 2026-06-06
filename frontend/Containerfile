@@ -1,6 +1,7 @@
 # Build stage
-FROM --platform=$BUILDPLATFORM node:24-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14 AS build
+FROM --platform=$BUILDPLATFORM registry.access.redhat.com/hi/nodejs:24-builder@sha256:a2ddd0ce564a349bd9e5596e15ba65f65e45f41ac2dbcfab1b967d20c059bb5b AS build
 
+USER 0
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
