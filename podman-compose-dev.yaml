@@ -74,10 +74,14 @@ services:
 
   # Migration services (use builder targets — they have a shell for wait loops)
   recipes_migration:
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Containerfile
       target: builder-recipes
+      args:
+        UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}
+        UV_INDEX_RHTL_PASSWORD: ${UV_INDEX_RHTL_PASSWORD}
     image: quay.io/caugello/macmac-recipes-builder:dev
     working_dir: /app
     volumes:
@@ -93,10 +97,14 @@ services:
     restart: "no"
 
   catalog_migration:
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Containerfile
       target: builder-catalog
+      args:
+        UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}
+        UV_INDEX_RHTL_PASSWORD: ${UV_INDEX_RHTL_PASSWORD}
     image: quay.io/caugello/macmac-catalog-builder:dev
     working_dir: /app
     volumes:
@@ -131,10 +139,14 @@ services:
       start_period: 15s
 
   meal_plans_migration:
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Containerfile
       target: builder-meal-plans
+      args:
+        UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}
+        UV_INDEX_RHTL_PASSWORD: ${UV_INDEX_RHTL_PASSWORD}
     image: quay.io/caugello/macmac-meal-plans-builder:dev
     working_dir: /app
     volumes:
@@ -169,10 +181,14 @@ services:
       start_period: 15s
 
   auth_migration:
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Containerfile
       target: builder-auth
+      args:
+        UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}
+        UV_INDEX_RHTL_PASSWORD: ${UV_INDEX_RHTL_PASSWORD}
     image: quay.io/caugello/macmac-auth-builder:dev
     working_dir: /app
     volumes:
@@ -190,10 +206,14 @@ services:
   # API Services
   auth_api:
     hostname: auth-api
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Containerfile
       target: auth
+      args:
+        UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}
+        UV_INDEX_RHTL_PASSWORD: ${UV_INDEX_RHTL_PASSWORD}
     image: quay.io/caugello/macmac-auth:dev
     working_dir: /app
     volumes:
@@ -217,10 +237,14 @@ services:
 
   gateway:
     hostname: gateway
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Containerfile
       target: gateway
+      args:
+        UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}
+        UV_INDEX_RHTL_PASSWORD: ${UV_INDEX_RHTL_PASSWORD}
     image: quay.io/caugello/macmac-gateway:dev
     working_dir: /app
     volumes:
@@ -247,10 +271,14 @@ services:
 
   recipes_api:
     hostname: recipes-api
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Containerfile
       target: recipes
+      args:
+        UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}
+        UV_INDEX_RHTL_PASSWORD: ${UV_INDEX_RHTL_PASSWORD}
     image: quay.io/caugello/macmac-recipes:dev
     working_dir: /app
     volumes:
@@ -270,10 +298,14 @@ services:
 
   catalog_api:
     hostname: catalog-api
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Containerfile
       target: catalog
+      args:
+        UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}
+        UV_INDEX_RHTL_PASSWORD: ${UV_INDEX_RHTL_PASSWORD}
     image: quay.io/caugello/macmac-catalog:dev
     working_dir: /app
     volumes:
@@ -293,12 +325,16 @@ services:
 
   catalog_crawler:
     hostname: catalog-crawler
+    platform: linux/amd64
     profiles:
       - manual
     build:
       context: .
       dockerfile: Containerfile
       target: crawler
+      args:
+        UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}
+        UV_INDEX_RHTL_PASSWORD: ${UV_INDEX_RHTL_PASSWORD}
     image: quay.io/caugello/macmac-crawler:dev
     working_dir: /opt/app-root/src
     volumes:
@@ -312,10 +348,14 @@ services:
 
   catalog_enricher:
     hostname: catalog-enricher
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Containerfile
       target: enricher
+      args:
+        UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}
+        UV_INDEX_RHTL_PASSWORD: ${UV_INDEX_RHTL_PASSWORD}
     image: quay.io/caugello/macmac-enricher:dev
     shm_size: "2gb"
     working_dir: /opt/app-root/src
@@ -336,10 +376,14 @@ services:
 
   meal_plans_api:
     hostname: meal-plans-api
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Containerfile
       target: meal-plans
+      args:
+        UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}
+        UV_INDEX_RHTL_PASSWORD: ${UV_INDEX_RHTL_PASSWORD}
     image: quay.io/caugello/macmac-meal-plans:dev
     working_dir: /app
     volumes:
