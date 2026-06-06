@@ -62,6 +62,15 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra test
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@3454372f43399081ed03b604cb2d021dabca52bb # v3.8.2
+
+      - name: Verify RHTL package provenance
+        run: python scripts/verify-packages.py .venv/lib/python3.12/site-packages
+
+      - name: Check lock file is up to date
+        run: uv lock --check
+
       - name: Run unit tests
         run: uv run pytest tests/ -m unit --timeout=30
 
