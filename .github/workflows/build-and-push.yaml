@@ -124,6 +124,12 @@ jobs:
           ignore-unfixed: true
           timeout: 10m
 
+      - name: Fix Trivy SARIF URI scheme
+        run: |
+          jq '(.runs[].results[].locations[].physicalLocation.artifactLocation.uri) |= sub("^[^:]+://"; "file://")' \
+            trivy-results.sarif > trivy-results-fixed.sarif
+          mv trivy-results-fixed.sarif trivy-results.sarif
+
       - name: Upload Trivy SARIF
         uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
         with:
