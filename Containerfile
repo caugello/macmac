@@ -1,10 +1,8 @@
 # ── Builder stage (hi/python builder — has shell, no dnf) ──
 FROM --platform=linux/amd64 registry.access.redhat.com/hi/python:3.12-builder AS builder
 
-ARG UV_INDEX_RHTL_USERNAME
-ARG UV_INDEX_RHTL_PASSWORD
-ENV UV_INDEX_RHTL_USERNAME=${UV_INDEX_RHTL_USERNAME}
-ENV UV_INDEX_RHTL_PASSWORD=${UV_INDEX_RHTL_PASSWORD}
+ARG UV_INDEX_RHTL_USERNAME=""
+ARG UV_INDEX_RHTL_PASSWORD=""
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
@@ -14,23 +12,57 @@ COPY pyproject.toml uv.lock ./
 
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-RUN uv pip install --no-cache --only-binary :all: --python /opt/venv/bin/python -r pyproject.toml
+RUN --mount=type=secret,id=UV_INDEX_RHTL_USERNAME,required=false \
+    --mount=type=secret,id=UV_INDEX_RHTL_PASSWORD,required=false \
+    UV_INDEX_RHTL_USERNAME="$(cat /run/secrets/UV_INDEX_RHTL_USERNAME 2>/dev/null || echo "$UV_INDEX_RHTL_USERNAME")" \
+    UV_INDEX_RHTL_PASSWORD="$(cat /run/secrets/UV_INDEX_RHTL_PASSWORD 2>/dev/null || echo "$UV_INDEX_RHTL_PASSWORD")" \
+    uv pip install --no-cache --only-binary :all: --python /opt/venv/bin/python -r pyproject.toml
 
 # ── Per-service builder stages (install extras) ────────────
 FROM builder AS builder-gateway
-RUN uv pip install --no-cache --only-binary :all: --python /opt/venv/bin/python -r pyproject.toml --extra cache
+ARG UV_INDEX_RHTL_USERNAME=""
+ARG UV_INDEX_RHTL_PASSWORD=""
+RUN --mount=type=secret,id=UV_INDEX_RHTL_USERNAME,required=false \
+    --mount=type=secret,id=UV_INDEX_RHTL_PASSWORD,required=false \
+    UV_INDEX_RHTL_USERNAME="$(cat /run/secrets/UV_INDEX_RHTL_USERNAME 2>/dev/null || echo "$UV_INDEX_RHTL_USERNAME")" \
+    UV_INDEX_RHTL_PASSWORD="$(cat /run/secrets/UV_INDEX_RHTL_PASSWORD 2>/dev/null || echo "$UV_INDEX_RHTL_PASSWORD")" \
+    uv pip install --no-cache --only-binary :all: --python /opt/venv/bin/python -r pyproject.toml --extra cache
 
 FROM builder AS builder-recipes
-RUN uv pip install --no-cache --only-binary :all: --python /opt/venv/bin/python -r pyproject.toml --extra cache
+ARG UV_INDEX_RHTL_USERNAME=""
+ARG UV_INDEX_RHTL_PASSWORD=""
+RUN --mount=type=secret,id=UV_INDEX_RHTL_USERNAME,required=false \
+    --mount=type=secret,id=UV_INDEX_RHTL_PASSWORD,required=false \
+    UV_INDEX_RHTL_USERNAME="$(cat /run/secrets/UV_INDEX_RHTL_USERNAME 2>/dev/null || echo "$UV_INDEX_RHTL_USERNAME")" \
+    UV_INDEX_RHTL_PASSWORD="$(cat /run/secrets/UV_INDEX_RHTL_PASSWORD 2>/dev/null || echo "$UV_INDEX_RHTL_PASSWORD")" \
+    uv pip install --no-cache --only-binary :all: --python /opt/venv/bin/python -r pyproject.toml --extra cache
 
 FROM builder AS builder-catalog
-RUN uv pip install --no-cache --only-binary :all: --python /opt/venv/bin/python -r pyproject.toml --extra cache --extra messaging
+ARG UV_INDEX_RHTL_USERNAME=""
+ARG UV_INDEX_RHTL_PASSWORD=""
+RUN --mount=type=secret,id=UV_INDEX_RHTL_USERNAME,required=false \
+    --mount=type=secret,id=UV_INDEX_RHTL_PASSWORD,required=false \
+    UV_INDEX_RHTL_USERNAME="$(cat /run/secrets/UV_INDEX_RHTL_USERNAME 2>/dev/null || echo "$UV_INDEX_RHTL_USERNAME")" \
+    UV_INDEX_RHTL_PASSWORD="$(cat /run/secrets/UV_INDEX_RHTL_PASSWORD 2>/dev/null || echo "$UV_INDEX_RHTL_PASSWORD")" \
+    uv pip install --no-cache --only-binary :all: --python /opt/venv/bin/python -r pyproject.toml --extra cache --extra messaging
 
 FROM builder AS builder-meal-plans
-RUN uv pip install --no-cache --only-binary :all: --python /opt/venv/bin/python -r pyproject.toml --extra cache
+ARG UV_INDEX_RHTL_USERNAME=""
+ARG UV_INDEX_RHTL_PASSWORD=""
+RUN --mount=type=secret,id=UV_INDEX_RHTL_USERNAME,required=false \
+    --mount=type=secret,id=UV_INDEX_RHTL_PASSWORD,required=false \
+    UV_INDEX_RHTL_USERNAME="$(cat /run/secrets/UV_INDEX_RHTL_USERNAME 2>/dev/null || echo "$UV_INDEX_RHTL_USERNAME")" \
+    UV_INDEX_RHTL_PASSWORD="$(cat /run/secrets/UV_INDEX_RHTL_PASSWORD 2>/dev/null || echo "$UV_INDEX_RHTL_PASSWORD")" \
+    uv pip install --no-cache --only-binary :all: --python /opt/venv/bin/python -r pyproject.toml --extra cache
 
 FROM builder AS builder-auth
-RUN uv pip install --no-cache --only-binary :all: --python /opt/venv/bin/python -r pyproject.toml --extra auth
+ARG UV_INDEX_RHTL_USERNAME=""
+ARG UV_INDEX_RHTL_PASSWORD=""
+RUN --mount=type=secret,id=UV_INDEX_RHTL_USERNAME,required=false \
+    --mount=type=secret,id=UV_INDEX_RHTL_PASSWORD,required=false \
+    UV_INDEX_RHTL_USERNAME="$(cat /run/secrets/UV_INDEX_RHTL_USERNAME 2>/dev/null || echo "$UV_INDEX_RHTL_USERNAME")" \
+    UV_INDEX_RHTL_PASSWORD="$(cat /run/secrets/UV_INDEX_RHTL_PASSWORD 2>/dev/null || echo "$UV_INDEX_RHTL_PASSWORD")" \
+    uv pip install --no-cache --only-binary :all: --python /opt/venv/bin/python -r pyproject.toml --extra auth
 
 # ── Runtime base (hi/python distroless — no shell) ─────────
 FROM --platform=linux/amd64 registry.access.redhat.com/hi/python:3.12 AS runtime
@@ -73,8 +105,8 @@ EXPOSE 8004
 # ── Catalog Crawler ─────────────────────────────────────────
 FROM --platform=linux/amd64 registry.access.redhat.com/ubi9/python-312 AS crawler
 
-ARG UV_INDEX_RHTL_USERNAME
-ARG UV_INDEX_RHTL_PASSWORD
+ARG UV_INDEX_RHTL_USERNAME=""
+ARG UV_INDEX_RHTL_PASSWORD=""
 
 USER root
 RUN dnf update -y && \
@@ -92,8 +124,10 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /opt/app-root/src
 COPY pyproject.toml uv.lock ./
-RUN UV_INDEX_RHTL_USERNAME="${UV_INDEX_RHTL_USERNAME}" \
-    UV_INDEX_RHTL_PASSWORD="${UV_INDEX_RHTL_PASSWORD}" \
+RUN --mount=type=secret,id=UV_INDEX_RHTL_USERNAME,required=false \
+    --mount=type=secret,id=UV_INDEX_RHTL_PASSWORD,required=false \
+    UV_INDEX_RHTL_USERNAME="$(cat /run/secrets/UV_INDEX_RHTL_USERNAME 2>/dev/null || echo "$UV_INDEX_RHTL_USERNAME")" \
+    UV_INDEX_RHTL_PASSWORD="$(cat /run/secrets/UV_INDEX_RHTL_PASSWORD 2>/dev/null || echo "$UV_INDEX_RHTL_PASSWORD")" \
     uv pip install --system --no-cache --only-binary :all: --python /opt/app-root/bin/python -r pyproject.toml --extra crawler --extra messaging
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
 RUN mkdir -p /opt/playwright-browsers && playwright install chromium
@@ -104,8 +138,8 @@ USER 1001
 # ── Catalog Enricher ────────────────────────────────────────
 FROM --platform=linux/amd64 registry.access.redhat.com/ubi9/python-312 AS enricher
 
-ARG UV_INDEX_RHTL_USERNAME
-ARG UV_INDEX_RHTL_PASSWORD
+ARG UV_INDEX_RHTL_USERNAME=""
+ARG UV_INDEX_RHTL_PASSWORD=""
 
 USER root
 RUN dnf update -y && \
@@ -123,8 +157,10 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /opt/app-root/src
 COPY pyproject.toml uv.lock ./
-RUN UV_INDEX_RHTL_USERNAME="${UV_INDEX_RHTL_USERNAME}" \
-    UV_INDEX_RHTL_PASSWORD="${UV_INDEX_RHTL_PASSWORD}" \
+RUN --mount=type=secret,id=UV_INDEX_RHTL_USERNAME,required=false \
+    --mount=type=secret,id=UV_INDEX_RHTL_PASSWORD,required=false \
+    UV_INDEX_RHTL_USERNAME="$(cat /run/secrets/UV_INDEX_RHTL_USERNAME 2>/dev/null || echo "$UV_INDEX_RHTL_USERNAME")" \
+    UV_INDEX_RHTL_PASSWORD="$(cat /run/secrets/UV_INDEX_RHTL_PASSWORD 2>/dev/null || echo "$UV_INDEX_RHTL_PASSWORD")" \
     uv pip install --system --no-cache --only-binary :all: --python /opt/app-root/bin/python -r pyproject.toml --extra enricher --extra cache --extra messaging
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
 RUN mkdir -p /opt/playwright-browsers && playwright install chromium
