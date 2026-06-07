@@ -24,6 +24,7 @@ jobs:
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
 
     strategy:
+      fail-fast: false
       max-parallel: 2
       matrix:
         include:
@@ -80,7 +81,7 @@ jobs:
 
       - name: Build Image
         id: build-image
-        uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2
+        uses: redhat-actions/buildah-build@061ffd31bb5c3f8733a6f9bbdf00a9fb02eb708c # main 2026-04-09, node24
         with:
           image: ${{ matrix.image }}
           tags: latest ${{ github.sha }} ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
@@ -149,6 +150,7 @@ jobs:
           output: trivy-results.sarif
           exit-code: "0"
           trivy-config: .trivy.yaml
+          trivyignores: .trivyignore
           timeout: 10m
 
       - name: Retry Trivy scan on transient failure
@@ -161,6 +163,7 @@ jobs:
           output: trivy-results.sarif
           exit-code: "0"
           trivy-config: .trivy.yaml
+          trivyignores: .trivyignore
           timeout: 10m
 
       - name: Fix Trivy SARIF URI scheme
@@ -216,30 +219,30 @@ jobs:
           format: spdx-json
           output-file: sbom.spdx.json
 
-      - name: Push To quay.io
-        id: push-to-quay
-        uses: redhat-actions/push-to-registry@5ed88d269cf581ea9ef6dd6806d01562096bee9c # v2
+      - name: Log in to quay.io
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
         with:
-          image: ${{ steps.build-image.outputs.image }}
-          tags: ${{ steps.build-image.outputs.tags }}
-          registry: quay.io/caugello
+          registry: quay.io
           username: caugello+macmac
           password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Push To quay.io
+        id: push-to-quay
+        run: |
+          FULL_IMAGE="quay.io/caugello/${{ steps.build-image.outputs.image }}"
+          TAGS="${{ steps.build-image.outputs.tags }}"
+          for tag in $TAGS; do
+            podman push "${{ steps.build-image.outputs.image }}:${tag}" "${FULL_IMAGE}:${tag}"
+          done
+          DIGEST=$(podman inspect --format='{{.Digest}}' "${{ steps.build-image.outputs.image }}:${TAGS%% *}")
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "registry-paths=${FULL_IMAGE}:${TAGS%% *}" >> "$GITHUB_OUTPUT"
 
       - name: Attest Build Provenance
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-name: quay.io/caugello/${{ matrix.image }}
           subject-digest: ${{ steps.push-to-quay.outputs.digest }}
-
-      - name: Log in to quay.io for attestation push
-        # actions/attest pushes the SBOM attestation as an OCI referrer, which
-        # requires registry credentials in the Docker config on the runner.
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
-        with:
-          registry: quay.io
-          username: caugello+macmac
-          password: ${{ secrets.REGISTRY_PASSWORD }}
 
       - name: Attest SBOM
         # Migrated from the deprecated actions/attest-sbom to actions/attest
