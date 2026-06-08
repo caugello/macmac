@@ -1,0 +1,6 @@
+# Unfixed UBI9 RPM CVEs — mirrors .grype.yaml fix-state:not-fixed rule.
+# Trivy has no per-type ignore-unfixed scope, so we list unfixed OS CVEs here.
+# Re-review when Red Hat ships a fixed libpng for RHEL 9.
+
+# libpng 2:1.6.37-15.el9_8 — unfixed upstream, no patch available
+CVE-2026-22020
