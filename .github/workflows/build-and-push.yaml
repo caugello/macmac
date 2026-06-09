@@ -30,35 +30,35 @@ jobs:
         include:
           - image: macmac-gateway
             context: .
-            containerfile: ./Containerfile
+            containerfile: ./Dockerfile
             target: gateway
           - image: macmac-recipes
             context: .
-            containerfile: ./Containerfile
+            containerfile: ./Dockerfile
             target: recipes
           - image: macmac-catalog
             context: .
-            containerfile: ./Containerfile
+            containerfile: ./Dockerfile
             target: catalog
           - image: macmac-meal-plans
             context: .
-            containerfile: ./Containerfile
+            containerfile: ./Dockerfile
             target: meal-plans
           - image: macmac-auth
             context: .
-            containerfile: ./Containerfile
+            containerfile: ./Dockerfile
             target: auth
           - image: macmac-enricher
             context: .
-            containerfile: ./Containerfile
+            containerfile: ./Dockerfile
             target: enricher
           - image: macmac-crawler
             context: .
-            containerfile: ./Containerfile
+            containerfile: ./Dockerfile
             target: crawler
           - image: macmac-frontend
             context: ./frontend
-            containerfile: ./frontend/Containerfile
+            containerfile: ./frontend/Dockerfile
             target: ""
 
     steps:
@@ -182,7 +182,7 @@ jobs:
         run: |
           if [ ! -f trivy-results.sarif ]; then exit 0; fi
           jq '(.runs[].results[].locations[].physicalLocation.artifactLocation.uri) |=
-            if test(":") then "Containerfile" else . end' \
+            if test(":") then "Dockerfile" else . end' \
             trivy-results.sarif > trivy-results-fixed.sarif
           mv trivy-results-fixed.sarif trivy-results.sarif
 
