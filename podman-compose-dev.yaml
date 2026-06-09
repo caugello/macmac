@@ -77,7 +77,7 @@ services:
     platform: linux/amd64
     build:
       context: .
-      dockerfile: Containerfile
+      dockerfile: Dockerfile
       target: builder-recipes
       args:
         UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}
@@ -100,7 +100,7 @@ services:
     platform: linux/amd64
     build:
       context: .
-      dockerfile: Containerfile
+      dockerfile: Dockerfile
       target: builder-catalog
       args:
         UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}
@@ -142,7 +142,7 @@ services:
     platform: linux/amd64
     build:
       context: .
-      dockerfile: Containerfile
+      dockerfile: Dockerfile
       target: builder-meal-plans
       args:
         UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}
@@ -184,7 +184,7 @@ services:
     platform: linux/amd64
     build:
       context: .
-      dockerfile: Containerfile
+      dockerfile: Dockerfile
       target: builder-auth
       args:
         UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}
@@ -209,7 +209,7 @@ services:
     platform: linux/amd64
     build:
       context: .
-      dockerfile: Containerfile
+      dockerfile: Dockerfile
       target: auth
       args:
         UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}
@@ -240,7 +240,7 @@ services:
     platform: linux/amd64
     build:
       context: .
-      dockerfile: Containerfile
+      dockerfile: Dockerfile
       target: gateway
       args:
         UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}
@@ -274,7 +274,7 @@ services:
     platform: linux/amd64
     build:
       context: .
-      dockerfile: Containerfile
+      dockerfile: Dockerfile
       target: recipes
       args:
         UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}
@@ -301,7 +301,7 @@ services:
     platform: linux/amd64
     build:
       context: .
-      dockerfile: Containerfile
+      dockerfile: Dockerfile
       target: catalog
       args:
         UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}
@@ -330,7 +330,7 @@ services:
       - manual
     build:
       context: .
-      dockerfile: Containerfile
+      dockerfile: Dockerfile
       target: crawler
       args:
         UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}
@@ -351,7 +351,7 @@ services:
     platform: linux/amd64
     build:
       context: .
-      dockerfile: Containerfile
+      dockerfile: Dockerfile
       target: enricher
       args:
         UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}
@@ -379,7 +379,7 @@ services:
     platform: linux/amd64
     build:
       context: .
-      dockerfile: Containerfile
+      dockerfile: Dockerfile
       target: meal-plans
       args:
         UV_INDEX_RHTL_USERNAME: ${UV_INDEX_RHTL_USERNAME}

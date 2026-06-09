@@ -128,7 +128,7 @@ cosign verify-attestation \
 
 ### Python dependency integrity (Task #16 — implemented)
 
-The Containerfile was updated to close the verify-vs-ship gap:
+The Dockerfile was updated to close the verify-vs-ship gap:
 
 1. **Locked install**: each builder stage now runs `uv export --frozen --no-emit-project [--extra ...]` to generate a hash-pinned requirements file from `uv.lock`, then installs with `uv pip install --require-hashes`. Hash mismatches fail the build at install time.
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Verify base container image signatures and attestations before build.
 #
-# Usage: scripts/verify-base-images.sh [Containerfile]
-# Default Containerfile: ./Containerfile
+# Usage: scripts/verify-base-images.sh [Dockerfile]
+# Default Dockerfile: ./Dockerfile
 #
 # Parses every FROM and COPY --from= line carrying an @sha256: digest,
 # deduplicates by image reference, and verifies each image:
@@ -21,16 +21,16 @@
 # Exits 0 only if ALL checks pass; exits 1 on any failure (fail-closed).
 set -euo pipefail
 
-CONTAINERFILE="${1:-./Containerfile}"
+CONTAINERFILE="${1:-./Dockerfile}"
 KEY_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/redhat-release3.pub"
 
 if [ ! -f "$CONTAINERFILE" ]; then
-  echo "ERROR: Containerfile not found: $CONTAINERFILE" >&2
+  echo "ERROR: Dockerfile not found: $CONTAINERFILE" >&2
   exit 1
 fi
 
 echo "=== Base Image Signature & Attestation Verification ==="
-echo "Containerfile: $CONTAINERFILE"
+echo "Dockerfile: $CONTAINERFILE"
 echo "Key:           $KEY_PATH"
 echo
 
