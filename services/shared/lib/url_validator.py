@@ -38,6 +38,6 @@ def validate_url(url: str, allowed_hosts: set[str] | None = None) -> str:
                 if ip in network:
                     raise ValueError(f"URL resolves to blocked network: {ip}")
     except socket.gaierror:
-        pass
+        raise ValueError(f"URL hostname '{hostname}' could not be resolved") from None
 
     return url

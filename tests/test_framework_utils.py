@@ -79,3 +79,39 @@ def test_build_query_dependency_no_query_params():
 
     result = query_dep(limit=50, offset=5, search="query")
     assert result == {}
+
+
+@pytest.mark.unit
+def test_build_query_dependency_clamps_excessive_limit():
+    """Test query dependency clamps an excessive limit to MAX_LIMIT."""
+    route = MagicMock()
+    route.query_params = {"limit": {}, "offset": {}}
+
+    query_dep = build_query_dependency(route)
+
+    result = query_dep(limit=999999999, offset=0)
+    assert result["limit"] == 1000
+
+
+@pytest.mark.unit
+def test_build_query_dependency_clamps_excessive_offset():
+    """Test query dependency clamps an excessive offset to MAX_OFFSET."""
+    route = MagicMock()
+    route.query_params = {"limit": {}, "offset": {}}
+
+    query_dep = build_query_dependency(route)
+
+    result = query_dep(limit=None, offset=999999999)
+    assert result["offset"] == 100000
+
+
+@pytest.mark.unit
+def test_build_query_dependency_zero_limit_uses_default():
+    """Test query dependency uses DEFAULT_LIMIT when limit is zero."""
+    route = MagicMock()
+    route.query_params = {"limit": {}, "offset": {}}
+
+    query_dep = build_query_dependency(route)
+
+    result = query_dep(limit=0, offset=0)
+    assert result["limit"] == 100

@@ -2,6 +2,10 @@ import importlib
 
 from fastapi import Query
 
+MAX_LIMIT = 1000
+MAX_OFFSET = 100000
+DEFAULT_LIMIT = 100
+
 
 def import_from_string(path: str):
     """
@@ -22,15 +26,15 @@ def build_query_dependency(route):
     param_names = set(route.query_params.keys()) if route.query_params else set()
 
     def query_dep(
-        limit: int = Query(None, ge=0, description="Max results"),
-        offset: int = Query(0, ge=0, description="Result offset index"),
+        limit: int = Query(None, ge=0, le=MAX_LIMIT, description="Max results"),
+        offset: int = Query(0, ge=0, le=MAX_OFFSET, description="Result offset index"),
         search: str = Query(None, description="Search text"),
         sort: str = Query(None, description="Sort field"),
         category: str = Query(None, description="Filter by category"),
     ):
         all_params = {
-            "limit": limit or 100,
-            "offset": offset,
+            "limit": min(limit or DEFAULT_LIMIT, MAX_LIMIT),
+            "offset": min(offset, MAX_OFFSET),
             "search": search,
             "sort": sort,
             "category": category,
