@@ -499,6 +499,7 @@ async def crawl_nutrition_page(info_url: str, main_page_url: str) -> tuple[str |
         return None, None
 
     info_url = unquote(info_url)
+    validate_url(info_url)
     logger.debug(f"Crawling nutrition page: {info_url}")
 
     try:
