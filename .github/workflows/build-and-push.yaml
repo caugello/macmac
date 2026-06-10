@@ -73,6 +73,7 @@ jobs:
           curl -sLO https://github.com/conforma/cli/releases/download/snapshot/ec_linux_amd64.sha256
           sed 's|dist/||' ec_linux_amd64.sha256 | sha256sum --check --strict
           install ec_linux_amd64 /usr/local/bin/ec
+          rm -f ec_linux_amd64 ec_linux_amd64.sha256
           ec version
 
       - name: Log in to ghcr.io

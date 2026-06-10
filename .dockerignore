@@ -22,6 +22,9 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
+# CI tool downloads (Conforma ec binary, etc.)
+ec_linux_amd64*
+
 # Secrets
 .env
 .env.*
