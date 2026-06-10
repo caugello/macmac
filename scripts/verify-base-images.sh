@@ -77,13 +77,14 @@ for image in "${IMAGES[@]}"; do
       fi
       ;;
     ghcr.io/astral-sh/*)
-      if gh attestation verify "oci://$image" --owner astral-sh >/dev/null 2>&1; then
+      gh_output=$(gh attestation verify "oci://$image" --owner astral-sh 2>&1) && {
         echo "PASS  $image (GitHub SLSA provenance)"
         verified=$((verified + 1))
-      else
+      } || {
         echo "FAIL  $image (GitHub attestation verification failed)"
+        echo "$gh_output" | sed 's/^/      /'
         failed=$((failed + 1))
-      fi
+      }
       ;;
     *)
       echo "FAIL  $image (no verification method configured)"

@@ -75,6 +75,13 @@ jobs:
           install ec_linux_amd64 /usr/local/bin/ec
           ec version
 
+      - name: Log in to ghcr.io
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Verify base image signatures
         run: bash scripts/verify-base-images.sh "${{ matrix.containerfile }}"
 
