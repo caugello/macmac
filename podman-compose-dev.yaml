@@ -223,7 +223,7 @@ services:
       PYTHONPATH: /app
       ENVIRONMENT: "development"
       AUTH_DATABASE_URL: "postgresql+pg8000://dbuser:dbpass@auth-db:5432/auth"
-      JWT_SECRET_KEY: "dev-secret-key-change-in-production-min-32-chars"
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-devpassword}
       GOOGLE_APPLICATION_CREDENTIALS: "/secrets/firebase-service-account.json"
       REDIS_PASSWORD: ${REDIS_PASSWORD:-devpassword}
     ports:
@@ -252,7 +252,7 @@ services:
     environment:
       PYTHONPATH: /app
       ENVIRONMENT: "development"
-      JWT_SECRET_KEY: "dev-secret-key-change-in-production-min-32-chars"
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-devpassword}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-devpassword}
     ports:
       - 8000:8000
