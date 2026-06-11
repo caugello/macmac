@@ -4,3 +4,8 @@
 
 # libpng 2:1.6.37-15.el9_8 — unfixed upstream, no patch available
 CVE-2026-22020
+
+# openssl: Heap UAF in PKCS7_verify() — ubi9-minimal not yet rebuilt with fix
+# Affects enricher/crawler only. Not exploitable: app code doesn't call PKCS7_verify.
+# Remove when Red Hat publishes a patched ubi9-minimal image.
+CVE-2026-45447
