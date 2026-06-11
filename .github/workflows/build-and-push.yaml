@@ -70,7 +70,7 @@ jobs:
 
       - name: Install Conforma (ec)
         run: |
-          curl -sLO https://github.com/conforma/cli/releases/download/v0.6.120/ec_linux_amd64
+          curl -sLO https://github.com/conforma/cli/releases/download/v0.9.44/ec_linux_amd64
           sha256sum --check --strict .github/conforma-ec.sha256
           install ec_linux_amd64 /usr/local/bin/ec
           rm -f ec_linux_amd64
