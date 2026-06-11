@@ -75,6 +75,11 @@ export interface RecipeListResponse {
   data: RecipeOut[]
 }
 
+export interface RecipeCategoryCountsResponse {
+  // Maps category value (e.g. "breakfast") to recipe count. Categories with zero recipes are omitted.
+  counts: Record<string, number>
+}
+
 // Mirror services/shared/schemas/catalog.py
 export interface CatalogItemCreate {
   vendor_name: string

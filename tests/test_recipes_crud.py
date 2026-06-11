@@ -7,6 +7,7 @@ import pytest
 from fastapi import HTTPException
 
 from services.recipes.crud import (
+    category_counts,
     create_recipe,
     delete_recipe,
     get_recipe,
@@ -869,3 +870,100 @@ async def test_get_recipe_cache_hit_with_string_uuids(mock_db):
         result = await get_recipe(created.id, mock_db)
 
     assert result.title == "Cache Test Recipe"
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_category_counts_empty(mock_db):
+    """No recipes yields empty counts."""
+    result = await category_counts(mock_db)
+
+    assert result == {"counts": {}}
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_category_counts_groups_by_category(mock_db):
+    """Counts are grouped per category; uncategorized recipes are omitted."""
+    await _seed_categorized_recipes(mock_db)
+    # An extra dessert so a category has count > 1.
+    await create_recipe(
+        RecipeCreate(
+            title="Cheesecake",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_VANILLA, qty=1.0, unit=UnitEnum.TEASPOON
+                )
+            ],
+            category=RecipeCategoryEnum.DESSERT,
+        ),
+        mock_db,
+    )
+    # An uncategorized recipe that must not appear in the counts.
+    await create_recipe(
+        RecipeCreate(
+            title="Mystery Dish",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+        ),
+        mock_db,
+    )
+
+    result = await category_counts(mock_db)
+
+    assert result["counts"] == {"breakfast": 1, "dessert": 2, "main": 1}
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_category_counts_respects_search(mock_db):
+    """The search param scopes counts to matching recipe titles."""
+    await _seed_categorized_recipes(mock_db)
+    await create_recipe(
+        RecipeCreate(
+            title="Banana Pancakes",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+            category=RecipeCategoryEnum.BREAKFAST,
+        ),
+        mock_db,
+    )
+
+    result = await category_counts(mock_db, search="pancakes")
+
+    assert result["counts"] == {"breakfast": 2}
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_category_counts_uses_cache(mock_db):
+    """A cache hit short-circuits the DB query and returns the cached payload."""
+    with patch("services.recipes.crud.cache") as mock_cache:
+        mock_cache.get_json.return_value = {"counts": {"dessert": 3}}
+
+        result = await category_counts(mock_db)
+
+    assert result == {"counts": {"dessert": 3}}
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_category_counts_search_cache_key(mock_db):
+    """The search value is part of the cache key so distinct searches don't collide."""
+    with patch("services.recipes.crud.cache") as mock_cache:
+        mock_cache.get_json.return_value = None
+
+        await category_counts(mock_db, search="cake")
+        key_with_search = mock_cache.get_json.call_args[0][0]
+
+        await category_counts(mock_db)
+        key_without_search = mock_cache.get_json.call_args[0][0]
+
+    assert "s=cake" in key_with_search
+    assert key_with_search != key_without_search

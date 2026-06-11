@@ -4,6 +4,7 @@ import type {
   RecipeUpdate,
   RecipeOut,
   RecipeListResponse,
+  RecipeCategoryCountsResponse,
   DeleteResponse,
 } from '../lib/types'
 
@@ -17,6 +18,11 @@ export const recipesApi = {
     /** Comma-separated category values, e.g. "breakfast,dessert". */
     category?: string
   }) => apiClient.get<RecipeListResponse>('/recipes', { params }).then((res) => res.data),
+
+  categoryCounts: (params?: { search?: string }) =>
+    apiClient
+      .get<RecipeCategoryCountsResponse>('/recipes/category-counts', { params })
+      .then((res) => res.data),
 
   get: (id: string) => apiClient.get<RecipeOut>(`/recipes/${id}`).then((res) => res.data),
 

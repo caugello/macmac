@@ -90,6 +90,16 @@ class RecipeQueryParams(BaseModel):
     sort: str | None = Field(None, json_schema_extra={"examples": ["title:asc"]})
 
 
+class RecipeCategoryCountsResponse(BaseModel):
+    """
+    Maps each recipe category to the number of recipes the user has in it.
+
+    Categories with zero recipes are omitted.
+    """
+
+    counts: dict[str, int]
+
+
 class BatchRecipeRequest(BaseModel):
     ids: list[UUID4]
 

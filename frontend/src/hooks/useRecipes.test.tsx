@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   useRecipes,
+  useRecipeCategoryCounts,
   useRecipe,
   useCreateRecipe,
   useUpdateRecipe,
@@ -51,6 +52,36 @@ describe('useRecipes', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(recipesApi.list).toHaveBeenCalledWith(params)
+  })
+})
+
+describe('useRecipeCategoryCounts', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should fetch category counts without params', async () => {
+    const mockData = { counts: { breakfast: 2, dessert: 5 } }
+    vi.mocked(recipesApi.categoryCounts).mockResolvedValue(mockData)
+
+    const { result } = renderHook(() => useRecipeCategoryCounts(), { wrapper: createWrapper() })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(recipesApi.categoryCounts).toHaveBeenCalledWith(undefined)
+    expect(result.current.data).toEqual(mockData)
+  })
+
+  it('should fetch category counts scoped to a search term', async () => {
+    const mockData = { counts: { breakfast: 1 } }
+    const params = { search: 'pancakes' }
+    vi.mocked(recipesApi.categoryCounts).mockResolvedValue(mockData)
+
+    const { result } = renderHook(() => useRecipeCategoryCounts(params), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(recipesApi.categoryCounts).toHaveBeenCalledWith(params)
   })
 })
 
