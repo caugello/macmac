@@ -1,18 +1,6 @@
 name: PR Security Checks
 on:
   pull_request:
-    # Python deps are managed by uv: pyproject.toml (direct deps) + uv.lock
-    # (pinned transitive set). Both are watched so any dependency change runs
-    # this gate. CVE coverage for both comes from the vulnerability-scan job
-    # below (Grype/Syft parse uv.lock + pyproject.toml); dependency-review
-    # covers manifests in GitHub's dependency graph.
-    paths:
-      - "pyproject.toml"
-      - "uv.lock"
-      - "frontend/package*.json"
-      - "Dockerfile"
-      - "frontend/Dockerfile"
-      - ".github/workflows/**"
 
 permissions:
   contents: read
@@ -54,3 +42,42 @@ jobs:
         with:
           sarif_file: ${{ steps.grype-scan.outputs.sarif }}
           category: pr-dependency-scan
+
+  codeql:
+    name: CodeQL analysis
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        language: [python, javascript]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
+        with:
+          category: codeql-${{ matrix.language }}
+
+  bandit:
+    name: Bandit SAST (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.3.1
+
+      - run: uvx --from 'bandit[sarif]' bandit -r services/ -ll -f sarif -o bandit.sarif || true
+
+      - name: Upload Bandit SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
+        with:
+          sarif_file: bandit.sarif
+          category: bandit
