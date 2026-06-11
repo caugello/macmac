@@ -9,7 +9,7 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: read
+  contents: write
   security-events: write
   id-token: write
   attestations: write
