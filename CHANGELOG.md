@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CI:** Migrated base image attestation from `cosign attest` to `actions/attest` — same quay.io incompatibility (#200)
 - **CI:** Use `podman push --digestfile` for registry digest — local digest from `podman inspect` could differ from remote (#203)
 - **Deps:** Resolve beautifulsoup4 (4.15.0) and soupsieve from RHTL instead of PyPI (#204)
+- **Config:** Bump app and service versions to 0.2.0
 
 ### Fixed
 
