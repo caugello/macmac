@@ -1127,11 +1127,12 @@ if __name__ == "__main__":
     )
 
     config = get_config_for_service_dependency("catalog", "crawler")
+    rabbitmq_url = os.getenv("RABBITMQ_URL", config.url)
 
     max_retries = 10
     for attempt in range(1, max_retries + 1):
         try:
-            bus = MessagingBus(config.url)
+            bus = MessagingBus(rabbitmq_url)
             break
         except Exception as e:
             if attempt == max_retries:
