@@ -1,32 +1,36 @@
 import logging
 
+import jwt
 from pydantic import UUID4
 
-from services.framework.user_context import set_user_context
+from services.framework.user_context import current_user, set_user_context
+from services.shared.lib.jwt import decode_access_token
 
 logger = logging.getLogger(__name__)
 
-# Custom headers for user context propagation
-USER_ID_HEADER = "X-User-ID"
-USERNAME_HEADER = "X-Username"
-USER_GROUPS_HEADER = "X-User-Groups"
+# JWT-per-service: each backend verifies the JWT independently instead of
+# trusting gateway-injected headers, preventing auth bypass via header spoofing.
 
 
 async def auth_tracing_middleware(request, call_next):
-    """
-    Extract user context from headers (set by gateway) and populate contextvars.
-    Runs after tracing_middleware.
-    """
-    user_id = request.headers.get(USER_ID_HEADER)
-    username = request.headers.get(USERNAME_HEADER)
-    groups_str = request.headers.get(USER_GROUPS_HEADER, "")
+    """Verify the forwarded JWT and populate user contextvars.
 
-    if user_id and username:
+    Unauthenticated requests (health checks, public routes) pass through
+    without user context — downstream handlers call require_user_context()
+    to enforce auth.
+    """
+    current_user.set(None)
+    auth_header = request.headers.get("authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1]
         try:
-            group_ids = [UUID4(g) for g in groups_str.split(",") if g]
-            set_user_context(UUID4(user_id), username, group_ids)
-        except Exception as e:
-            logger.warning("Failed to parse user context headers: %s", e)
+            payload = decode_access_token(token)
+            user_id = UUID4(payload["sub"])
+            username = payload["username"]
+            group_ids = [UUID4(g) for g in payload.get("groups", [])]
+            set_user_context(user_id, username, group_ids)
+        except (jwt.InvalidTokenError, KeyError, ValueError, TypeError) as e:
+            logger.warning("Backend JWT verification failed: %s", e)
 
     response = await call_next(request)
     return response
