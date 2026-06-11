@@ -92,7 +92,8 @@ services:
     title: Authentication API
     version: 0.1.0
     url: "http://auth-api:8004"
-    db: "postgresql+pg8000://dbuser:dbpass@auth-db:5432/auth"
+    # Connection template — credentials come from env var {SERVICE}_DATABASE_URL
+    db: "postgresql+pg8000://auth-db:5432/auth"
     routes:
       - name: login
         method: post
@@ -211,7 +212,7 @@ services:
     title: Recipes API
     version: 0.1.0
     url: "http://recipes-api:8001"
-    db: "postgresql+pg8000://dbuser:dbpass@recipes-db:5432/recipes"
+    db: "postgresql+pg8000://recipes-db:5432/recipes"
     routes:
       - name: create_recipe
         method: post
@@ -289,7 +290,7 @@ services:
     title: catalog API
     version: 0.1.0
     url: "http://catalog-api:8002"
-    db: "postgresql+pg8000://dbuser:dbpass@catalog-db:5432/catalog"
+    db: "postgresql+pg8000://catalog-db:5432/catalog"
     enricher:
       batch_size: 5
       delay_between_requests: 5
@@ -356,13 +357,13 @@ services:
       - name: crawler
         title: Crawler
         version: 0.1.0
-        url: "amqp://macmac:devpassword@rabbitmq:5672/%2F"
+        url: "amqp://rabbitmq:5672/%2F"
   meal_plans:
     name: meal_plans
     title: Meal Plans API
     version: 0.1.0
     url: "http://meal-plans-api:8003"
-    db: "postgresql+pg8000://dbuser:dbpass@meal-plans-db:5432/meal_plans"
+    db: "postgresql+pg8000://meal-plans-db:5432/meal_plans"
     routes:
       - name: create_meal_plan
         method: post

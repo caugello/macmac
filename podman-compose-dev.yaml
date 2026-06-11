@@ -345,6 +345,7 @@ services:
       - .:/opt/app-root/src
     environment:
       PYTHONPATH: /opt/app-root/src
+      RABBITMQ_URL: "amqp://${RABBITMQ_USER:-macmac}:${RABBITMQ_PASS:-devpassword}@rabbitmq:5672/%2F"
     command: python -m services.catalog.crawler.main
     depends_on:
       rabbitmq:
@@ -371,6 +372,7 @@ services:
       CATALOG_DATABASE_URL: "postgresql+pg8000://dbuser:dbpass@catalog-db:5432/catalog"
       OPENAI_API_KEY: "${OPENAI_API_KEY}"
       PLAYWRIGHT_BROWSERS_PATH: /opt/playwright-browsers
+      RABBITMQ_URL: "amqp://${RABBITMQ_USER:-macmac}:${RABBITMQ_PASS:-devpassword}@rabbitmq:5672/%2F"
     command: python -m services.catalog.enricher.main
     depends_on:
       catalog_migration:
