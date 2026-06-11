@@ -33,6 +33,14 @@ Object.defineProperty(window, 'matchMedia', {
 // Mock scrollIntoView (not implemented in jsdom)
 Element.prototype.scrollIntoView = vi.fn()
 
+// Mock ResizeObserver (used by cmdk)
+global.ResizeObserver = class MockResizeObserver {
+  constructor() {}
+  disconnect() {}
+  observe() {}
+  unobserve() {}
+} as unknown as typeof globalThis.ResizeObserver
+
 // Mock IntersectionObserver
 global.IntersectionObserver = class MockIntersectionObserver {
   constructor() {}
