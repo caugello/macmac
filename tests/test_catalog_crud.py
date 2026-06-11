@@ -45,6 +45,26 @@ async def test_create_catalog_item(mock_catalog_db):
 
 @pytest.mark.asyncio
 @pytest.mark.unit
+async def test_create_catalog_item_sanitizes_nutriscore_svg(mock_catalog_db):
+    """Stored nutriscore_svg is sanitized of XSS payloads."""
+    item_data = CatalogItemCreate(
+        vendor_name="test_vendor",
+        raw_name="SVG Product",
+        product_url="https://example.com/products/svg",
+        is_food=True,
+        nutriscore_svg='<svg class="ns"><script>alert(1)</script><path/></svg>',
+    )
+
+    result = await create_catalog_item(item_data, mock_catalog_db)
+
+    assert result.nutriscore_svg is not None
+    assert "<script" not in result.nutriscore_svg
+    assert "alert" not in result.nutriscore_svg
+    assert "<svg" in result.nutriscore_svg
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
 async def test_create_catalog_item_minimal(mock_catalog_db):
     """Test creating a catalog item with minimal required fields."""
     item_data = CatalogItemCreate(

@@ -10,8 +10,9 @@ from collections import defaultdict
 from collections.abc import Callable
 
 import redis
-from fastapi import HTTPException, Request
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 
 from services.config import get_config
 
@@ -92,9 +93,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         if exceeded:
             logger.warning(f"Rate limit exceeded for {client_ip} on {request.url.path}")
-            raise HTTPException(
+            return JSONResponse(
                 status_code=429,
-                detail="Too many requests. Please try again later.",
+                content={"detail": "Too many requests. Please try again later."},
                 headers={"Retry-After": str(period)},
             )
 

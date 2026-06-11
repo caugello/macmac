@@ -14,6 +14,7 @@ from services.framework.logging import setup_logging
 from services.shared.constant import CATALOG_PROCESS_ENTITY_QUEUE
 from services.shared.lib.db import get_db
 from services.shared.lib.messaging_bus import MessagingBus
+from services.shared.lib.svg_sanitizer import sanitize_nutriscore_svg
 from services.shared.lib.url_validator import validate_url
 from services.shared.schemas.catalog import CatalogItemCreate
 
@@ -317,6 +318,7 @@ async def _crawl_product_page_once(url: str) -> CrawlResult:
                     const svg = container.querySelector('svg');
                     return svg ? svg.outerHTML : container.innerHTML;
                 }""")
+                nutriscore_svg = sanitize_nutriscore_svg(nutriscore_svg)
                 if nutriscore_svg:
                     logger.debug(f"Nutri-Score SVG extracted ({len(nutriscore_svg)} chars)")
         except Exception as e:

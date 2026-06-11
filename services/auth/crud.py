@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from services.framework.tracing import traced
 from services.framework.user_context import require_user_context
-from services.shared.lib.jwt import decode_access_token, revoke_token
+from services.shared.lib.jwt import decode_access_token, revoke_token, token_remaining_ttl
 from services.shared.schemas import auth as auth_schemas
 
 from .models import Group, GroupInvitation, User
@@ -454,5 +454,5 @@ async def logout(data: auth_schemas.LogoutRequest, db: Session):
     if not jti:
         raise HTTPException(status_code=400, detail="Token missing jti claim")
 
-    revoke_token(jti)
+    revoke_token(jti, token_remaining_ttl(payload))
     return {"message": "Successfully logged out"}
