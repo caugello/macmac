@@ -33,7 +33,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     const storedToken = localStorage.getItem('auth_token')
     const storedUser = localStorage.getItem('auth_user')
-
     if (storedToken && storedUser) {
       try {
         const parsedUser = JSON.parse(storedUser)
@@ -45,21 +44,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         localStorage.removeItem('auth_user')
       }
     }
-
     setIsLoading(false)
-  }, [])
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(firebaseAuth, () => {
-      // Firebase state tracked separately; internal JWT is the source of truth
-    })
+    const unsubscribe = onAuthStateChanged(firebaseAuth, () => {})
     return unsubscribe
   }, [])
 
   const loginWithGoogle = async () => {
     const result = await signInWithPopup(firebaseAuth, googleProvider)
     const idToken = await result.user.getIdToken()
-
     const response = await authApi.login({ id_token: idToken })
     setToken(response.access_token)
     setUser(response.user)

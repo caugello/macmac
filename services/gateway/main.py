@@ -37,6 +37,28 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        return response
+
+
+# Middleware execution order is the reverse of registration order in Starlette
+# (last added = outermost = first to execute). Registering innermost-first below
+# yields the runtime order: CORS -> RateLimit -> Auth -> Logging -> SecurityHeaders.
+# CORS must be outermost so its headers are attached to every response, including
+# 401/429 errors; RateLimit must run before Auth so brute-force attempts are
+# throttled before token validation.
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(GatewayLoggingMiddleware)
+app.add_middleware(AuthenticationMiddleware)
+app.add_middleware(RateLimitMiddleware, calls=100, period=60)
+
 # Add CORS middleware for frontend - configuration from config.yaml
 app.add_middleware(
     CORSMiddleware,
@@ -50,25 +72,6 @@ app.add_middleware(
     allow_headers=config.gateway.cors.allow_headers,
     max_age=config.gateway.cors.max_age,
 )
-
-# Add rate limiting middleware (before auth to prevent brute force attacks)
-app.add_middleware(RateLimitMiddleware, calls=100, period=60)
-
-app.add_middleware(GatewayLoggingMiddleware)
-
-
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        response = await call_next(request)
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-        return response
-
-
-app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(AuthenticationMiddleware)
 
 
 def build_url(service, route, request: Request) -> str:

@@ -299,15 +299,6 @@ services:
       max_retries: 3
       retry_backoff: 2.0
     routes:
-      - name: create_recipe
-        method: post
-        path: /catalog
-        request_model: services.shared.schemas.catalog.CatalogItemCreate
-        response_model: services.shared.schemas.catalog.CatalogItemOut
-        handler: services.catalog.crud.create_catalog_item
-        description: Create a new catalog item
-        tags:
-          - catalog
       - name: list_catalog_items
         method: get
         path: /catalog

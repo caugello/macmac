@@ -42,7 +42,7 @@ class CatalogItemCreate(BaseModel):
     category: str | None = Field(None, max_length=100)
     nutrition: dict | None = None
     nutriscore: str | None = Field(None, max_length=1)
-    nutriscore_svg: str | None = Field(None, max_length=50000)
+    nutriscore_svg: str | None = Field(None, max_length=2000)
     promotion_until_date: date | None = None
     image_url: str | None = Field(None, max_length=2048)
     last_enriched_at: datetime | None = None
@@ -58,6 +58,13 @@ class CatalogItemCreate(BaseModel):
             NutritionInfo(**v)
             return v
         return v
+
+    @field_validator("nutriscore_svg", mode="before")
+    @classmethod
+    def sanitize_svg(cls, v: str | None) -> str | None:
+        from services.shared.lib.svg_sanitizer import sanitize_nutriscore_svg
+
+        return sanitize_nutriscore_svg(v)
 
     @field_validator("product_url", "image_url")
     @classmethod

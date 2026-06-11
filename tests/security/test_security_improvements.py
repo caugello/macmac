@@ -77,6 +77,94 @@ class TestJWTSecurity:
         with pytest.raises(jwt.InvalidTokenError):
             decode_access_token(expired_token)
 
+    def test_token_missing_exp_rejected(self):
+        """Test that a token without an exp claim is rejected outright"""
+        from datetime import UTC, datetime
+        from uuid import uuid4
+
+        import jwt
+
+        from services.shared.lib.jwt import ALGORITHM, SECRET_KEY
+
+        payload = {
+            "sub": str(uuid4()),
+            "username": "testuser",
+            "groups": [],
+            "iat": datetime.now(UTC),
+            "iss": "macmac-auth",
+            "aud": "macmac-api",
+            "jti": str(uuid4()),
+            # No "exp" claim on purpose.
+        }
+        token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+        with pytest.raises(jwt.MissingRequiredClaimError):
+            decode_access_token(token)
+
+    def test_token_missing_iat_rejected(self):
+        """Test that a token without an iat claim is rejected outright"""
+        from datetime import UTC, datetime, timedelta
+        from uuid import uuid4
+
+        import jwt
+
+        from services.shared.lib.jwt import ALGORITHM, SECRET_KEY
+
+        payload = {
+            "sub": str(uuid4()),
+            "username": "testuser",
+            "groups": [],
+            "exp": datetime.now(UTC) + timedelta(minutes=30),
+            "iss": "macmac-auth",
+            "aud": "macmac-api",
+            "jti": str(uuid4()),
+            # No "iat" claim on purpose.
+        }
+        token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+        with pytest.raises(jwt.MissingRequiredClaimError):
+            decode_access_token(token)
+
+    @pytest.mark.asyncio
+    async def test_logout_revokes_token(self):
+        """Test that a logged-out token is rejected on subsequent decode"""
+        from uuid import uuid4
+
+        import jwt
+
+        from services.auth import crud
+        from services.shared.lib import jwt as jwt_lib
+        from services.shared.schemas.auth import LogoutRequest
+
+        # Use the in-memory fallback to keep the test free of external Redis.
+        jwt_lib._revoked_tokens_fallback.clear()
+
+        token = create_access_token(str(uuid4()), "testuser", [])
+
+        # Token is valid before logout.
+        payload = decode_access_token(token)
+        assert payload["username"] == "testuser"
+
+        await crud.logout(LogoutRequest(access_token=token), db=None)
+
+        # Same token is now rejected.
+        with pytest.raises(jwt.InvalidTokenError):
+            decode_access_token(token)
+
+        jwt_lib._revoked_tokens_fallback.clear()
+
+    def test_revoke_token_with_nonpositive_ttl_is_noop(self):
+        """Test that revoking with a non-positive TTL does not blacklist"""
+        from uuid import uuid4
+
+        from services.shared.lib import jwt as jwt_lib
+
+        jwt_lib._revoked_tokens_fallback.clear()
+
+        jti = str(uuid4())
+        jwt_lib.revoke_token(jti, 0)
+        assert jwt_lib.is_token_revoked(jti) is False
+
 
 class TestInputValidation:
     """Test input validation with Pydantic field validators"""
