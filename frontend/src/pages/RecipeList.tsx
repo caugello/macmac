@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useRecipes } from '@/hooks/useRecipes'
+import { useRecipes, useRecipeCategoryCounts } from '@/hooks/useRecipes'
 import { FilterChips } from '@/components/shared/FilterChips'
 import { SearchBar } from '@/components/shared/SearchBar'
 import { Pagination } from '@/components/shared/Pagination'
@@ -37,16 +37,10 @@ export const RecipeList = () => {
     category: categoryParam,
   })
 
-  // Separate unfiltered-by-category query (scoped to the current search) so the
-  // chip counts stay stable as categories are toggled.
-  const { data: countData } = useRecipes({ limit: 100, search })
-  const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    countData?.data.forEach((recipe) => {
-      if (recipe.category) counts[recipe.category] = (counts[recipe.category] || 0) + 1
-    })
-    return counts
-  }, [countData])
+  // Server-side counts (scoped to the current search) so chips stay accurate
+  // regardless of how many recipes the user has and stable as categories toggle.
+  const { data: countData } = useRecipeCategoryCounts({ search })
+  const categoryCounts = countData?.counts ?? {}
 
   const toggleCategory = (category: RecipeCategoryEnum) => {
     setPage(0)

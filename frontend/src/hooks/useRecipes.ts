@@ -18,6 +18,14 @@ export const useRecipes = (params?: {
   })
 }
 
+export const useRecipeCategoryCounts = (params?: { search?: string }) => {
+  return useQuery({
+    queryKey: ['recipe-category-counts', params],
+    queryFn: () => recipesApi.categoryCounts(params),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  })
+}
+
 export const useRecipe = (id: string) => {
   return useQuery({
     queryKey: ['recipe', id],
@@ -32,6 +40,7 @@ export const useCreateRecipe = () => {
     mutationFn: (data: RecipeCreate) => recipesApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recipes'] })
+      queryClient.invalidateQueries({ queryKey: ['recipe-category-counts'] })
     },
   })
 }
@@ -43,6 +52,7 @@ export const useUpdateRecipe = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['recipes'] })
       queryClient.invalidateQueries({ queryKey: ['recipe', variables.id] })
+      queryClient.invalidateQueries({ queryKey: ['recipe-category-counts'] })
     },
   })
 }
@@ -54,6 +64,7 @@ export const useDeleteRecipe = () => {
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['recipes'] })
       queryClient.removeQueries({ queryKey: ['recipe', id] })
+      queryClient.invalidateQueries({ queryKey: ['recipe-category-counts'] })
     },
   })
 }

@@ -63,6 +63,31 @@ describe('recipesApi', () => {
     })
   })
 
+  describe('categoryCounts', () => {
+    it('should call GET /recipes/category-counts without params', async () => {
+      const mockResponse = { data: { counts: { breakfast: 3, dessert: 1 } } }
+      vi.mocked(apiClient.get).mockResolvedValue(mockResponse)
+
+      const result = await recipesApi.categoryCounts()
+
+      expect(apiClient.get).toHaveBeenCalledWith('/recipes/category-counts', {
+        params: undefined,
+      })
+      expect(result).toEqual(mockResponse.data)
+    })
+
+    it('should pass the search param', async () => {
+      const mockResponse = { data: { counts: { breakfast: 1 } } }
+      vi.mocked(apiClient.get).mockResolvedValue(mockResponse)
+
+      await recipesApi.categoryCounts({ search: 'pancakes' })
+
+      expect(apiClient.get).toHaveBeenCalledWith('/recipes/category-counts', {
+        params: { search: 'pancakes' },
+      })
+    })
+  })
+
   describe('get', () => {
     it('should call GET /recipes/:id', async () => {
       const mockRecipe = {

@@ -7,8 +7,12 @@ import { RecipeList } from './RecipeList'
 import * as useRecipesHook from '@/hooks/useRecipes'
 
 const mockUseRecipes = vi.fn()
+const mockUseRecipeCategoryCounts = vi.fn()
 
 vi.spyOn(useRecipesHook, 'useRecipes').mockImplementation(mockUseRecipes)
+vi.spyOn(useRecipesHook, 'useRecipeCategoryCounts').mockImplementation(mockUseRecipeCategoryCounts)
+
+mockUseRecipeCategoryCounts.mockReturnValue({ data: { counts: {} } })
 
 const createWrapper = () => {
   const queryClient = new QueryClient({

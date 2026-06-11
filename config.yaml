@@ -255,6 +255,20 @@ services:
             example: "breakfast,dessert"
         tags:
           - recipe
+      - name: category_counts
+        method: get
+        # Registered before /recipes/{recipe_id} so the static path is not
+        # captured by the path parameter.
+        path: /recipes/category-counts
+        response_model: services.shared.schemas.recipe.RecipeCategoryCountsResponse
+        handler: services.recipes.crud.category_counts
+        description: Recipe count per category for the current user
+        query_params:
+          search:
+            type: str
+            default: null
+        tags:
+          - recipe
       - name: get_recipe
         method: get
         path: /recipes/{recipe_id}

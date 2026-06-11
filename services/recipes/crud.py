@@ -2,7 +2,7 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from pydantic import UUID4
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -281,6 +281,47 @@ async def list_recipes(
         }
 
         # Cache for configured TTL
+        cache.set_json(cache_key, result, ttl=config.cache.ttl.recipes_list)
+
+        return result
+
+
+@traced
+async def category_counts(db: Session, search: str | None = None):
+    """
+    Returns the recipe count per category for the current user.
+
+    Respects the same ownership filter (user_id OR group_id) and optional
+    case-insensitive title ``search`` as ``list_recipes``, but aggregates with a
+    single GROUP BY so counts are accurate regardless of how many recipes the
+    user has (no client-side limit). Categories with zero recipes are omitted.
+    Results are cached for the configured list TTL per user.
+    """
+    user_ctx = require_user_context()
+
+    groups_key = ",".join(sorted(str(g) for g in user_ctx.group_ids))
+    # Namespaced under "recipes:list:" so the existing
+    # delete_pattern("recipes:list:*") on create/update/delete also clears it.
+    cache_key = f"recipes:list:category-counts:u={user_ctx.user_id}:g={groups_key}:s={search or ''}"
+    cached = cache.get_json(cache_key)
+    if cached is not None:
+        return cached
+
+    with Span("db_recipe_category_counts"):
+        query = db.query(Recipe.category, func.count(Recipe.id))
+
+        # AUTHORIZATION FILTER: user's own recipes OR group-shared recipes
+        query = apply_ownership_filter(query, Recipe)
+
+        if search:
+            s = f"%{search.lower()}%"
+            query = query.filter(Recipe.normalized_title.ilike(s))
+
+        rows = query.filter(Recipe.category.isnot(None)).group_by(Recipe.category).all()
+
+        counts = {str(category): count for category, count in rows}
+
+        result = {"counts": counts}
         cache.set_json(cache_key, result, ttl=config.cache.ttl.recipes_list)
 
         return result
