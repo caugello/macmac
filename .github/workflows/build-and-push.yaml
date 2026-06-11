@@ -295,17 +295,12 @@ jobs:
           jq . base-image-digests.json
 
       - name: Attest base image digests
-        run: |
-          cosign login quay.io \
-            -u caugello+macmac \
-            -p "$REGISTRY_PASSWORD"
-          cosign attest --yes \
-            --predicate base-image-digests.json \
-            --type https://macmac.dev/base-images/v1 \
-            quay.io/caugello/${{ matrix.image }}@${{ steps.push-to-quay.outputs.digest }}
-        env:
-          COSIGN_EXPERIMENTAL: "1"
-          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-name: quay.io/caugello/${{ matrix.image }}
+          subject-digest: ${{ steps.push-to-quay.outputs.digest }}
+          predicate-type: https://macmac.dev/base-images/v1
+          predicate-path: base-image-digests.json
 
       - name: Sign Container Image
         run: |
