@@ -253,9 +253,10 @@ jobs:
           FULL_IMAGE="quay.io/caugello/${{ steps.build-image.outputs.image }}"
           TAGS="${{ steps.build-image.outputs.tags }}"
           for tag in $TAGS; do
-            podman push "${{ steps.build-image.outputs.image }}:${tag}" "${FULL_IMAGE}:${tag}"
+            podman push --digestfile /tmp/push-digest \
+              "${{ steps.build-image.outputs.image }}:${tag}" "${FULL_IMAGE}:${tag}"
           done
-          DIGEST=$(podman inspect --format='{{.Digest}}' "${{ steps.build-image.outputs.image }}:${TAGS%% *}")
+          DIGEST=$(cat /tmp/push-digest)
           echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
           echo "registry-paths=${FULL_IMAGE}:${TAGS%% *}" >> "$GITHUB_OUTPUT"
 
