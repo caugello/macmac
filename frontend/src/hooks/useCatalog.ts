@@ -7,6 +7,7 @@ export const useCatalog = (params?: {
   search?: string
   sort?: string
   category?: string
+  is_food?: boolean
 }) => {
   return useQuery({
     queryKey: ['catalog', params],

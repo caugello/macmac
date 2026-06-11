@@ -23,6 +23,8 @@ export const IngredientAutocomplete = ({
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
+  // Toggle state is intentionally not persisted; it resets on page load.
+  const [foodOnly, setFoodOnly] = useState(false)
 
   // Debounce search
   useEffect(() => {
@@ -36,6 +38,7 @@ export const IngredientAutocomplete = ({
     limit: 20,
     offset: 0,
     search: debouncedSearch,
+    is_food: foodOnly ? true : undefined,
   })
 
   return (
@@ -49,6 +52,15 @@ export const IngredientAutocomplete = ({
         />
       </PopoverTrigger>
       <PopoverContent className="w-[400px] p-0" align="start">
+        <label className="flex min-h-[44px] cursor-pointer items-center gap-2 border-b px-3 py-2 text-sm">
+          <input
+            type="checkbox"
+            className="h-4 w-4"
+            checked={foodOnly}
+            onChange={(e) => setFoodOnly(e.target.checked)}
+          />
+          Food items only
+        </label>
         <Command>
           <CommandList>
             {isLoading && <CommandEmpty>Loading...</CommandEmpty>}
@@ -68,7 +80,14 @@ export const IngredientAutocomplete = ({
                     }}
                   >
                     <div className="flex flex-col flex-1">
-                      <div className="font-medium">{item.canonical_name || item.raw_name}</div>
+                      <div className="font-medium">
+                        {item.canonical_name || item.raw_name}
+                        {!item.is_food && (
+                          <span className="ml-1 font-normal text-on-surface-variant">
+                            (Non-food)
+                          </span>
+                        )}
+                      </div>
                       <div className="text-sm text-muted-foreground">
                         {item.brand && `${item.brand} • `}
                         {item.net_quantity_value && item.net_quantity_unit && (

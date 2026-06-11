@@ -12,6 +12,7 @@ export const catalogApi = {
     search?: string
     sort?: string
     category?: string
+    is_food?: boolean
   }) => apiClient.get<CatalogItemListResponse>('/catalog', { params }).then((res) => res.data),
 
   get: (id: string) => apiClient.get<CatalogItemOut>(`/catalog/${id}`).then((res) => res.data),
