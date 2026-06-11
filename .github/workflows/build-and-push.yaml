@@ -266,16 +266,11 @@ jobs:
           subject-digest: ${{ steps.push-to-quay.outputs.digest }}
 
       - name: Attest SBOM
-        # Migrated from the deprecated actions/attest-sbom to actions/attest
-        # (sbom-path auto-detects SBOM mode). push-to-registry attaches the
-        # attestation to the image in quay as an OCI referrer so it is
-        # retrievable via `cosign verify-attestation` and `gh attestation verify`.
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
         with:
           subject-name: quay.io/caugello/${{ matrix.image }}
           subject-digest: ${{ steps.push-to-quay.outputs.digest }}
           sbom-path: sbom.spdx.json
-          push-to-registry: true
 
       - name: Capture base image digests
         id: base-images
