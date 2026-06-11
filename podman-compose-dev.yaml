@@ -285,7 +285,9 @@ services:
       - .:/app
     environment:
       PYTHONPATH: /app
+      ENVIRONMENT: "development"
       RECIPES_DATABASE_URL: "postgresql+pg8000://dbuser:dbpass@recipes-db:5432/recipes"
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-only-jwt-secret-key-min-32-chars}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-devpassword}
     ports:
       - 8001:8001
@@ -312,7 +314,9 @@ services:
       - .:/app
     environment:
       PYTHONPATH: /app
+      ENVIRONMENT: "development"
       CATALOG_DATABASE_URL: "postgresql+pg8000://dbuser:dbpass@catalog-db:5432/catalog"
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-only-jwt-secret-key-min-32-chars}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-devpassword}
     ports:
       - 8002:8002
@@ -390,7 +394,9 @@ services:
       - .:/app
     environment:
       PYTHONPATH: /app
+      ENVIRONMENT: "development"
       MEAL_PLANS_DATABASE_URL: "postgresql+pg8000://dbuser:dbpass@meal-plans-db:5432/meal_plans"
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-only-jwt-secret-key-min-32-chars}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-devpassword}
     ports:
       - 8003:8003

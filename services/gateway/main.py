@@ -178,10 +178,9 @@ def make_proxy_handler(service, route):
             if body:
                 json_body = await request.json()
 
-        # --- Forward headers, strip body-sensitive and user-context ones ---
-        # User-context headers (X-User-ID, X-Username, X-User-Groups) are
-        # stripped to prevent clients from injecting spoofed identity.
-        # They are re-added below only from the authenticated request.state.
+        # --- Forward headers, strip body-sensitive and spoofable ones ---
+        # X-User-* headers are stripped so clients cannot inject identity.
+        # Backends verify the forwarded Authorization JWT directly.
         headers = {
             k: v
             for k, v in request.headers.items()
@@ -199,12 +198,6 @@ def make_proxy_handler(service, route):
 
         trace_id = request.headers.get(TRACE_ID_HEADER) or str(uuid.uuid4())
         headers[TRACE_ID_HEADER] = trace_id
-
-        # Add user context headers if available (set by auth middleware)
-        if hasattr(request.state, "user_id"):
-            headers["X-User-ID"] = request.state.user_id
-            headers["X-Username"] = request.state.username
-            headers["X-User-Groups"] = ",".join(request.state.group_ids)
 
         async with httpx.AsyncClient(timeout=HTTPX_TIMEOUT) as client:
             response = await client.request(
