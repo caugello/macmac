@@ -300,6 +300,16 @@ async def _crawl_product_page_once(url: str, browser: "Browser") -> CrawlResult:
             if home_response and home_response.status == 200:
                 logger.debug("Homepage loaded successfully")
                 await asyncio.sleep(2.0)
+
+                try:
+                    accept_btn = await page.query_selector("#onetrust-accept-btn-handler")
+                    if accept_btn:
+                        await accept_btn.click()
+                        logger.debug("Accepted cookie consent")
+                        await asyncio.sleep(1.0)
+                except Exception as e:
+                    logger.debug(f"No cookie consent banner: {e}")
+
                 await page.evaluate("window.scrollTo({top: 400, behavior: 'smooth'})")
                 await asyncio.sleep(1.0)
                 await page.evaluate("window.scrollTo({top: 800, behavior: 'smooth'})")
