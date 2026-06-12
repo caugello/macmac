@@ -228,3 +228,34 @@
   transform: translateY(-2px);
   filter: brightness(1.1);
 }
+
+/* Print: show only the shopping-list region, hide all other chrome */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  [data-print-region],
+  [data-print-region] * {
+    visibility: visible;
+  }
+
+  [data-print-region] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    box-shadow: none;
+    border: none;
+    background: #ffffff;
+    color: #000000;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+}

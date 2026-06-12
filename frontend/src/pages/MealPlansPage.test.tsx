@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi } from 'vitest'
@@ -9,12 +10,21 @@ vi.mock('@/components/meal-plans/WeeklyCalendar', () => ({
   WeeklyCalendar: () => <div data-testid="weekly-calendar">Weekly Calendar</div>,
 }))
 
-vi.mock('@/components/meal-plans/ShoppingList', () => ({
-  ShoppingList: ({ weekStart, weekEnd }: { weekStart: Date; weekEnd: Date }) => (
-    <div data-testid="shopping-list">
-      Shopping List: {weekStart.toISOString()} - {weekEnd.toISOString()}
-    </div>
-  ),
+vi.mock('@/components/meal-plans/ShoppingListModal', () => ({
+  ShoppingListModal: ({
+    open,
+    weekStart,
+    weekEnd,
+  }: {
+    open: boolean
+    weekStart: Date
+    weekEnd: Date
+  }) =>
+    open ? (
+      <div data-testid="shopping-list-modal">
+        Shopping List: {weekStart.toISOString()} - {weekEnd.toISOString()}
+      </div>
+    ) : null,
 }))
 
 const createWrapper = () => {
@@ -45,16 +55,34 @@ describe('MealPlansPage', () => {
       expect(screen.getByText('Weekly Calendar')).toBeInTheDocument()
     })
 
-    it('should render ShoppingList component', () => {
+    it('should render the Shopping List button', () => {
       render(<MealPlansPage />, { wrapper: createWrapper() })
-      expect(screen.getByTestId('shopping-list')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Shopping List/ })).toBeInTheDocument()
     })
 
-    it('should pass week start and end dates to ShoppingList', () => {
+    it('should not render the shopping list modal initially', () => {
       render(<MealPlansPage />, { wrapper: createWrapper() })
-      const shoppingList = screen.getByTestId('shopping-list')
-      expect(shoppingList).toBeInTheDocument()
-      expect(shoppingList.textContent).toContain('Shopping List:')
+      expect(screen.queryByTestId('shopping-list-modal')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('shopping list modal', () => {
+    it('should open the modal when the Shopping List button is clicked', async () => {
+      const user = userEvent.setup()
+      render(<MealPlansPage />, { wrapper: createWrapper() })
+
+      await user.click(screen.getByRole('button', { name: /Shopping List/ }))
+
+      expect(screen.getByTestId('shopping-list-modal')).toBeInTheDocument()
+    })
+
+    it('should pass week start and end dates to the modal', async () => {
+      const user = userEvent.setup()
+      render(<MealPlansPage />, { wrapper: createWrapper() })
+
+      await user.click(screen.getByRole('button', { name: /Shopping List/ }))
+
+      expect(screen.getByTestId('shopping-list-modal').textContent).toContain('Shopping List:')
     })
   })
 
