@@ -210,7 +210,7 @@ describe('RecipeSelectorModal', () => {
       expect(defaultProps.onClose).toHaveBeenCalled()
     })
 
-    it('should close modal even on meal plan creation error', async () => {
+    it('should keep modal open on meal plan creation error so the user can retry', async () => {
       mockMealPlanMutate.mockImplementation((_data: unknown, options: { onError: () => void }) => {
         options.onError()
       })
@@ -221,7 +221,7 @@ describe('RecipeSelectorModal', () => {
       await user.click(screen.getByText('Create New Recipe'))
       await user.click(screen.getByText('Mock Create Recipe'))
 
-      expect(defaultProps.onClose).toHaveBeenCalled()
+      expect(defaultProps.onClose).not.toHaveBeenCalled()
     })
   })
 })
