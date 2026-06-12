@@ -16,6 +16,11 @@ export const CatalogList = () => {
   const [activeCategory, setActiveCategory] = useState(ALL_PRODUCTS)
   const limit = 20
 
+  const handleSearchChange = (value: string) => {
+    setSearch(value)
+    setPage(0)
+  }
+
   const categoryParam = activeCategory === ALL_PRODUCTS ? undefined : activeCategory
 
   const { data: categoriesData } = useCatalogCategories()
@@ -75,7 +80,7 @@ export const CatalogList = () => {
       <h1 className="text-headline-xl font-heading font-bold mb-6">Product Catalog</h1>
 
       <div>
-        <SearchBar value={search} onChange={setSearch} placeholder="Search products..." />
+        <SearchBar value={search} onChange={handleSearchChange} placeholder="Search products..." />
       </div>
 
       {categories.length > 1 && (

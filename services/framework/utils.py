@@ -31,6 +31,7 @@ def build_query_dependency(route):
         search: str = Query(None, description="Search text"),
         sort: str = Query(None, description="Sort field"),
         category: str = Query(None, description="Filter by category"),
+        is_food: bool = Query(None, description="Filter by food/non-food"),
     ):
         all_params = {
             "limit": min(limit or DEFAULT_LIMIT, MAX_LIMIT),
@@ -38,6 +39,7 @@ def build_query_dependency(route):
             "search": search,
             "sort": sort,
             "category": category,
+            "is_food": is_food,
         }
         return {k: v for k, v in all_params.items() if k in param_names}
 

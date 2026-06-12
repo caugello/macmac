@@ -312,6 +312,29 @@ async def test_list_catalog_items_search_matches_brand_case_insensitive(mock_cat
 
 @pytest.mark.asyncio
 @pytest.mark.unit
+async def test_list_catalog_items_search_matches_canonical_name(mock_catalog_db):
+    """Search matches canonical_name — the name displayed in the UI."""
+    await create_catalog_item(
+        CatalogItemCreate(
+            vendor_name="test_vendor",
+            raw_name="Pâtes Giglio Rustica De Cecco 500 g",
+            normalized_name="pates_giglio_rustica",
+            canonical_name="Pâtes Giglio Rustica",
+            brand="De Cecco",
+            product_url="https://example.com/products/pasta-giglio",
+            is_food=True,
+        ),
+        mock_catalog_db,
+    )
+
+    result = await list_catalog_items(mock_catalog_db, search="Giglio Rustica")
+
+    assert result["total"] == 1
+    assert result["data"][0].canonical_name == "Pâtes Giglio Rustica"
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
 async def test_list_catalog_items_search_no_match(mock_catalog_db):
     """Search returns nothing when the term matches no searchable field."""
     await create_catalog_item(
