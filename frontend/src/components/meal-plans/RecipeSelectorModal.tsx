@@ -45,7 +45,6 @@ export const RecipeSelectorModal = ({
         },
         onError: () => {
           toast('Recipe created but failed to add to meal plan', 'error')
-          onClose()
         },
       }
     )
