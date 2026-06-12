@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Input } from '@/components/ui/input'
 import { Icon } from '@/components/ui/icon'
 
@@ -16,6 +16,8 @@ export const SearchBar = ({
   debounceMs = 500,
 }: SearchBarProps) => {
   const [localValue, setLocalValue] = useState(value)
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
 
   useEffect(() => {
     setLocalValue(value)
@@ -23,11 +25,11 @@ export const SearchBar = ({
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      onChange(localValue)
+      onChangeRef.current(localValue)
     }, debounceMs)
 
     return () => clearTimeout(timer)
-  }, [localValue, debounceMs, onChange])
+  }, [localValue, debounceMs])
 
   return (
     <div className="relative">
