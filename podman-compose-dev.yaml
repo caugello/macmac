@@ -36,16 +36,15 @@ services:
 
   recipes_db:
     hostname: recipes-db
-    image: registry.access.redhat.com/hi/postgresql:16
+    image: registry.access.redhat.com/hi/postgresql:18
     environment:
-      POSTGRESQL_USER: dbuser
-      POSTGRESQL_PASSWORD: dbpass
-      POSTGRESQL_DATABASE: recipes
-      POSTGRESQL_ADMIN_PASSWORD: admin
+      POSTGRES_USER: dbuser
+      POSTGRES_PASSWORD: dbpass
+      POSTGRES_DB: recipes
     ports:
       - 5432:5432
     tmpfs:
-      - /var/lib/pgsql/data
+      - /var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U dbuser -d recipes"]
       interval: 5s
@@ -55,16 +54,15 @@ services:
 
   catalog_db:
     hostname: catalog-db
-    image: registry.access.redhat.com/hi/postgresql:16
+    image: registry.access.redhat.com/hi/postgresql:18
     environment:
-      POSTGRESQL_USER: dbuser
-      POSTGRESQL_PASSWORD: dbpass
-      POSTGRESQL_DATABASE: catalog
-      POSTGRESQL_ADMIN_PASSWORD: admin
+      POSTGRES_USER: dbuser
+      POSTGRES_PASSWORD: dbpass
+      POSTGRES_DB: catalog
     ports:
       - 5433:5432
     tmpfs:
-      - /var/lib/pgsql/data
+      - /var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U dbuser -d catalog"]
       interval: 5s
@@ -121,16 +119,15 @@ services:
 
   meal_plans_db:
     hostname: meal-plans-db
-    image: registry.access.redhat.com/hi/postgresql:16
+    image: registry.access.redhat.com/hi/postgresql:18
     environment:
-      POSTGRESQL_USER: dbuser
-      POSTGRESQL_PASSWORD: dbpass
-      POSTGRESQL_DATABASE: meal_plans
-      POSTGRESQL_ADMIN_PASSWORD: admin
+      POSTGRES_USER: dbuser
+      POSTGRES_PASSWORD: dbpass
+      POSTGRES_DB: meal_plans
     ports:
       - 5434:5432
     tmpfs:
-      - /var/lib/pgsql/data
+      - /var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U dbuser -d meal_plans"]
       interval: 5s
@@ -163,16 +160,15 @@ services:
 
   auth_db:
     hostname: auth-db
-    image: registry.access.redhat.com/hi/postgresql:16
+    image: registry.access.redhat.com/hi/postgresql:18
     environment:
-      POSTGRESQL_USER: dbuser
-      POSTGRESQL_PASSWORD: dbpass
-      POSTGRESQL_DATABASE: auth
-      POSTGRESQL_ADMIN_PASSWORD: admin
+      POSTGRES_USER: dbuser
+      POSTGRES_PASSWORD: dbpass
+      POSTGRES_DB: auth
     ports:
       - 5435:5432
     tmpfs:
-      - /var/lib/pgsql/data
+      - /var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U dbuser -d auth"]
       interval: 5s
