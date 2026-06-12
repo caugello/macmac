@@ -135,6 +135,18 @@ services:
         response_model: services.shared.schemas.auth.GroupListResponse
         handler: services.auth.crud.list_groups
         description: List user's groups
+        query_params:
+          limit:
+            type: int
+            default: 100
+            ge: 0
+          offset:
+            type: int
+            default: 0
+            ge: 0
+          search:
+            type: str
+            default: null
         tags:
           - groups
       - name: update_group
@@ -152,6 +164,18 @@ services:
         response_model: services.shared.schemas.auth.InvitationListResponse
         handler: services.auth.crud.list_group_invitations
         description: List pending invitations for a group (owner only)
+        query_params:
+          limit:
+            type: int
+            default: 100
+            ge: 0
+          offset:
+            type: int
+            default: 0
+            ge: 0
+          search:
+            type: str
+            default: null
         tags:
           - groups
       - name: invite_member
@@ -175,6 +199,18 @@ services:
         response_model: services.shared.schemas.auth.InvitationListResponse
         handler: services.auth.crud.list_my_invitations
         description: List pending invitations for the current user
+        query_params:
+          limit:
+            type: int
+            default: 100
+            ge: 0
+          offset:
+            type: int
+            default: 0
+            ge: 0
+          search:
+            type: str
+            default: null
         tags:
           - groups
       - name: respond_to_invitation
