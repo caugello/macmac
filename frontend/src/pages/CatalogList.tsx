@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useCatalog, useCatalogCategories } from '@/hooks/useCatalog'
 import { NutriscoreBadge } from '@/components/catalog/NutriscoreBadge'
@@ -16,10 +16,10 @@ export const CatalogList = () => {
   const [activeCategory, setActiveCategory] = useState(ALL_PRODUCTS)
   const limit = 20
 
-  const handleSearchChange = (value: string) => {
+  const handleSearchChange = useCallback((value: string) => {
     setSearch(value)
     setPage(0)
-  }
+  }, [])
 
   const categoryParam = activeCategory === ALL_PRODUCTS ? undefined : activeCategory
 
@@ -33,10 +33,10 @@ export const CatalogList = () => {
 
   const categories = [ALL_PRODUCTS, ...(categoriesData?.categories ?? [])]
 
-  const handleCategoryChange = (cat: string) => {
+  const handleCategoryChange = useCallback((cat: string) => {
     setActiveCategory(cat)
     setPage(0)
-  }
+  }, [])
 
   if (isLoading) {
     return (
