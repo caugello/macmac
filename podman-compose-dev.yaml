@@ -36,7 +36,7 @@ services:
 
   recipes_db:
     hostname: recipes-db
-    image: quay.io/fedora/postgresql-16
+    image: registry.access.redhat.com/hi/postgresql:16
     environment:
       POSTGRESQL_USER: dbuser
       POSTGRESQL_PASSWORD: dbpass
@@ -55,7 +55,7 @@ services:
 
   catalog_db:
     hostname: catalog-db
-    image: quay.io/fedora/postgresql-16
+    image: registry.access.redhat.com/hi/postgresql:16
     environment:
       POSTGRESQL_USER: dbuser
       POSTGRESQL_PASSWORD: dbpass
@@ -121,7 +121,7 @@ services:
 
   meal_plans_db:
     hostname: meal-plans-db
-    image: quay.io/fedora/postgresql-16
+    image: registry.access.redhat.com/hi/postgresql:16
     environment:
       POSTGRESQL_USER: dbuser
       POSTGRESQL_PASSWORD: dbpass
@@ -163,7 +163,7 @@ services:
 
   auth_db:
     hostname: auth-db
-    image: quay.io/fedora/postgresql-16
+    image: registry.access.redhat.com/hi/postgresql:16
     environment:
       POSTGRESQL_USER: dbuser
       POSTGRESQL_PASSWORD: dbpass
