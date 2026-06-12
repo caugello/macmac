@@ -6,7 +6,32 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from services.shared.lib.http_client import CircuitBreaker, service_request
+from services.framework.user_context import current_token
+from services.shared.lib.http_client import CircuitBreaker, context_headers, service_request
+
+# ===== context_headers JWT forwarding =====
+
+
+@pytest.mark.unit
+def test_context_headers_forwards_jwt_when_token_set():
+    token = current_token.set("test-jwt-token")
+    try:
+        headers = context_headers()
+        assert headers["Authorization"] == "Bearer test-jwt-token"
+    finally:
+        current_token.reset(token)
+
+
+@pytest.mark.unit
+def test_context_headers_no_auth_when_no_token():
+    token = current_token.set(None)
+    try:
+        headers = context_headers()
+        assert "Authorization" not in headers
+        assert "X-User-ID" not in headers
+    finally:
+        current_token.reset(token)
+
 
 # ===== CircuitBreaker state machine =====
 

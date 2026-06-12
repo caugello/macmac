@@ -7,7 +7,7 @@ import httpx
 
 from services.framework.logging import current_trace_id
 from services.framework.tracing import TRACE_ID_HEADER
-from services.framework.user_context import get_user_context
+from services.framework.user_context import current_token
 
 logger = logging.getLogger(__name__)
 
@@ -32,11 +32,9 @@ async def close_http_client():
 
 def context_headers() -> dict[str, str]:
     headers: dict[str, str] = {TRACE_ID_HEADER: current_trace_id.get()}
-    ctx = get_user_context()
-    if ctx:
-        headers["X-User-ID"] = str(ctx.user_id)
-        headers["X-Username"] = ctx.username
-        headers["X-User-Groups"] = ",".join(str(g) for g in ctx.group_ids)
+    token = current_token.get()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     return headers
 
 

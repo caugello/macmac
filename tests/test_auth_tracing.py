@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 
 from services.auth.security import create_access_token  # noqa: E402
 from services.framework.auth_tracing import auth_tracing_middleware  # noqa: E402
-from services.framework.user_context import get_user_context  # noqa: E402
+from services.framework.user_context import current_token, get_user_context  # noqa: E402
 
 
 def _build_app():
@@ -32,11 +32,12 @@ def _build_app():
     def test_endpoint():
         ctx = get_user_context()
         if ctx is None:
-            return {"user": None}
+            return {"user": None, "token": None}
         return {
             "user_id": str(ctx.user_id),
             "username": ctx.username,
             "groups": [str(g) for g in ctx.group_ids],
+            "token": current_token.get(),
         }
 
     return app
@@ -121,3 +122,18 @@ class TestAuthTracingJWT:
         resp = client.get("/test", headers={"Authorization": "Basic abc123"})
         assert resp.status_code == 200
         assert resp.json()["user"] is None
+
+    def test_valid_jwt_stores_raw_token(self, client, valid_token, user_id):
+        resp = client.get("/test", headers={"Authorization": f"Bearer {valid_token}"})
+        assert resp.status_code == 200
+        assert resp.json()["token"] == valid_token
+
+    def test_missing_auth_header_no_token(self, client):
+        resp = client.get("/test")
+        assert resp.status_code == 200
+        assert resp.json()["token"] is None
+
+    def test_invalid_token_no_token_stored(self, client):
+        resp = client.get("/test", headers={"Authorization": "Bearer garbage.token.here"})
+        assert resp.status_code == 200
+        assert resp.json()["token"] is None

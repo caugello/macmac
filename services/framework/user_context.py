@@ -9,6 +9,11 @@ current_user: contextvars.ContextVar[UserContext | None] = contextvars.ContextVa
     "current_user", default=None
 )
 
+# Raw JWT token for forwarding in service-to-service calls
+current_token: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "current_token", default=None
+)
+
 
 def set_user_context(user_id: UUID4, username: str, group_ids: list[UUID4]):
     """Set current user context from decoded JWT"""

@@ -3,7 +3,7 @@ import logging
 import jwt
 from pydantic import UUID4
 
-from services.framework.user_context import current_user, set_user_context
+from services.framework.user_context import current_token, current_user, set_user_context
 from services.shared.lib.jwt import decode_access_token
 
 logger = logging.getLogger(__name__)
@@ -20,6 +20,7 @@ async def auth_tracing_middleware(request, call_next):
     to enforce auth.
     """
     current_user.set(None)
+    current_token.set(None)
     auth_header = request.headers.get("authorization")
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.split(" ", 1)[1]
@@ -29,6 +30,7 @@ async def auth_tracing_middleware(request, call_next):
             username = payload["username"]
             group_ids = [UUID4(g) for g in payload.get("groups", [])]
             set_user_context(user_id, username, group_ids)
+            current_token.set(token)
         except (jwt.InvalidTokenError, KeyError, ValueError, TypeError) as e:
             logger.warning("Backend JWT verification failed: %s", e)
 
