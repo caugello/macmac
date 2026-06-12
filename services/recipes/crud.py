@@ -77,6 +77,16 @@ async def validate_catalog_items(catalog_item_ids: list[UUID4]) -> dict[UUID4, s
     return item_names
 
 
+def _backfill_group_ids(db: Session, user_id, group_id) -> None:
+    updated = (
+        db.query(Recipe)
+        .filter(Recipe.user_id == user_id, Recipe.group_id.is_(None))
+        .update({Recipe.group_id: group_id})
+    )
+    if updated:
+        cache.delete_pattern("recipes:*")
+
+
 @traced
 async def create_recipe(data: rs.RecipeCreate, db: Session):
     """
@@ -94,6 +104,9 @@ async def create_recipe(data: rs.RecipeCreate, db: Session):
 
         # Automatic sharing: if user has groups, share with first group
         group_id = user_ctx.group_ids[0] if user_ctx.group_ids else None
+
+        if group_id:
+            _backfill_group_ids(db, user_ctx.user_id, group_id)
 
         recipe = Recipe(
             title=data.title,
@@ -173,6 +186,9 @@ async def list_recipes(
     Caches list results for 2 minutes per user.
     """
     user_ctx = require_user_context()
+
+    if user_ctx.group_ids:
+        _backfill_group_ids(db, user_ctx.user_id, user_ctx.group_ids[0])
 
     # Parse and validate comma-separated category filter (e.g. "breakfast,dessert")
     categories: list[str] | None = None

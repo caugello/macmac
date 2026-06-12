@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Auth:** Forward JWT in service-to-service calls — `context_headers()` now sends `Authorization: Bearer` instead of the dead `X-User-*` headers; added logging to bare `except Exception` blocks in meal plans CRUD (#253)
+- **Auth:** Refresh JWT with updated group_ids when accepting a group invitation (#262)
+- **Recipes:** Lazy-backfill `group_id` on recipes created before the user joined a group — group members can now see each other's pre-existing recipes (#263)
 
 ## [0.2.4] - 2026-06-12
 
