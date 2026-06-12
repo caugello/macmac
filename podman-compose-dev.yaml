@@ -41,6 +41,7 @@ services:
       POSTGRES_USER: dbuser
       POSTGRES_PASSWORD: dbpass
       POSTGRES_DB: recipes
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - 5432:5432
     tmpfs:
@@ -59,6 +60,7 @@ services:
       POSTGRES_USER: dbuser
       POSTGRES_PASSWORD: dbpass
       POSTGRES_DB: catalog
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - 5433:5432
     tmpfs:
@@ -124,6 +126,7 @@ services:
       POSTGRES_USER: dbuser
       POSTGRES_PASSWORD: dbpass
       POSTGRES_DB: meal_plans
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - 5434:5432
     tmpfs:
@@ -165,6 +168,7 @@ services:
       POSTGRES_USER: dbuser
       POSTGRES_PASSWORD: dbpass
       POSTGRES_DB: auth
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - 5435:5432
     tmpfs:
