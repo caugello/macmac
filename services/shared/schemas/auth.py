@@ -120,6 +120,15 @@ class InvitationActionRequest(BaseModel):
     )
 
 
+class InvitationActionResponse(BaseModel):
+    """Response from accepting/declining an invitation"""
+
+    message: str
+    access_token: str | None = Field(
+        None, description="Refreshed JWT with updated groups (only on accept)"
+    )
+
+
 class LogoutRequest(BaseModel):
     access_token: str = Field(..., min_length=1)
 

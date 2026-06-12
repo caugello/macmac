@@ -217,6 +217,7 @@ services:
         method: post
         path: /auth/invitations/{invitation_id}
         request_model: services.shared.schemas.auth.InvitationActionRequest
+        response_model: services.shared.schemas.auth.InvitationActionResponse
         handler: services.auth.crud.respond_to_invitation
         description: Accept or decline an invitation
         tags:
