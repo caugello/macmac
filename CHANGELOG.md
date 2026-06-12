@@ -5,6 +5,18 @@ All notable changes to MacMac are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] - 2026-06-12
+
+### Added
+
+- **Frontend:** Day/week view toggle for meal plan calendar — day view (default on mobile) shows one day with prev/next navigation wrapping across weeks; week view (default on desktop) shows the full 7-day grid (#255, #258)
+- **Frontend:** Copy Week modal with target week picker — clicking "Copy Week" opens a Radix Dialog where users pick a target Monday; warns if the target week already has meals (#256, #259)
+- **Frontend:** Printable shopping list modal — replaces the broken inline shopping list with a Radix Dialog modal that generates, displays, and prints the list grouped by category (#257, #260)
+
+### Fixed
+
+- **Auth:** Forward JWT in service-to-service calls — `context_headers()` now sends `Authorization: Bearer` instead of the dead `X-User-*` headers; added logging to bare `except Exception` blocks in meal plans CRUD (#253)
+
 ## [0.2.4] - 2026-06-12
 
 ### Fixed
