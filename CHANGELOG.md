@@ -5,6 +5,23 @@ All notable changes to MacMac are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-06-12
+
+### Changed
+
+- **Infra:** Migrate dev PostgreSQL containers from Fedora to Red Hat Hardened Images (`hi/postgresql:18`) with Docker-upstream env vars (`POSTGRES_*`), `PGDATA` subdirectory for tmpfs compatibility (#221)
+- **Infra:** Replace Redis Alpine with Red Hat Hardened Valkey (`hi/valkey:latest`) (#218)
+- **CI:** Pin Conforma ec binary to fixed release version (#209)
+
+### Fixed
+
+- **Cache:** Serialize UUID, datetime, and date objects in Redis cache values (#216)
+- **Catalog:** Search across `normalized_name`, `raw_name`, and `brand` fields instead of only `canonical_name` (#217)
+- **Enricher:** Reuse a single Chromium browser instance across all products instead of launching one per batch (#220)
+- **Gateway:** Eliminate duplicate `date` and `server` response headers from proxied responses (#219)
+- **Frontend:** Remove redundant `CMD` in nginx Dockerfile that conflicted with `hi/nginx` base image entrypoint (#210)
+- **Infra:** Fix Valkey entrypoint (remove `redis-server` command prefix) and healthcheck (`valkey-cli` instead of `redis-cli`) (#222)
+
 ## [0.2.0] - 2026-06-11
 
 ### Added
@@ -111,6 +128,7 @@ Initial release. Core meal planning platform with microservices architecture.
 - SSRF prevention and pagination DoS protection
 - Authenticated ghcr.io before base image verification
 
+[0.2.1]: https://github.com/caugello/macmac/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/caugello/macmac/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/caugello/macmac/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/caugello/macmac/compare/v0.0.1...v0.1.0
