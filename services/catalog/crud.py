@@ -1,5 +1,6 @@
 from fastapi import HTTPException
 from pydantic import UUID4
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from services.config import get_config
@@ -85,9 +86,18 @@ async def list_catalog_items(
         query = db.query(CatalogItem)
 
         # ---- TEXT SEARCH (case-insensitive)
+        # Match against normalized_name, raw_name, and brand so brand-based
+        # searches (e.g. "coca") work even when the enricher strips the brand
+        # out of normalized_name.
         if search:
             s = f"%{search.lower()}%"
-            query = query.filter(CatalogItem.normalized_name.ilike(s))
+            query = query.filter(
+                or_(
+                    CatalogItem.normalized_name.ilike(s),
+                    CatalogItem.raw_name.ilike(s),
+                    CatalogItem.brand.ilike(s),
+                )
+            )
 
         # ---- CATEGORY FILTER
         if category:

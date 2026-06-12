@@ -230,6 +230,110 @@ async def test_list_catalog_items_search_case_insensitive(mock_catalog_db):
 
 @pytest.mark.asyncio
 @pytest.mark.unit
+async def test_list_catalog_items_search_matches_brand(mock_catalog_db):
+    """Search matches the brand field even when it is absent from normalized_name."""
+    # Mirrors the enricher behaviour: brand stripped out of normalized_name.
+    await create_catalog_item(
+        CatalogItemCreate(
+            vendor_name="test_vendor",
+            raw_name="Coca Cola Zero Sugar 33cl",
+            normalized_name="zero_sugar",
+            canonical_name="Zero Sugar",
+            brand="Coca-Cola",
+            product_url="https://example.com/products/coke-zero",
+            is_food=True,
+        ),
+        mock_catalog_db,
+    )
+    await create_catalog_item(
+        CatalogItemCreate(
+            vendor_name="test_vendor",
+            raw_name="Sparkling Water",
+            normalized_name="sparkling_water",
+            brand="AquaPure",
+            product_url="https://example.com/products/water",
+            is_food=True,
+        ),
+        mock_catalog_db,
+    )
+
+    result = await list_catalog_items(mock_catalog_db, search="coca")
+
+    assert result["total"] == 1
+    assert result["data"][0].brand == "Coca-Cola"
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_list_catalog_items_search_matches_raw_name(mock_catalog_db):
+    """Search matches raw_name even when normalized_name does not contain the term."""
+    await create_catalog_item(
+        CatalogItemCreate(
+            vendor_name="test_vendor",
+            raw_name="Boni Selection Tomato Ketchup",
+            normalized_name="tomato_ketchup",
+            canonical_name="Tomato Ketchup",
+            brand="Boni",
+            product_url="https://example.com/products/boni-ketchup",
+            is_food=True,
+        ),
+        mock_catalog_db,
+    )
+
+    # "selection" only appears in raw_name.
+    result = await list_catalog_items(mock_catalog_db, search="selection")
+
+    assert result["total"] == 1
+    assert result["data"][0].raw_name == "Boni Selection Tomato Ketchup"
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_list_catalog_items_search_matches_brand_case_insensitive(mock_catalog_db):
+    """Brand search is case-insensitive (e.g. 'boni' matches brand 'Boni')."""
+    await create_catalog_item(
+        CatalogItemCreate(
+            vendor_name="test_vendor",
+            raw_name="Boni Apple Juice 1L",
+            normalized_name="apple_juice",
+            canonical_name="Apple Juice",
+            brand="Boni",
+            product_url="https://example.com/products/boni-apple",
+            is_food=True,
+        ),
+        mock_catalog_db,
+    )
+
+    result = await list_catalog_items(mock_catalog_db, search="boni")
+
+    assert result["total"] == 1
+    assert result["data"][0].brand == "Boni"
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_list_catalog_items_search_no_match(mock_catalog_db):
+    """Search returns nothing when the term matches no searchable field."""
+    await create_catalog_item(
+        CatalogItemCreate(
+            vendor_name="test_vendor",
+            raw_name="Coca Cola Zero Sugar 33cl",
+            normalized_name="zero_sugar",
+            canonical_name="Zero Sugar",
+            brand="Coca-Cola",
+            product_url="https://example.com/products/coke-zero",
+            is_food=True,
+        ),
+        mock_catalog_db,
+    )
+
+    result = await list_catalog_items(mock_catalog_db, search="pepsi")
+
+    assert result["total"] == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
 async def test_list_catalog_items_with_sort(mock_catalog_db):
     """Test sorting catalog items."""
     # Create items in random order
