@@ -35,6 +35,7 @@ def build_query_dependency(route):
         is_food: bool = Query(None, description="Filter by food/non-food"),
         start_date: date = Query(None, description="Start date (YYYY-MM-DD)"),
         end_date: date = Query(None, description="End date (YYYY-MM-DD)"),
+        ingredient: str = Query(None, description="Filter by catalog item ID"),
     ):
         all_params = {
             "limit": min(limit or DEFAULT_LIMIT, MAX_LIMIT),
@@ -45,6 +46,7 @@ def build_query_dependency(route):
             "is_food": is_food,
             "start_date": start_date,
             "end_date": end_date,
+            "ingredient": ingredient,
         }
         return {k: v for k, v in all_params.items() if k in param_names}
 
