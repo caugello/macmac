@@ -5,6 +5,18 @@ All notable changes to MacMac are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-06-12
+
+### Fixed
+
+- **Framework:** Add `is_food`, `start_date`, `end_date` query params to `build_query_dependency()` — food toggle, meal plan week navigation, and date range filters were silently ignored (#224)
+- **Framework:** Add `ingredient` query param to `build_query_dependency()` — recipe ingredient filter had no effect (#231)
+- **Catalog:** Restore `canonical_name` in search fields — multi-word queries against the displayed product name failed (#224)
+- **Auth:** Declare `query_params` on group and invitation list routes so `limit`, `offset`, and `search` are forwarded (#229)
+- **Frontend:** Keep RecipeSelectorModal open on creation error instead of closing and losing user input (#230)
+- **Frontend:** Reset catalog pagination to page 1 on search input (#224)
+- **Infra:** Update gateway deployment to `GatewayUvicornWorker` — duplicate header fix from #219 was merged but not deployed (#226)
+
 ## [0.2.1] - 2026-06-12
 
 ### Changed
@@ -128,6 +140,7 @@ Initial release. Core meal planning platform with microservices architecture.
 - SSRF prevention and pagination DoS protection
 - Authenticated ghcr.io before base image verification
 
+[0.2.2]: https://github.com/caugello/macmac/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/caugello/macmac/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/caugello/macmac/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/caugello/macmac/compare/v0.1.0...v0.1.1
