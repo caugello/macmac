@@ -5,6 +5,18 @@ All notable changes to MacMac are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2026-06-12
+
+### Added
+
+- **Enricher:** Re-enrichment cron job that runs every 3 days — backfills items missing `image_url`, `nutrition`, or `nutriscore` and refreshes stale `price`/`promotion_until_date` by re-queuing to the existing enricher pipeline (#240)
+
+### Fixed
+
+- **Frontend:** Eliminate skeleton flash on catalog/recipe pagination — use `keepPreviousData` so the previous page stays visible while the next page loads (#239)
+- **Infra:** Fix Valkey MISCONF error by disabling RDB persistence (`--save ""`) — writes were rejected when no persistent volume was mounted
+- **Infra:** Fix NetworkPolicy blocking service-to-service calls from gateway to backend APIs
+
 ## [0.2.2] - 2026-06-12
 
 ### Fixed
