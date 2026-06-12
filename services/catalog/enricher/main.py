@@ -2,10 +2,14 @@ import asyncio
 import json
 import os
 import re
+import signal
 import time
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from playwright.async_api import Browser
 
 from services.catalog.db import SessionLocal
 from services.catalog.enricher.db import create_catalog_item
@@ -54,6 +58,34 @@ RETRY_BACKOFF = catalog_config.enricher.retry_backoff if catalog_config.enricher
 # Global counters for rate limiting
 items_processed = 0
 batch_start_time = time.time()
+
+# Single persistent event loop shared across all RabbitMQ messages. The shared
+# Chromium browser is bound to this loop, so it must outlive individual messages
+# (a fresh loop per message would orphan the browser).
+_event_loop: asyncio.AbstractEventLoop | None = None
+
+
+def get_event_loop() -> asyncio.AbstractEventLoop:
+    """Return the persistent event loop, creating it on first use."""
+    global _event_loop
+    if _event_loop is None or _event_loop.is_closed():
+        _event_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(_event_loop)
+    return _event_loop
+
+
+def shutdown_browser() -> None:
+    """Close the shared browser and event loop on consumer shutdown."""
+    global _event_loop
+    if _event_loop is not None and not _event_loop.is_closed():
+        try:
+            _event_loop.run_until_complete(browser_pool.close())
+        except Exception as e:
+            logger.warning(f"Error during browser shutdown: {e}")
+        finally:
+            _event_loop.close()
+            _event_loop = None
+
 
 # Regex for extracting quantity from URL
 # Matches patterns like: 280g, 1kg, 500ml, 1.5l, 375g
@@ -182,26 +214,76 @@ def extract_quantity_from_url(url: str) -> tuple[float | None, str | None]:
 CHROMIUM_ARGS = ["--disable-dev-shm-usage", "--no-sandbox"]
 
 
-async def _crawl_product_page_once(url: str) -> CrawlResult:
-    from playwright.async_api import async_playwright
+class BrowserPool:
+    """Owns a single long-lived Playwright instance and Chromium browser.
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True, args=CHROMIUM_ARGS)
+    Launching a Chromium browser per product spawns thousands of OS threads
+    and exhausts pod resources (``RuntimeError: can't start new thread``).
+    Instead we launch one browser and hand it out, creating a fresh
+    ``browser.new_context()`` per product for cookie/state isolation. If the
+    browser dies (crash/disconnect), the next ``get_browser()`` call relaunches
+    it so the existing retry logic can recover transparently.
+    """
 
-        context = await browser.new_context(
-            viewport={"width": 1440, "height": 900},
-            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-            locale="fr-BE",
-            timezone_id="Europe/Brussels",
-            color_scheme="light",
-            extra_http_headers={
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "fr-BE,fr;q=0.9",
-                "Accept-Encoding": "gzip, deflate, br",
-                "Connection": "keep-alive",
-            },
-        )
+    def __init__(self) -> None:
+        self._playwright: Any = None
+        self._browser: Browser | None = None
 
+    async def get_browser(self) -> "Browser":
+        from playwright.async_api import async_playwright
+
+        if self._playwright is None:
+            self._playwright = await async_playwright().start()
+
+        if self._browser is None or not self._browser.is_connected():
+            if self._browser is not None:
+                logger.warning("Chromium browser disconnected, relaunching")
+                try:
+                    await self._browser.close()
+                except Exception:
+                    pass
+            self._browser = await self._playwright.chromium.launch(
+                headless=True, args=CHROMIUM_ARGS
+            )
+            logger.info("Launched shared Chromium browser")
+
+        return self._browser
+
+    async def close(self) -> None:
+        if self._browser is not None:
+            try:
+                await self._browser.close()
+            except Exception as e:
+                logger.warning(f"Error closing browser: {e}")
+            self._browser = None
+        if self._playwright is not None:
+            try:
+                await self._playwright.stop()
+            except Exception as e:
+                logger.warning(f"Error stopping playwright: {e}")
+            self._playwright = None
+
+
+# Single shared browser reused across every product processed by this pod.
+browser_pool = BrowserPool()
+
+
+async def _crawl_product_page_once(url: str, browser: "Browser") -> CrawlResult:
+    context = await browser.new_context(
+        viewport={"width": 1440, "height": 900},
+        user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        locale="fr-BE",
+        timezone_id="Europe/Brussels",
+        color_scheme="light",
+        extra_http_headers={
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "fr-BE,fr;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive",
+        },
+    )
+
+    try:
         page = await context.new_page()
 
         await page.add_init_script("""
@@ -237,19 +319,15 @@ async def _crawl_product_page_once(url: str) -> CrawlResult:
         )
 
         if not response:
-            await browser.close()
             raise RuntimeError(f"No response from {url}")
 
         if response.status == 404:
-            await browser.close()
             raise PermanentCrawlError(f"HTTP 404 from {url}")
 
         if response.status in (429, 502, 503):
-            await browser.close()
             raise RuntimeError(f"HTTP {response.status} from {url}")
 
         if response.status >= 400:
-            await browser.close()
             raise PermanentCrawlError(f"HTTP {response.status} from {url}")
 
         final_url = page.url
@@ -374,7 +452,6 @@ async def _crawl_product_page_once(url: str) -> CrawlResult:
         except Exception as e:
             logger.warning(f"Could not find product info link: {e}")
 
-        await browser.close()
         return CrawlResult(
             html_content=html,
             final_url=final_url,
@@ -385,6 +462,8 @@ async def _crawl_product_page_once(url: str) -> CrawlResult:
             promotion_until_date=promotion_until_date,
             image_url=image_url,
         )
+    finally:
+        await context.close()
 
 
 async def crawl_product_page(url: str) -> CrawlResult:
@@ -393,10 +472,15 @@ async def crawl_product_page(url: str) -> CrawlResult:
     url = unquote(url)
     validate_url(url)
 
+    async def _attempt() -> CrawlResult:
+        # Fetch (and relaunch if crashed) the shared browser on every attempt
+        # so retries can recover from browser-level failures.
+        browser = await browser_pool.get_browser()
+        return await _crawl_product_page_once(url, browser)
+
     try:
         return await async_retry(
-            _crawl_product_page_once,
-            url,
+            _attempt,
             retryable_exceptions=(RuntimeError, OSError, TimeoutError),
             non_retryable_exceptions=(PermanentCrawlError,),
             label=f"crawl_product_page({url})",
@@ -410,19 +494,16 @@ async def crawl_product_page(url: str) -> CrawlResult:
 
 
 async def _crawl_nutrition_page_once(
-    info_url: str, main_page_url: str
+    info_url: str, main_page_url: str, browser: "Browser"
 ) -> tuple[str | None, str | None]:
-    from playwright.async_api import async_playwright
+    context = await browser.new_context(
+        viewport={"width": 1440, "height": 900},
+        user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        locale="fr-BE",
+        timezone_id="Europe/Brussels",
+    )
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True, args=CHROMIUM_ARGS)
-        context = await browser.new_context(
-            viewport={"width": 1440, "height": 900},
-            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-            locale="fr-BE",
-            timezone_id="Europe/Brussels",
-        )
-
+    try:
         page = await context.new_page()
         await page.add_init_script(
             "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
@@ -433,19 +514,15 @@ async def _crawl_nutrition_page_once(
         )
 
         if not response:
-            await browser.close()
             raise RuntimeError(f"No response from nutrition page {info_url}")
 
         if response.status == 404:
-            await browser.close()
             raise PermanentCrawlError(f"HTTP 404 from nutrition page {info_url}")
 
         if response.status in (429, 502, 503):
-            await browser.close()
             raise RuntimeError(f"HTTP {response.status} from nutrition page {info_url}")
 
         if response.status >= 400:
-            await browser.close()
             raise PermanentCrawlError(f"HTTP {response.status} from nutrition page {info_url}")
 
         await page.wait_for_timeout(2000)
@@ -489,8 +566,9 @@ async def _crawl_nutrition_page_once(
             logger.warning(f"Could not extract nutrition table: {e}")
 
         detailed_html = await page.content()
-        await browser.close()
         return detailed_html, nutrition_table_text
+    finally:
+        await context.close()
 
 
 async def crawl_nutrition_page(info_url: str, main_page_url: str) -> tuple[str | None, str | None]:
@@ -504,11 +582,13 @@ async def crawl_nutrition_page(info_url: str, main_page_url: str) -> tuple[str |
     validate_url(info_url)
     logger.debug(f"Crawling nutrition page: {info_url}")
 
+    async def _attempt() -> tuple[str | None, str | None]:
+        browser = await browser_pool.get_browser()
+        return await _crawl_nutrition_page_once(info_url, main_page_url, browser)
+
     try:
         return await async_retry(
-            _crawl_nutrition_page_once,
-            info_url,
-            main_page_url,
+            _attempt,
             retryable_exceptions=(RuntimeError, OSError, TimeoutError),
             non_retryable_exceptions=(PermanentCrawlError,),
             label=f"crawl_nutrition_page({info_url})",
@@ -1048,71 +1128,65 @@ def write_to_db(payload: dict, ch):
         logger.warning(f"Skipping non-French URL: {payload.get('raw_name', 'unknown')}")
         return
 
-    # Run async enrichment in event loop
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    # Run async enrichment on the persistent loop so the shared browser
+    # (bound to that loop) is reused across messages instead of relaunched.
+    loop = get_event_loop()
 
-    try:
-        enriched_item = loop.run_until_complete(
-            enrich_catalog_item(
-                raw_name=payload["raw_name"],
-                vendor_name=payload["vendor_name"],
-                product_url=product_url,
-            )
+    enriched_item = loop.run_until_complete(
+        enrich_catalog_item(
+            raw_name=payload["raw_name"],
+            vendor_name=payload["vendor_name"],
+            product_url=product_url,
         )
+    )
 
-        with get_db(SessionLocal) as db:
-            if enriched_item:
-                item = create_catalog_item(enriched_item, db)
+    with get_db(SessionLocal) as db:
+        if enriched_item:
+            item = create_catalog_item(enriched_item, db)
 
-                # Safe formatting with type checking
-                if item.net_quantity_value and item.net_quantity_unit:
-                    # Handle enum or string unit
-                    unit_str = (
-                        item.net_quantity_unit.value
-                        if hasattr(item.net_quantity_unit, "value")
-                        else item.net_quantity_unit
-                    )
-                    qty_str = f"{item.net_quantity_value}{unit_str}"
-                else:
-                    qty_str = "N/A"
-
-                # Handle price carefully - ensure it's a number
-                if item.price is not None:
-                    try:
-                        price_str = f"€{float(item.price):.2f}"
-                    except (ValueError, TypeError):
-                        price_str = f"€{item.price} (invalid)"
-                else:
-                    price_str = "N/A"
-
-                category_str = item.category or "N/A"
-                nutrition_str = "yes" if item.nutrition else "no"
-
-                logger.info(
-                    f"Stored: {item.canonical_name or item.raw_name}, is_food={enriched_item.is_food}"
+            # Safe formatting with type checking
+            if item.net_quantity_value and item.net_quantity_unit:
+                # Handle enum or string unit
+                unit_str = (
+                    item.net_quantity_unit.value
+                    if hasattr(item.net_quantity_unit, "value")
+                    else item.net_quantity_unit
                 )
-                logger.info(
-                    f"{qty_str} | {price_str} | {category_str} | Nutrition: {nutrition_str}"
-                )
+                qty_str = f"{item.net_quantity_value}{unit_str}"
+            else:
+                qty_str = "N/A"
 
-                # Detailed nutrition logging
-                if item.nutrition:
-                    logger.debug("Nutrition values saved to DB:")
-                    if isinstance(item.nutrition, dict):
-                        nutrition_json = item.nutrition
-                    elif hasattr(item.nutrition, "model_dump"):
-                        nutrition_json = item.nutrition.model_dump(exclude_none=True)
-                    else:
-                        nutrition_json = json.loads(item.nutrition)
-                    for key, value in nutrition_json.items():
-                        if value is not None:
-                            logger.debug(f"  {key}: {value}")
+            # Handle price carefully - ensure it's a number
+            if item.price is not None:
+                try:
+                    price_str = f"€{float(item.price):.2f}"
+                except (ValueError, TypeError):
+                    price_str = f"€{item.price} (invalid)"
+            else:
+                price_str = "N/A"
+
+            category_str = item.category or "N/A"
+            nutrition_str = "yes" if item.nutrition else "no"
+
+            logger.info(
+                f"Stored: {item.canonical_name or item.raw_name}, is_food={enriched_item.is_food}"
+            )
+            logger.info(f"{qty_str} | {price_str} | {category_str} | Nutrition: {nutrition_str}")
+
+            # Detailed nutrition logging
+            if item.nutrition:
+                logger.debug("Nutrition values saved to DB:")
+                if isinstance(item.nutrition, dict):
+                    nutrition_json = item.nutrition
+                elif hasattr(item.nutrition, "model_dump"):
+                    nutrition_json = item.nutrition.model_dump(exclude_none=True)
                 else:
-                    logger.warning("No nutrition data was saved to database!")
-
-    finally:
-        loop.close()
+                    nutrition_json = json.loads(item.nutrition)
+                for key, value in nutrition_json.items():
+                    if value is not None:
+                        logger.debug(f"  {key}: {value}")
+            else:
+                logger.warning("No nutrition data was saved to database!")
 
 
 if __name__ == "__main__":
@@ -1143,4 +1217,15 @@ if __name__ == "__main__":
 
     bus.declare_queue(CATALOG_PROCESS_ENTITY_QUEUE)
     bus.consume(CATALOG_PROCESS_ENTITY_QUEUE, write_to_db)
-    bus.start()
+
+    def _handle_shutdown(signum, frame):
+        logger.info(f"Received signal {signum}, shutting down consumer")
+        bus.channel.stop_consuming()
+
+    signal.signal(signal.SIGTERM, _handle_shutdown)
+    signal.signal(signal.SIGINT, _handle_shutdown)
+
+    try:
+        bus.start()
+    finally:
+        shutdown_browser()
