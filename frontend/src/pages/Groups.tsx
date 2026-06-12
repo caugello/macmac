@@ -135,7 +135,10 @@ export const Groups: React.FC = () => {
       invitationId: string
       action: 'accept' | 'decline'
     }) => authApi.respondToInvitation(invitationId, { action }),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (data.access_token) {
+        localStorage.setItem('auth_token', data.access_token)
+      }
       queryClient.invalidateQueries({ queryKey: ['invitations'] })
       queryClient.invalidateQueries({ queryKey: ['groups'] })
     },

@@ -213,7 +213,8 @@ async def test_accept_invitation(mock_auth_db):
         mock_auth_db,
     )
 
-    assert "accepted" in result["message"]
+    assert "accepted" in result.message
+    assert result.access_token is not None
     mock_auth_db.refresh(invitation)
     assert invitation.status == "accepted"
     assert invitee in group.members
@@ -244,7 +245,8 @@ async def test_decline_invitation(mock_auth_db):
         mock_auth_db,
     )
 
-    assert "declined" in result["message"]
+    assert "declined" in result.message
+    assert result.access_token is None
     mock_auth_db.refresh(invitation)
     assert invitation.status == "declined"
     assert invitee not in group.members

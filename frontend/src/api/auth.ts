@@ -69,6 +69,11 @@ export interface InvitationActionRequest {
   action: 'accept' | 'decline'
 }
 
+export interface InvitationActionResponse {
+  message: string
+  access_token: string | null
+}
+
 export const authApi = {
   login: (data: FirebaseLoginRequest) =>
     apiClient.post<LoginResponse>('/auth/login', data).then((res) => res.data),
@@ -90,7 +95,9 @@ export const authApi = {
     apiClient.get<InvitationListResponse>('/auth/invitations').then((res) => res.data),
 
   respondToInvitation: (invitationId: string, data: InvitationActionRequest) =>
-    apiClient.post(`/auth/invitations/${invitationId}`, data).then((res) => res.data),
+    apiClient
+      .post<InvitationActionResponse>(`/auth/invitations/${invitationId}`, data)
+      .then((res) => res.data),
 
   listGroupInvitations: (groupId: string) =>
     apiClient

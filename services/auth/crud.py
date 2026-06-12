@@ -289,12 +289,17 @@ async def respond_to_invitation(
         invitation.status = "declined"
 
     db.commit()
+    db.refresh(user)
 
-    return {
-        "message": (
-            f"Invitation {data.action}d" if data.action == "decline" else "Invitation accepted"
-        )
-    }
+    access_token = None
+    if data.action == "accept":
+        group_ids = [g.id for g in user.groups]
+        access_token = create_access_token(user.id, user.username, group_ids)
+
+    return auth_schemas.InvitationActionResponse(
+        message="Invitation accepted" if data.action == "accept" else "Invitation declined",
+        access_token=access_token,
+    )
 
 
 @traced
