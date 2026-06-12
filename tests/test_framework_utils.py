@@ -68,6 +68,31 @@ def test_build_query_dependency_with_category():
 
 
 @pytest.mark.unit
+def test_build_query_dependency_with_ingredient():
+    """Test query dependency includes ingredient only when declared."""
+    route = MagicMock()
+    route.query_params = {"limit": {}, "offset": {}, "ingredient": {}}
+
+    query_dep = build_query_dependency(route)
+
+    result = query_dep(limit=20, offset=0, ingredient="catalog-item-123")
+    assert result["ingredient"] == "catalog-item-123"
+    assert result["limit"] == 20
+
+
+@pytest.mark.unit
+def test_build_query_dependency_ingredient_excluded_when_not_declared():
+    """Test ingredient is dropped when route does not declare it."""
+    route = MagicMock()
+    route.query_params = {"limit": {}, "offset": {}}
+
+    query_dep = build_query_dependency(route)
+
+    result = query_dep(limit=20, offset=0, ingredient="catalog-item-123")
+    assert "ingredient" not in result
+
+
+@pytest.mark.unit
 def test_build_query_dependency_no_query_params():
     """Test building dependency when route has no query_params."""
     route = MagicMock()
