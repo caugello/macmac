@@ -1,4 +1,5 @@
 import importlib
+from datetime import date
 
 from fastapi import Query
 
@@ -31,6 +32,9 @@ def build_query_dependency(route):
         search: str = Query(None, description="Search text"),
         sort: str = Query(None, description="Sort field"),
         category: str = Query(None, description="Filter by category"),
+        is_food: bool = Query(None, description="Filter by food/non-food"),
+        start_date: date = Query(None, description="Start date (YYYY-MM-DD)"),
+        end_date: date = Query(None, description="End date (YYYY-MM-DD)"),
     ):
         all_params = {
             "limit": min(limit or DEFAULT_LIMIT, MAX_LIMIT),
@@ -38,6 +42,9 @@ def build_query_dependency(route):
             "search": search,
             "sort": sort,
             "category": category,
+            "is_food": is_food,
+            "start_date": start_date,
+            "end_date": end_date,
         }
         return {k: v for k, v in all_params.items() if k in param_names}
 

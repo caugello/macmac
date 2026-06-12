@@ -93,6 +93,7 @@ async def list_catalog_items(
             s = f"%{search.lower()}%"
             query = query.filter(
                 or_(
+                    CatalogItem.canonical_name.ilike(s),
                     CatalogItem.normalized_name.ilike(s),
                     CatalogItem.raw_name.ilike(s),
                     CatalogItem.brand.ilike(s),
