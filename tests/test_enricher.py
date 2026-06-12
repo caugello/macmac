@@ -1,5 +1,6 @@
 """Tests for catalog enricher functionality."""
 
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -247,11 +248,129 @@ def test_write_to_db_propagates_unexpected_errors():
 
     with (
         patch("services.catalog.enricher.main.enrich_catalog_item", new=MagicMock()),
-        patch("services.catalog.enricher.main.asyncio.new_event_loop", return_value=mock_loop),
-        patch("services.catalog.enricher.main.asyncio.set_event_loop"),
+        patch("services.catalog.enricher.main.get_event_loop", return_value=mock_loop),
     ):
         with pytest.raises(ConnectionError, match="db down"):
             write_to_db(payload, ch)
+
+
+# ===== UNIT TESTS - BrowserPool (shared browser reuse) =====
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_browser_pool_reuses_single_browser():
+    """get_browser() launches once and reuses the same browser instance."""
+    from services.catalog.enricher.main import BrowserPool
+
+    pool = BrowserPool()
+
+    mock_browser = MagicMock()
+    mock_browser.is_connected.return_value = True
+    mock_chromium = MagicMock()
+    mock_chromium.launch = AsyncMock(return_value=mock_browser)
+    mock_pw = MagicMock()
+    mock_pw.chromium = mock_chromium
+
+    mock_async_pw = MagicMock()
+    mock_async_pw.start = AsyncMock(return_value=mock_pw)
+    mock_async_pw_fn = MagicMock(return_value=mock_async_pw)
+    fake_pw_module = MagicMock(async_playwright=mock_async_pw_fn)
+
+    with patch.dict(
+        sys.modules,
+        {
+            "playwright": MagicMock(),
+            "playwright.async_api": fake_pw_module,
+        },
+    ):
+        first = await pool.get_browser()
+        second = await pool.get_browser()
+        third = await pool.get_browser()
+
+    assert first is mock_browser
+    assert second is mock_browser
+    assert third is mock_browser
+    assert mock_chromium.launch.await_count == 1
+    assert mock_async_pw.start.await_count == 1
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_browser_pool_relaunches_on_disconnect():
+    """A disconnected browser is relaunched so retries can recover."""
+    from services.catalog.enricher.main import BrowserPool
+
+    pool = BrowserPool()
+
+    dead_browser = MagicMock()
+    dead_browser.is_connected.return_value = False
+    dead_browser.close = AsyncMock()
+
+    fresh_browser = MagicMock()
+    fresh_browser.is_connected.return_value = True
+
+    mock_chromium = MagicMock()
+    mock_chromium.launch = AsyncMock(side_effect=[dead_browser, fresh_browser])
+    mock_pw = MagicMock()
+    mock_pw.chromium = mock_chromium
+
+    mock_async_pw = MagicMock()
+    mock_async_pw.start = AsyncMock(return_value=mock_pw)
+    mock_async_pw_fn = MagicMock(return_value=mock_async_pw)
+    fake_pw_module = MagicMock(async_playwright=mock_async_pw_fn)
+
+    with patch.dict(
+        sys.modules,
+        {
+            "playwright": MagicMock(),
+            "playwright.async_api": fake_pw_module,
+        },
+    ):
+        first = await pool.get_browser()
+        second = await pool.get_browser()
+
+    assert first is dead_browser
+    assert second is fresh_browser
+    assert mock_chromium.launch.await_count == 2
+    dead_browser.close.assert_awaited_once()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_browser_pool_close_is_idempotent():
+    """close() closes the browser and playwright, and is safe to call twice."""
+    from services.catalog.enricher.main import BrowserPool
+
+    pool = BrowserPool()
+
+    mock_browser = MagicMock()
+    mock_browser.is_connected.return_value = True
+    mock_browser.close = AsyncMock()
+    mock_chromium = MagicMock()
+    mock_chromium.launch = AsyncMock(return_value=mock_browser)
+    mock_pw = MagicMock()
+    mock_pw.chromium = mock_chromium
+    mock_pw.stop = AsyncMock()
+
+    mock_async_pw = MagicMock()
+    mock_async_pw.start = AsyncMock(return_value=mock_pw)
+    mock_async_pw_fn = MagicMock(return_value=mock_async_pw)
+    fake_pw_module = MagicMock(async_playwright=mock_async_pw_fn)
+
+    with patch.dict(
+        sys.modules,
+        {
+            "playwright": MagicMock(),
+            "playwright.async_api": fake_pw_module,
+        },
+    ):
+        await pool.get_browser()
+        await pool.close()
+        await pool.close()  # second call is a no-op
+
+    mock_browser.close.assert_awaited_once()
+    mock_pw.stop.assert_awaited_once()
 
 
 # ===== UNIT TESTS - upsert behavior =====
@@ -387,8 +506,7 @@ def test_write_to_db_stores_non_food_item():
 
     with (
         patch("services.catalog.enricher.main.enrich_catalog_item", new=MagicMock()),
-        patch("services.catalog.enricher.main.asyncio.new_event_loop", return_value=mock_loop),
-        patch("services.catalog.enricher.main.asyncio.set_event_loop"),
+        patch("services.catalog.enricher.main.get_event_loop", return_value=mock_loop),
         patch("services.catalog.enricher.main.get_db") as mock_get_db,
         patch("services.catalog.enricher.main.create_catalog_item", mock_create),
     ):
