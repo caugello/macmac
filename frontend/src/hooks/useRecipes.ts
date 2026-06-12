@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { recipesApi } from '../api/recipes'
 import type { RecipeCreate, RecipeUpdate } from '../lib/types'
 
@@ -15,6 +15,7 @@ export const useRecipes = (params?: {
     queryKey: ['recipes', params],
     queryFn: () => recipesApi.list(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    placeholderData: keepPreviousData,
   })
 }
 
