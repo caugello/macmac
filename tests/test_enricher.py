@@ -1,5 +1,6 @@
 """Tests for catalog enricher functionality."""
 
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -273,10 +274,15 @@ async def test_browser_pool_reuses_single_browser():
 
     mock_async_pw = MagicMock()
     mock_async_pw.start = AsyncMock(return_value=mock_pw)
+    mock_async_pw_fn = MagicMock(return_value=mock_async_pw)
+    fake_pw_module = MagicMock(async_playwright=mock_async_pw_fn)
 
-    with patch(
-        "playwright.async_api.async_playwright",
-        return_value=mock_async_pw,
+    with patch.dict(
+        sys.modules,
+        {
+            "playwright": MagicMock(),
+            "playwright.async_api": fake_pw_module,
+        },
     ):
         first = await pool.get_browser()
         second = await pool.get_browser()
@@ -285,9 +291,7 @@ async def test_browser_pool_reuses_single_browser():
     assert first is mock_browser
     assert second is mock_browser
     assert third is mock_browser
-    # Browser launched exactly once despite three get_browser() calls.
     assert mock_chromium.launch.await_count == 1
-    # Playwright started exactly once.
     assert mock_async_pw.start.await_count == 1
 
 
@@ -313,10 +317,17 @@ async def test_browser_pool_relaunches_on_disconnect():
 
     mock_async_pw = MagicMock()
     mock_async_pw.start = AsyncMock(return_value=mock_pw)
+    mock_async_pw_fn = MagicMock(return_value=mock_async_pw)
+    fake_pw_module = MagicMock(async_playwright=mock_async_pw_fn)
 
-    with patch("playwright.async_api.async_playwright", return_value=mock_async_pw):
+    with patch.dict(
+        sys.modules,
+        {
+            "playwright": MagicMock(),
+            "playwright.async_api": fake_pw_module,
+        },
+    ):
         first = await pool.get_browser()
-        # First browser reports disconnected -> next call must relaunch.
         second = await pool.get_browser()
 
     assert first is dead_browser
@@ -344,8 +355,16 @@ async def test_browser_pool_close_is_idempotent():
 
     mock_async_pw = MagicMock()
     mock_async_pw.start = AsyncMock(return_value=mock_pw)
+    mock_async_pw_fn = MagicMock(return_value=mock_async_pw)
+    fake_pw_module = MagicMock(async_playwright=mock_async_pw_fn)
 
-    with patch("playwright.async_api.async_playwright", return_value=mock_async_pw):
+    with patch.dict(
+        sys.modules,
+        {
+            "playwright": MagicMock(),
+            "playwright.async_api": fake_pw_module,
+        },
+    ):
         await pool.get_browser()
         await pool.close()
         await pool.close()  # second call is a no-op
