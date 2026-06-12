@@ -1,3 +1,4 @@
+import logging
 import math
 import uuid
 from collections import defaultdict
@@ -26,6 +27,8 @@ from services.shared.schemas.generic import DeleteResponse
 
 from .models import MealPlan, MealTypeEnum
 
+logger = logging.getLogger(__name__)
+
 # Load configuration
 config = get_config()
 
@@ -53,6 +56,7 @@ async def fetch_recipe_titles(recipe_ids: list[UUID4]) -> dict[UUID4, str]:
         items = response.json().get("items", {})
         return {UUID4(k): v.get("title", "Unknown") for k, v in items.items()}
     except Exception:
+        logger.warning("Failed to fetch recipe titles: %s", recipe_ids, exc_info=True)
         return {rid: f"Unknown ({rid})" for rid in recipe_ids}
 
 
@@ -479,7 +483,7 @@ async def generate_shopping_list(
             response.raise_for_status()
             recipes_by_id = response.json().get("items", {})
         except Exception:
-            pass
+            logger.warning("Failed to batch-fetch recipes for shopping list", exc_info=True)
 
         # Step 2: Aggregate ingredients by (catalog_item_id, base_unit)
         # Iterate over every meal plan entry so the same recipe scheduled
@@ -520,7 +524,7 @@ async def generate_shopping_list(
             response.raise_for_status()
             catalog_items = response.json().get("items", {})
         except Exception:
-            pass
+            logger.warning("Failed to batch-fetch catalog items for shopping list", exc_info=True)
 
         shopping_items = []
         total_price = 0.0
