@@ -241,14 +241,14 @@
   }
 
   [data-print-region] {
-    position: absolute;
-    inset: 0;
+    position: static;
     width: 100%;
     max-width: none;
     max-height: none;
     margin: 0;
     padding: 0;
     overflow: visible;
+    transform: none;
     box-shadow: none;
     border: none;
     background: #ffffff;
