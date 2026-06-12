@@ -8,8 +8,10 @@ TTL management, and cache invalidation patterns.
 import json
 import logging
 from collections.abc import Callable
+from datetime import date, datetime
 from functools import wraps
 from typing import Any
+from uuid import UUID
 
 import redis
 from pydantic import BaseModel
@@ -20,6 +22,10 @@ logger = logging.getLogger(__name__)
 def _json_default(obj: Any) -> Any:
     if isinstance(obj, BaseModel):
         return obj.model_dump()
+    if isinstance(obj, UUID):
+        return str(obj)
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
