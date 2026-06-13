@@ -87,6 +87,18 @@ def _backfill_group_ids(db: Session, user_id, group_id) -> None:
         cache.delete_pattern("recipes:*")
 
 
+def _cleanup_stale_group_ids(db: Session, user_id, current_group_ids: list) -> None:
+    q = db.query(Recipe).filter(
+        Recipe.user_id == user_id,
+        Recipe.group_id.isnot(None),
+    )
+    if current_group_ids:
+        q = q.filter(~Recipe.group_id.in_(current_group_ids))
+    updated = q.update({Recipe.group_id: None})
+    if updated:
+        cache.delete_pattern("recipes:*")
+
+
 @traced
 async def create_recipe(data: rs.RecipeCreate, db: Session):
     """
@@ -107,6 +119,7 @@ async def create_recipe(data: rs.RecipeCreate, db: Session):
 
         if group_id:
             _backfill_group_ids(db, user_ctx.user_id, group_id)
+        _cleanup_stale_group_ids(db, user_ctx.user_id, user_ctx.group_ids)
 
         recipe = Recipe(
             title=data.title,
@@ -189,6 +202,7 @@ async def list_recipes(
 
     if user_ctx.group_ids:
         _backfill_group_ids(db, user_ctx.user_id, user_ctx.group_ids[0])
+    _cleanup_stale_group_ids(db, user_ctx.user_id, user_ctx.group_ids)
 
     # Parse and validate comma-separated category filter (e.g. "breakfast,dessert")
     categories: list[str] | None = None

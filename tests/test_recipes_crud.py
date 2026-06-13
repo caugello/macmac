@@ -967,3 +967,153 @@ async def test_category_counts_search_cache_key(mock_db):
 
     assert "s=cake" in key_with_search
     assert key_with_search != key_without_search
+
+
+# ---- Stale group_id cleanup tests (#264) ----
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_cleanup_stale_group_ids_user_with_no_groups(mock_db):
+    """User removed from all groups: group_id cleared on all their recipes."""
+    from services.framework.user_context import set_user_context
+    from services.recipes.models import Recipe as RecipeModel
+
+    user_id = uuid.uuid4()
+    old_group = uuid.uuid4()
+
+    set_user_context(user_id=user_id, username="testuser", group_ids=[old_group])
+
+    await create_recipe(
+        RecipeCreate(
+            title="Recipe A",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+        ),
+        mock_db,
+    )
+
+    row = mock_db.query(RecipeModel).filter(RecipeModel.user_id == user_id).first()
+    assert row.group_id == old_group
+
+    set_user_context(user_id=user_id, username="testuser", group_ids=[])
+    await list_recipes(mock_db)
+
+    mock_db.expire_all()
+    row = mock_db.query(RecipeModel).filter(RecipeModel.user_id == user_id).first()
+    assert row.group_id is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_cleanup_stale_group_ids_partial(mock_db):
+    """User removed from group A but still in group B: only group A recipes cleared."""
+    from services.framework.user_context import set_user_context
+    from services.recipes.models import Recipe as RecipeModel
+
+    user_id = uuid.uuid4()
+    group_a = uuid.uuid4()
+    group_b = uuid.uuid4()
+
+    set_user_context(user_id=user_id, username="testuser", group_ids=[group_a])
+    await create_recipe(
+        RecipeCreate(
+            title="Group A Recipe",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+        ),
+        mock_db,
+    )
+
+    row_a = (
+        mock_db.query(RecipeModel).filter(RecipeModel.normalized_title == "group a recipe").first()
+    )
+    assert row_a.group_id == group_a
+
+    set_user_context(user_id=user_id, username="testuser", group_ids=[group_b])
+    await create_recipe(
+        RecipeCreate(
+            title="Group B Recipe",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_SUGAR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+        ),
+        mock_db,
+    )
+
+    mock_db.expire_all()
+    row_a = (
+        mock_db.query(RecipeModel).filter(RecipeModel.normalized_title == "group a recipe").first()
+    )
+    row_b = (
+        mock_db.query(RecipeModel).filter(RecipeModel.normalized_title == "group b recipe").first()
+    )
+    assert row_a.group_id is None
+    assert row_b.group_id == group_b
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_cleanup_stale_group_ids_invalidates_cache(mock_db):
+    """Cache is invalidated when stale group_ids are cleaned up."""
+    from services.framework.user_context import set_user_context
+
+    user_id = uuid.uuid4()
+    old_group = uuid.uuid4()
+
+    set_user_context(user_id=user_id, username="testuser", group_ids=[old_group])
+    await create_recipe(
+        RecipeCreate(
+            title="Cache Test",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+        ),
+        mock_db,
+    )
+
+    set_user_context(user_id=user_id, username="testuser", group_ids=[])
+
+    with patch("services.recipes.crud.cache") as mock_cache:
+        mock_cache.get_json.return_value = None
+        await list_recipes(mock_db)
+        mock_cache.delete_pattern.assert_any_call("recipes:*")
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_cleanup_stale_group_ids_noop_when_current(mock_db):
+    """No cleanup when all recipe group_ids match the user's current groups."""
+    from services.framework.user_context import set_user_context
+
+    user_id = uuid.uuid4()
+    group = uuid.uuid4()
+
+    set_user_context(user_id=user_id, username="testuser", group_ids=[group])
+    await create_recipe(
+        RecipeCreate(
+            title="Current Group Recipe",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+        ),
+        mock_db,
+    )
+
+    with patch("services.recipes.crud.cache") as mock_cache:
+        mock_cache.get_json.return_value = None
+        await list_recipes(mock_db)
+        for call in mock_cache.delete_pattern.call_args_list:
+            assert call[0][0] != "recipes:*"
