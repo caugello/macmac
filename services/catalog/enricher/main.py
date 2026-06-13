@@ -247,27 +247,23 @@ WEBDRIVER_OVERRIDE = """
 
 
 class BrowserPool:
-    """Owns a single long-lived Playwright instance and Chromium browser.
+    """Owns a single long-lived Playwright browser and a warmed context.
 
-    Launching a Chromium browser per product spawns thousands of OS threads
-    and exhausts pod resources (``RuntimeError: can't start new thread``).
-    Instead we launch one browser and hand it out, creating a fresh
-    ``browser.new_context()`` per product for cookie/state isolation. If the
-    browser dies (crash/disconnect), the next ``get_browser()`` call relaunches
-    it so the existing retry logic can recover transparently.
+    The anti-bot system requires a full JavaScript challenge to pass before
+    product pages can be accessed. Cookies alone are insufficient — the
+    session state (TLS fingerprint, challenge tokens) must persist. So we
+    keep a single browser context alive and reuse it for all product pages.
 
-    On first launch (and after reconnect), a warm-up visit to the homepage
-    establishes anti-bot cookies. Those cookies are saved as ``storage_state``
-    and injected into every per-product context so the homepage is only hit
-    once per browser lifetime.
+    A new page is created per product within the shared context for DOM
+    isolation, then closed after extraction.
     """
 
     def __init__(self) -> None:
         self._playwright: Any = None
         self._browser: Browser | None = None
-        self._storage_state: dict | None = None
+        self._context: Any = None
 
-    async def get_browser(self) -> "Browser":
+    async def get_context(self) -> Any:
         from playwright.async_api import async_playwright
 
         if self._playwright is None:
@@ -284,20 +280,20 @@ class BrowserPool:
                 headless=True, args=CHROMIUM_ARGS
             )
             logger.info("Launched shared Chromium browser")
-            self._storage_state = None
+            self._context = None
 
-        if self._storage_state is None:
+        if self._context is None:
             await self._warm_session()
 
-        return self._browser
+        return self._context
 
     async def _warm_session(self) -> None:
-        """Visit the homepage once to pass anti-bot and accept cookies."""
-        ctx = await self._browser.new_context(**CONTEXT_OPTIONS)
-        try:
-            page = await ctx.new_page()
-            await page.add_init_script(WEBDRIVER_OVERRIDE)
+        """Create a context, visit homepage to pass anti-bot challenge."""
+        self._context = await self._browser.new_context(**CONTEXT_OPTIONS)
+        page = await self._context.new_page()
+        await page.add_init_script(WEBDRIVER_OVERRIDE)
 
+        try:
             resp = await page.goto(HOMEPAGE_URL, timeout=15000, wait_until="domcontentloaded")
             logger.info(f"Warm-up homepage status: {resp.status if resp else 'None'}")
             await asyncio.sleep(3.0)
@@ -315,21 +311,19 @@ class BrowserPool:
             await asyncio.sleep(1.0)
             await page.evaluate("window.scrollTo({top: 800, behavior: 'smooth'})")
             await asyncio.sleep(1.0)
-
-            self._storage_state = await ctx.storage_state()
-            logger.info(
-                f"Session warmed: {len(self._storage_state.get('cookies', []))} cookies captured"
-            )
+            logger.info("Session warmed successfully")
         except Exception as e:
             logger.warning(f"Warm-up failed: {e}")
-            self._storage_state = {}
         finally:
-            await ctx.close()
-
-    def get_storage_state(self) -> dict | None:
-        return self._storage_state
+            await page.close()
 
     async def close(self) -> None:
+        if self._context is not None:
+            try:
+                await self._context.close()
+            except Exception:
+                pass
+            self._context = None
         if self._browser is not None:
             try:
                 await self._browser.close()
@@ -348,18 +342,12 @@ class BrowserPool:
 browser_pool = BrowserPool()
 
 
-async def _crawl_product_page_once(url: str, browser: "Browser") -> CrawlResult:
-    storage = browser_pool.get_storage_state()
-    ctx_opts = {**CONTEXT_OPTIONS}
-    if storage:
-        ctx_opts["storage_state"] = storage
-
-    context = await browser.new_context(**ctx_opts)
+async def _crawl_product_page_once(url: str) -> CrawlResult:
+    context = await browser_pool.get_context()
+    page = await context.new_page()
+    await page.add_init_script(WEBDRIVER_OVERRIDE)
 
     try:
-        page = await context.new_page()
-        await page.add_init_script(WEBDRIVER_OVERRIDE)
-
         logger.debug("Navigating to product page")
         response = await page.goto(
             url, timeout=15000, wait_until="domcontentloaded", referer=HOMEPAGE_URL
@@ -510,7 +498,7 @@ async def _crawl_product_page_once(url: str, browser: "Browser") -> CrawlResult:
             image_url=image_url,
         )
     finally:
-        await context.close()
+        await page.close()
 
 
 async def crawl_product_page(url: str) -> CrawlResult:
@@ -520,10 +508,9 @@ async def crawl_product_page(url: str) -> CrawlResult:
     validate_url(url)
 
     async def _attempt() -> CrawlResult:
-        # Fetch (and relaunch if crashed) the shared browser on every attempt
-        # so retries can recover from browser-level failures.
-        browser = await browser_pool.get_browser()
-        return await _crawl_product_page_once(url, browser)
+        # Ensure the shared context is ready (warms session on first call).
+        await browser_pool.get_context()
+        return await _crawl_product_page_once(url)
 
     try:
         return await async_retry(
@@ -541,28 +528,14 @@ async def crawl_product_page(url: str) -> CrawlResult:
 
 
 async def _crawl_nutrition_page_once(
-    info_url: str, main_page_url: str, browser: "Browser"
+    info_url: str, main_page_url: str
 ) -> tuple[str | None, str | None]:
-    context = await browser.new_context(
-        viewport={"width": 1440, "height": 900},
-        user_agent=BROWSER_UA,
-        locale="fr-BE",
-        timezone_id="Europe/Brussels",
-        color_scheme="light",
-        extra_http_headers={
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "fr-BE,fr;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Connection": "keep-alive",
-        },
-    )
+    context = await browser_pool.get_context()
+
+    page = await context.new_page()
+    await page.add_init_script(WEBDRIVER_OVERRIDE)
 
     try:
-        page = await context.new_page()
-        await page.add_init_script(
-            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
-        )
-
         response = await page.goto(
             info_url, timeout=PAGE_TIMEOUT, wait_until="domcontentloaded", referer=main_page_url
         )
@@ -622,7 +595,7 @@ async def _crawl_nutrition_page_once(
         detailed_html = await page.content()
         return detailed_html, nutrition_table_text
     finally:
-        await context.close()
+        await page.close()
 
 
 async def crawl_nutrition_page(info_url: str, main_page_url: str) -> tuple[str | None, str | None]:
@@ -637,8 +610,8 @@ async def crawl_nutrition_page(info_url: str, main_page_url: str) -> tuple[str |
     logger.debug(f"Crawling nutrition page: {info_url}")
 
     async def _attempt() -> tuple[str | None, str | None]:
-        browser = await browser_pool.get_browser()
-        return await _crawl_nutrition_page_once(info_url, main_page_url, browser)
+        await browser_pool.get_context()
+        return await _crawl_nutrition_page_once(info_url, main_page_url)
 
     try:
         return await async_retry(
