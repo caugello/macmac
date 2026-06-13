@@ -223,6 +223,29 @@ BROWSER_UA = (
 )
 
 
+HOMEPAGE_URL = "https://www.collectandgo.be/fr/home"
+
+CONTEXT_OPTIONS: dict[str, Any] = {
+    "viewport": {"width": 1440, "height": 900},
+    "user_agent": BROWSER_UA,
+    "locale": "fr-BE",
+    "timezone_id": "Europe/Brussels",
+    "color_scheme": "light",
+    "extra_http_headers": {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "fr-BE,fr;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+    },
+}
+
+WEBDRIVER_OVERRIDE = """
+    Object.defineProperty(navigator, 'webdriver', {
+        get: () => undefined
+    });
+"""
+
+
 class BrowserPool:
     """Owns a single long-lived Playwright instance and Chromium browser.
 
@@ -232,11 +255,17 @@ class BrowserPool:
     ``browser.new_context()`` per product for cookie/state isolation. If the
     browser dies (crash/disconnect), the next ``get_browser()`` call relaunches
     it so the existing retry logic can recover transparently.
+
+    On first launch (and after reconnect), a warm-up visit to the homepage
+    establishes anti-bot cookies. Those cookies are saved as ``storage_state``
+    and injected into every per-product context so the homepage is only hit
+    once per browser lifetime.
     """
 
     def __init__(self) -> None:
         self._playwright: Any = None
         self._browser: Browser | None = None
+        self._storage_state: dict | None = None
 
     async def get_browser(self) -> "Browser":
         from playwright.async_api import async_playwright
@@ -255,8 +284,50 @@ class BrowserPool:
                 headless=True, args=CHROMIUM_ARGS
             )
             logger.info("Launched shared Chromium browser")
+            self._storage_state = None
+
+        if self._storage_state is None:
+            await self._warm_session()
 
         return self._browser
+
+    async def _warm_session(self) -> None:
+        """Visit the homepage once to pass anti-bot and accept cookies."""
+        ctx = await self._browser.new_context(**CONTEXT_OPTIONS)
+        try:
+            page = await ctx.new_page()
+            await page.add_init_script(WEBDRIVER_OVERRIDE)
+
+            resp = await page.goto(HOMEPAGE_URL, timeout=15000, wait_until="domcontentloaded")
+            logger.info(f"Warm-up homepage status: {resp.status if resp else 'None'}")
+            await asyncio.sleep(3.0)
+
+            try:
+                accept_btn = await page.query_selector("#onetrust-accept-btn-handler")
+                if accept_btn:
+                    await accept_btn.click()
+                    logger.info("Accepted cookie consent")
+                    await asyncio.sleep(1.0)
+            except Exception as e:
+                logger.debug(f"No cookie consent banner: {e}")
+
+            await page.evaluate("window.scrollTo({top: 400, behavior: 'smooth'})")
+            await asyncio.sleep(1.0)
+            await page.evaluate("window.scrollTo({top: 800, behavior: 'smooth'})")
+            await asyncio.sleep(1.0)
+
+            self._storage_state = await ctx.storage_state()
+            logger.info(
+                f"Session warmed: {len(self._storage_state.get('cookies', []))} cookies captured"
+            )
+        except Exception as e:
+            logger.warning(f"Warm-up failed: {e}")
+            self._storage_state = {}
+        finally:
+            await ctx.close()
+
+    def get_storage_state(self) -> dict | None:
+        return self._storage_state
 
     async def close(self) -> None:
         if self._browser is not None:
@@ -278,58 +349,20 @@ browser_pool = BrowserPool()
 
 
 async def _crawl_product_page_once(url: str, browser: "Browser") -> CrawlResult:
-    context = await browser.new_context(
-        viewport={"width": 1440, "height": 900},
-        user_agent=BROWSER_UA,
-        locale="fr-BE",
-        timezone_id="Europe/Brussels",
-        color_scheme="light",
-        extra_http_headers={
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "fr-BE,fr;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Connection": "keep-alive",
-        },
-    )
+    storage = browser_pool.get_storage_state()
+    ctx_opts = {**CONTEXT_OPTIONS}
+    if storage:
+        ctx_opts["storage_state"] = storage
+
+    context = await browser.new_context(**ctx_opts)
 
     try:
         page = await context.new_page()
-
-        await page.add_init_script("""
-            Object.defineProperty(navigator, 'webdriver', {
-                get: () => undefined
-            });
-        """)
-
-        base_url = "https://www.collectandgo.be/fr/home"
-        logger.debug("Visiting homepage first")
-
-        try:
-            home_response = await page.goto(base_url, timeout=15000, wait_until="domcontentloaded")
-            logger.debug(f"Homepage status: {home_response.status if home_response else 'None'}")
-            await asyncio.sleep(2.0)
-
-            try:
-                accept_btn = await page.query_selector("#onetrust-accept-btn-handler")
-                if accept_btn:
-                    await accept_btn.click()
-                    logger.debug("Accepted cookie consent")
-                    await asyncio.sleep(1.0)
-            except Exception as e:
-                logger.debug(f"No cookie consent banner: {e}")
-
-            await page.evaluate("window.scrollTo({top: 400, behavior: 'smooth'})")
-            await asyncio.sleep(1.0)
-            await page.evaluate("window.scrollTo({top: 800, behavior: 'smooth'})")
-            await asyncio.sleep(1.0)
-        except Exception as e:
-            logger.warning(f"Could not load homepage: {e}")
-
-        await asyncio.sleep(1.5)
+        await page.add_init_script(WEBDRIVER_OVERRIDE)
 
         logger.debug("Navigating to product page")
         response = await page.goto(
-            url, timeout=15000, wait_until="domcontentloaded", referer=base_url
+            url, timeout=15000, wait_until="domcontentloaded", referer=HOMEPAGE_URL
         )
 
         if not response:

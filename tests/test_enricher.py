@@ -284,9 +284,10 @@ async def test_browser_pool_reuses_single_browser():
             "playwright.async_api": fake_pw_module,
         },
     ):
-        first = await pool.get_browser()
-        second = await pool.get_browser()
-        third = await pool.get_browser()
+        with patch.object(pool, "_warm_session", new_callable=AsyncMock):
+            first = await pool.get_browser()
+            second = await pool.get_browser()
+            third = await pool.get_browser()
 
     assert first is mock_browser
     assert second is mock_browser
@@ -327,8 +328,9 @@ async def test_browser_pool_relaunches_on_disconnect():
             "playwright.async_api": fake_pw_module,
         },
     ):
-        first = await pool.get_browser()
-        second = await pool.get_browser()
+        with patch.object(pool, "_warm_session", new_callable=AsyncMock):
+            first = await pool.get_browser()
+            second = await pool.get_browser()
 
     assert first is dead_browser
     assert second is fresh_browser
@@ -365,7 +367,8 @@ async def test_browser_pool_close_is_idempotent():
             "playwright.async_api": fake_pw_module,
         },
     ):
-        await pool.get_browser()
+        with patch.object(pool, "_warm_session", new_callable=AsyncMock):
+            await pool.get_browser()
         await pool.close()
         await pool.close()  # second call is a no-op
 
