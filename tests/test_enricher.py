@@ -277,6 +277,11 @@ async def test_browser_pool_reuses_single_browser():
     mock_async_pw_fn = MagicMock(return_value=mock_async_pw)
     fake_pw_module = MagicMock(async_playwright=mock_async_pw_fn)
 
+    mock_context = MagicMock()
+
+    async def _set_context(self=pool):
+        self._context = mock_context
+
     with patch.dict(
         sys.modules,
         {
@@ -284,14 +289,14 @@ async def test_browser_pool_reuses_single_browser():
             "playwright.async_api": fake_pw_module,
         },
     ):
-        with patch.object(pool, "_warm_session", new_callable=AsyncMock):
-            first = await pool.get_browser()
-            second = await pool.get_browser()
-            third = await pool.get_browser()
+        with patch.object(pool, "_warm_session", side_effect=_set_context):
+            first = await pool.get_context()
+            second = await pool.get_context()
+            third = await pool.get_context()
 
-    assert first is mock_browser
-    assert second is mock_browser
-    assert third is mock_browser
+    assert first is mock_context
+    assert second is mock_context
+    assert third is mock_context
     assert mock_chromium.launch.await_count == 1
     assert mock_async_pw.start.await_count == 1
 
@@ -321,6 +326,13 @@ async def test_browser_pool_relaunches_on_disconnect():
     mock_async_pw_fn = MagicMock(return_value=mock_async_pw)
     fake_pw_module = MagicMock(async_playwright=mock_async_pw_fn)
 
+    mock_context_1 = MagicMock()
+    mock_context_2 = MagicMock()
+    contexts = iter([mock_context_1, mock_context_2])
+
+    async def _set_context(self=pool):
+        self._context = next(contexts)
+
     with patch.dict(
         sys.modules,
         {
@@ -328,12 +340,12 @@ async def test_browser_pool_relaunches_on_disconnect():
             "playwright.async_api": fake_pw_module,
         },
     ):
-        with patch.object(pool, "_warm_session", new_callable=AsyncMock):
-            first = await pool.get_browser()
-            second = await pool.get_browser()
+        with patch.object(pool, "_warm_session", side_effect=_set_context):
+            first = await pool.get_context()
+            second = await pool.get_context()
 
-    assert first is dead_browser
-    assert second is fresh_browser
+    assert first is mock_context_1
+    assert second is mock_context_2
     assert mock_chromium.launch.await_count == 2
     dead_browser.close.assert_awaited_once()
 
@@ -367,8 +379,14 @@ async def test_browser_pool_close_is_idempotent():
             "playwright.async_api": fake_pw_module,
         },
     ):
-        with patch.object(pool, "_warm_session", new_callable=AsyncMock):
-            await pool.get_browser()
+        mock_context = MagicMock()
+        mock_context.close = AsyncMock()
+
+        async def _set_context(self=pool):
+            self._context = mock_context
+
+        with patch.object(pool, "_warm_session", side_effect=_set_context):
+            await pool.get_context()
         await pool.close()
         await pool.close()  # second call is a no-op
 
