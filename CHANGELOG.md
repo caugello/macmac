@@ -5,6 +5,14 @@ All notable changes to MacMac are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6] - 2026-06-13
+
+### Fixed
+
+- **Catalog:** Use `vendor_product_id` as stable upsert key instead of `product_url` — vendor URL format changes no longer create duplicates or break recipe ingredient links (#268)
+- **Enricher:** Bypass anti-bot detection with shared browser context, `AutomationControlled` disable, and session warm-up (#266, #267)
+- **Frontend:** Fix shopping list print clipping caused by dialog positioning (#265)
+
 ## [0.2.5] - 2026-06-12
 
 ### Added
@@ -178,6 +186,8 @@ Initial release. Core meal planning platform with microservices architecture.
 - SSRF prevention and pagination DoS protection
 - Authenticated ghcr.io before base image verification
 
+[0.2.6]: https://github.com/caugello/macmac/compare/v0.2.5...v0.2.6
+[0.2.5]: https://github.com/caugello/macmac/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/caugello/macmac/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/caugello/macmac/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/caugello/macmac/compare/v0.2.1...v0.2.2
