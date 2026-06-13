@@ -211,7 +211,16 @@ def extract_quantity_from_url(url: str) -> tuple[float | None, str | None]:
     return None, None
 
 
-CHROMIUM_ARGS = ["--disable-dev-shm-usage", "--no-sandbox"]
+CHROMIUM_ARGS = [
+    "--disable-dev-shm-usage",
+    "--no-sandbox",
+    "--disable-blink-features=AutomationControlled",
+]
+
+BROWSER_UA = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
+)
 
 
 class BrowserPool:
@@ -271,7 +280,7 @@ browser_pool = BrowserPool()
 async def _crawl_product_page_once(url: str, browser: "Browser") -> CrawlResult:
     context = await browser.new_context(
         viewport={"width": 1440, "height": 900},
-        user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        user_agent=BROWSER_UA,
         locale="fr-BE",
         timezone_id="Europe/Brussels",
         color_scheme="light",
@@ -414,7 +423,7 @@ async def _crawl_product_page_once(url: str, browser: "Browser") -> CrawlResult:
 
         image_url = None
         try:
-            img_el = await page.query_selector("#productMainImage")
+            img_el = await page.query_selector("#productMainImage, .product_image img[src]")
             if img_el:
                 image_url = await img_el.get_attribute("src")
                 if image_url:
@@ -508,9 +517,16 @@ async def _crawl_nutrition_page_once(
 ) -> tuple[str | None, str | None]:
     context = await browser.new_context(
         viewport={"width": 1440, "height": 900},
-        user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        user_agent=BROWSER_UA,
         locale="fr-BE",
         timezone_id="Europe/Brussels",
+        color_scheme="light",
+        extra_http_headers={
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "fr-BE,fr;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive",
+        },
     )
 
     try:
