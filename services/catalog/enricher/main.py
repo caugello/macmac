@@ -1158,6 +1158,8 @@ def write_to_db(payload: dict, ch):
         logger.warning(f"Skipping non-French URL: {payload.get('raw_name', 'unknown')}")
         return
 
+    vendor_product_id = payload.get("vendor_product_id", product_url.rstrip("/").split("/")[-1])
+
     # Run async enrichment on the persistent loop so the shared browser
     # (bound to that loop) is reused across messages instead of relaunched.
     loop = get_event_loop()
@@ -1166,7 +1168,7 @@ def write_to_db(payload: dict, ch):
         enrich_catalog_item(
             raw_name=payload["raw_name"],
             vendor_name=payload["vendor_name"],
-            vendor_product_id=payload["vendor_product_id"],
+            vendor_product_id=vendor_product_id,
             product_url=product_url,
         )
     )
