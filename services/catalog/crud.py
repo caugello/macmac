@@ -30,6 +30,7 @@ async def create_catalog_item(data: rs.CatalogItemCreate, db: Session):
     with Span("db_create_catalog_item"):
         item = CatalogItem(
             vendor_name=data.vendor_name,
+            vendor_product_id=data.vendor_product_id,
             raw_name=data.raw_name,
             normalized_name=data.normalized_name,
             canonical_name=data.canonical_name,

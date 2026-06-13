@@ -239,6 +239,7 @@ def test_write_to_db_propagates_unexpected_errors():
     payload = {
         "raw_name": "Test Product",
         "vendor_name": "test",
+        "vendor_product_id": "test-500g",
         "product_url": "https://www.collectandgo.be/fr/assortiment/test-500g",
     }
     ch = MagicMock()
@@ -403,6 +404,7 @@ def test_create_catalog_item_inserts_new(mock_catalog_db):
 
     data = CatalogItemCreate(
         vendor_name="colruyt",
+        vendor_product_id="pasta-500g",
         raw_name="Pasta 500g",
         product_url="https://example.com/pasta-500g",
         is_food=True,
@@ -419,6 +421,7 @@ def test_create_catalog_item_updates_existing_fields(mock_catalog_db):
 
     data = CatalogItemCreate(
         vendor_name="colruyt",
+        vendor_product_id="pasta-500g",
         raw_name="Pasta 500g",
         product_url="https://example.com/pasta-500g",
         is_food=True,
@@ -429,6 +432,7 @@ def test_create_catalog_item_updates_existing_fields(mock_catalog_db):
 
     updated = CatalogItemCreate(
         vendor_name="colruyt",
+        vendor_product_id="pasta-500g",
         raw_name="Pasta 500g",
         product_url="https://example.com/pasta-500g",
         is_food=True,
@@ -445,6 +449,7 @@ def test_create_catalog_item_does_not_overwrite_with_null(mock_catalog_db):
 
     data = CatalogItemCreate(
         vendor_name="colruyt",
+        vendor_product_id="pasta-500g",
         raw_name="Pasta 500g",
         product_url="https://example.com/pasta-500g",
         is_food=True,
@@ -456,6 +461,7 @@ def test_create_catalog_item_does_not_overwrite_with_null(mock_catalog_db):
 
     partial = CatalogItemCreate(
         vendor_name="colruyt",
+        vendor_product_id="pasta-500g",
         raw_name="Pasta 500g",
         product_url="https://example.com/pasta-500g",
         is_food=True,
@@ -477,6 +483,7 @@ def test_create_catalog_item_stores_non_food(mock_catalog_db):
 
     data = CatalogItemCreate(
         vendor_name="colruyt",
+        vendor_product_id="sponge-3pc",
         raw_name="Sponge Cleaning Pad 3pc",
         product_url="https://example.com/sponge-3pc",
         is_food=False,
@@ -497,12 +504,14 @@ def test_write_to_db_stores_non_food_item():
     payload = {
         "raw_name": "Dish Soap 500ml",
         "vendor_name": "colruyt",
+        "vendor_product_id": "dish-soap-500ml",
         "product_url": "https://www.collectandgo.be/fr/assortiment/dish-soap-500ml",
     }
     ch = MagicMock()
 
     mock_enriched = CatalogItemCreate(
         vendor_name="colruyt",
+        vendor_product_id="dish-soap-500ml",
         raw_name="Dish Soap 500ml",
         product_url="https://www.collectandgo.be/fr/assortiment/dish-soap-500ml",
         is_food=False,

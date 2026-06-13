@@ -31,6 +31,7 @@ def find_items_to_requeue(db) -> list[dict]:
     rows = (
         db.query(
             CatalogItem.vendor_name,
+            CatalogItem.vendor_product_id,
             CatalogItem.raw_name,
             CatalogItem.product_url,
         )
@@ -46,7 +47,12 @@ def find_items_to_requeue(db) -> list[dict]:
     )
 
     return [
-        {"vendor_name": r.vendor_name, "raw_name": r.raw_name, "product_url": r.product_url}
+        {
+            "vendor_name": r.vendor_name,
+            "vendor_product_id": r.vendor_product_id,
+            "raw_name": r.raw_name,
+            "product_url": r.product_url,
+        }
         for r in rows
     ]
 
