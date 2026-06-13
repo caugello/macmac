@@ -14,6 +14,7 @@ class CatalogItem(BaseModel, Base):
 
     # TODO: make this a relation to vendor table when more vendors are available
     vendor_name = Column(String, nullable=False)
+    vendor_product_id = Column(String, nullable=False)
     raw_name = Column(String, nullable=False)
     normalized_name = Column(String)
     canonical_name = Column(String)
@@ -36,6 +37,7 @@ class CatalogItem(BaseModel, Base):
     __table_args__ = (
         Index("ix_catalog_normalized_name", "normalized_name"),
         Index("ix_catalog_product_url", "product_url", unique=True),
+        Index("ix_catalog_vendor_product_id", "vendor_name", "vendor_product_id", unique=True),
         Index("ix_catalog_category", "category"),
         Index("ix_catalog_is_food", "is_food"),
     )

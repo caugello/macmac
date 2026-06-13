@@ -983,6 +983,7 @@ Extract product data as JSON following the rules and examples above."""
 
 async def enrich_catalog_item(
     vendor_name: str,
+    vendor_product_id: str,
     raw_name: str,
     product_url: str,
 ) -> CatalogItemCreate:
@@ -1022,6 +1023,7 @@ async def enrich_catalog_item(
         logger.warning("Failed to crawl, using URL extraction only")
         return CatalogItemCreate(
             vendor_name=vendor_name,
+            vendor_product_id=vendor_product_id,
             raw_name=raw_name,
             product_url=product_url,
             is_food=True,
@@ -1119,6 +1121,7 @@ async def enrich_catalog_item(
 
     return CatalogItemCreate(
         vendor_name=vendor_name,
+        vendor_product_id=vendor_product_id,
         raw_name=raw_name,
         product_url=final_product_url,
         canonical_name=canonical_name if canonical_name != raw_name else None,
@@ -1163,6 +1166,7 @@ def write_to_db(payload: dict, ch):
         enrich_catalog_item(
             raw_name=payload["raw_name"],
             vendor_name=payload["vendor_name"],
+            vendor_product_id=payload["vendor_product_id"],
             product_url=product_url,
         )
     )

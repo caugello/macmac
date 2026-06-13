@@ -9,11 +9,13 @@ from services.shared.schemas import catalog as rs
 logger = logging.getLogger(__name__)
 
 MUTABLE_FIELDS = [
+    "raw_name",
     "canonical_name",
     "normalized_name",
     "brand",
     "net_quantity_value",
     "net_quantity_unit",
+    "product_url",
     "price",
     "currency",
     "category",
@@ -28,7 +30,14 @@ MUTABLE_FIELDS = [
 
 
 def create_catalog_item(data: rs.CatalogItemCreate, db: Session):
-    existing = db.query(CatalogItem).filter(CatalogItem.product_url == data.product_url).first()
+    existing = (
+        db.query(CatalogItem)
+        .filter(
+            CatalogItem.vendor_name == data.vendor_name,
+            CatalogItem.vendor_product_id == data.vendor_product_id,
+        )
+        .first()
+    )
 
     if existing:
         updated_fields = []
@@ -56,6 +65,7 @@ def create_catalog_item(data: rs.CatalogItemCreate, db: Session):
 
     item = CatalogItem(
         vendor_name=data.vendor_name,
+        vendor_product_id=data.vendor_product_id,
         raw_name=data.raw_name,
         normalized_name=data.normalized_name,
         canonical_name=data.canonical_name,

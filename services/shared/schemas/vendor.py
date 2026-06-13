@@ -7,5 +7,6 @@ class VendorXMLSource(BaseModel):
 
 class VendorCatalogItem(BaseModel):
     vendor_name: str
+    vendor_product_id: str
     raw_name: str
     product_url: str

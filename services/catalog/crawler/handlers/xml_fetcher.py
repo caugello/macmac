@@ -1,5 +1,6 @@
 import gzip
 import io
+import re
 import time
 from collections.abc import Iterable
 from urllib.parse import unquote
@@ -37,9 +38,15 @@ def parse_vendor_catalog_item_xml(xml_content: str, vendor: Vendor) -> Iterable[
             continue
 
         slug = link.rstrip("/").split("/")[-1]
+        if vendor.product_id_pattern:
+            match = re.search(vendor.product_id_pattern, slug)
+            vendor_product_id = match.group(1) if match else slug
+        else:
+            vendor_product_id = slug
         try:
             yield VendorCatalogItem(
                 vendor_name=vendor.name,
+                vendor_product_id=vendor_product_id,
                 product_url=link,
                 raw_name=unquote(slug.replace("-", " ")),
             )

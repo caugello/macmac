@@ -187,6 +187,7 @@ class Vendor:
     name: str
     url: str
     product_url_identifier: str | None
+    product_id_pattern: str | None = None
 
 
 @dataclass
@@ -325,6 +326,7 @@ def parse_vendor(vendor_data: dict) -> Vendor:
         name=vendor_data["name"],
         url=vendor_data["url"],
         product_url_identifier=vendor_data["product_url_identifier"],
+        product_id_pattern=vendor_data.get("product_id_pattern"),
     )
 
 

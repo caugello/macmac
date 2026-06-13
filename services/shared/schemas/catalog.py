@@ -27,6 +27,7 @@ class CatalogItemCreate(BaseModel):
     """
 
     vendor_name: str = Field(..., max_length=100)
+    vendor_product_id: str = Field(..., max_length=500)
     raw_name: str = Field(..., max_length=500)
     product_url: str = Field(..., max_length=2048)
     canonical_name: str | None = Field(None, max_length=300)

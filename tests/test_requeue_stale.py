@@ -11,6 +11,7 @@ from services.catalog.models import CatalogItem
 def _make_item(db, **overrides):
     defaults = {
         "vendor_name": "Colruyt Collect & Go",
+        "vendor_product_id": overrides.get("raw_name", "test"),
         "raw_name": "test product",
         "product_url": f"https://example.com/{overrides.get('raw_name', 'test')}",
         "is_food": True,
@@ -116,7 +117,7 @@ def test_message_format(mock_catalog_db):
 
     items = find_items_to_requeue(mock_catalog_db)
     assert len(items) == 1
-    assert set(items[0].keys()) == {"vendor_name", "raw_name", "product_url"}
+    assert set(items[0].keys()) == {"vendor_name", "vendor_product_id", "raw_name", "product_url"}
 
 
 @pytest.mark.unit
