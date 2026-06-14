@@ -60,6 +60,9 @@ class EnricherConfig:
     openai_model: str
     max_retries: int = 3
     retry_backoff: float = 2.0
+    circuit_breaker_threshold: int = 10
+    circuit_breaker_base_pause: int = 1800
+    circuit_breaker_max_pause: int = 7200
 
 
 @dataclass
@@ -299,6 +302,9 @@ def parse_enricher(enricher_data: dict | None) -> EnricherConfig | None:
         openai_model=enricher_data["openai_model"],
         max_retries=enricher_data.get("max_retries", 3),
         retry_backoff=enricher_data.get("retry_backoff", 2.0),
+        circuit_breaker_threshold=enricher_data.get("circuit_breaker_threshold", 10),
+        circuit_breaker_base_pause=enricher_data.get("circuit_breaker_base_pause", 300),
+        circuit_breaker_max_pause=enricher_data.get("circuit_breaker_max_pause", 3600),
     )
 
 

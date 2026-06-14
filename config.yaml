@@ -351,6 +351,9 @@ services:
       openai_model: "gpt-4o-mini"
       max_retries: 3
       retry_backoff: 2.0
+      circuit_breaker_threshold: 10
+      circuit_breaker_base_pause: 1800
+      circuit_breaker_max_pause: 7200
     routes:
       - name: list_catalog_items
         method: get
