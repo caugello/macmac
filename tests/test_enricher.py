@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from services.catalog.enricher.main import (
+    CircuitBreaker,
     PermanentCrawlError,
     async_retry,
     extract_quantity_from_url,
@@ -545,3 +546,84 @@ def test_write_to_db_stores_non_food_item():
         write_to_db(payload, ch)
 
     mock_create.assert_called_once_with(mock_enriched, mock_db_session)
+
+
+# ===== UNIT TESTS - CircuitBreaker =====
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_circuit_breaker_no_trip_below_threshold():
+    cb = CircuitBreaker(threshold=5, base_pause=1, max_pause=10)
+    with patch("services.catalog.enricher.main.browser_pool") as mock_pool:
+        for _ in range(4):
+            await cb.record_failure()
+        mock_pool.reset_session.assert_not_called()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_circuit_breaker_trips_at_threshold():
+    cb = CircuitBreaker(threshold=3, base_pause=0, max_pause=10)
+    with patch("services.catalog.enricher.main.browser_pool") as mock_pool:
+        mock_pool.reset_session = AsyncMock()
+        for _ in range(3):
+            await cb.record_failure()
+        mock_pool.reset_session.assert_called_once()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_circuit_breaker_resets_on_success():
+    cb = CircuitBreaker(threshold=3, base_pause=0, max_pause=10)
+    with patch("services.catalog.enricher.main.browser_pool") as mock_pool:
+        mock_pool.reset_session = AsyncMock()
+        await cb.record_failure()
+        await cb.record_failure()
+        cb.record_success()
+        await cb.record_failure()
+        await cb.record_failure()
+        mock_pool.reset_session.assert_not_called()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_circuit_breaker_exponential_pause():
+    cb = CircuitBreaker(threshold=2, base_pause=10, max_pause=100)
+    with (
+        patch("services.catalog.enricher.main.browser_pool") as mock_pool,
+        patch("services.catalog.enricher.main.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+    ):
+        mock_pool.reset_session = AsyncMock()
+        # First trip: base_pause * 2^0 = 10
+        await cb.record_failure()
+        await cb.record_failure()
+        mock_sleep.assert_awaited_with(10)
+
+        # Second trip: base_pause * 2^1 = 20
+        await cb.record_failure()
+        await cb.record_failure()
+        mock_sleep.assert_awaited_with(20)
+
+        # Third trip: base_pause * 2^2 = 40
+        await cb.record_failure()
+        await cb.record_failure()
+        mock_sleep.assert_awaited_with(40)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_circuit_breaker_pause_capped_at_max():
+    cb = CircuitBreaker(threshold=1, base_pause=100, max_pause=200)
+    with (
+        patch("services.catalog.enricher.main.browser_pool") as mock_pool,
+        patch("services.catalog.enricher.main.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+    ):
+        mock_pool.reset_session = AsyncMock()
+        # Trip 1: 100, Trip 2: 200, Trip 3: capped at 200
+        await cb.record_failure()
+        mock_sleep.assert_awaited_with(100)
+        await cb.record_failure()
+        mock_sleep.assert_awaited_with(200)
+        await cb.record_failure()
+        mock_sleep.assert_awaited_with(200)

@@ -54,6 +54,15 @@ PAGE_TIMEOUT = catalog_config.enricher.page_timeout if catalog_config.enricher e
 BATCH_PAUSE = catalog_config.enricher.batch_pause if catalog_config.enricher else 60
 MAX_RETRIES = catalog_config.enricher.max_retries if catalog_config.enricher else 3
 RETRY_BACKOFF = catalog_config.enricher.retry_backoff if catalog_config.enricher else 2.0
+CIRCUIT_BREAKER_THRESHOLD = (
+    catalog_config.enricher.circuit_breaker_threshold if catalog_config.enricher else 10
+)
+CIRCUIT_BREAKER_BASE_PAUSE = (
+    catalog_config.enricher.circuit_breaker_base_pause if catalog_config.enricher else 1800
+)
+CIRCUIT_BREAKER_MAX_PAUSE = (
+    catalog_config.enricher.circuit_breaker_max_pause if catalog_config.enricher else 7200
+)
 
 # Global counters for rate limiting
 items_processed = 0
@@ -97,6 +106,54 @@ PROMOTION_END_DATE_PATTERN = re.compile(r"au\s+inclus\s+(\d{2}/\d{2}/\d{4})")
 
 class PermanentCrawlError(Exception):
     """Non-retryable crawl failure (e.g. HTTP 404)."""
+
+
+class CircuitBreaker:
+    """Pauses crawling when consecutive failures exceed a threshold.
+
+    After ``threshold`` consecutive crawl failures the breaker trips:
+    it sleeps for an exponentially growing pause (base * 2^trips, capped
+    at max_pause) and forces a fresh browser session before resuming.
+    A single successful crawl resets the counter.
+    """
+
+    def __init__(
+        self,
+        threshold: int = CIRCUIT_BREAKER_THRESHOLD,
+        base_pause: int = CIRCUIT_BREAKER_BASE_PAUSE,
+        max_pause: int = CIRCUIT_BREAKER_MAX_PAUSE,
+    ) -> None:
+        self._threshold = threshold
+        self._base_pause = base_pause
+        self._max_pause = max_pause
+        self._consecutive_failures = 0
+        self._trips = 0
+
+    def record_success(self) -> None:
+        if self._consecutive_failures > 0:
+            logger.info(
+                f"Circuit breaker: crawl succeeded after {self._consecutive_failures} "
+                f"consecutive failures — resetting"
+            )
+        self._consecutive_failures = 0
+        self._trips = 0
+
+    async def record_failure(self) -> None:
+        self._consecutive_failures += 1
+        if self._consecutive_failures >= self._threshold:
+            self._trips += 1
+            pause = min(self._base_pause * (2 ** (self._trips - 1)), self._max_pause)
+            logger.warning(
+                f"Circuit breaker TRIPPED (trip #{self._trips}): "
+                f"{self._consecutive_failures} consecutive crawl failures. "
+                f"Pausing {pause}s and resetting browser session."
+            )
+            self._consecutive_failures = 0
+            await browser_pool.reset_session()
+            await asyncio.sleep(pause)
+
+
+circuit_breaker = CircuitBreaker()
 
 
 async def async_retry(
@@ -317,6 +374,16 @@ class BrowserPool:
         finally:
             await page.close()
 
+    async def reset_session(self) -> None:
+        """Drop the current browser context so the next get_context() warms a fresh one."""
+        if self._context is not None:
+            try:
+                await self._context.close()
+            except Exception:
+                pass
+            self._context = None
+            logger.info("Browser session reset — next crawl will warm a new one")
+
     async def close(self) -> None:
         if self._context is not None:
             try:
@@ -513,17 +580,21 @@ async def crawl_product_page(url: str) -> CrawlResult:
         return await _crawl_product_page_once(url)
 
     try:
-        return await async_retry(
+        result = await async_retry(
             _attempt,
             retryable_exceptions=(RuntimeError, OSError, TimeoutError),
             non_retryable_exceptions=(PermanentCrawlError,),
             label=f"crawl_product_page({url})",
         )
+        circuit_breaker.record_success()
+        return result
     except PermanentCrawlError as e:
         logger.error(f"Permanent crawl failure: {e}")
+        await circuit_breaker.record_failure()
         return CrawlResult()
     except Exception as e:
         logger.error(f"Error crawling {url} after {MAX_RETRIES} attempts: {e}")
+        await circuit_breaker.record_failure()
         return CrawlResult()
 
 
