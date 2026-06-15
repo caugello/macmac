@@ -1057,7 +1057,7 @@ async def enrich_catalog_item(
     vendor_product_id: str,
     raw_name: str,
     product_url: str,
-) -> CatalogItemCreate:
+) -> CatalogItemCreate | None:
     """
     Enrich catalog item using Playwright + OpenAI LLM.
     Implements rate limiting to avoid WAF blocks.
@@ -1091,22 +1091,8 @@ async def enrich_catalog_item(
     crawl = await crawl_product_page(product_url)
 
     if not crawl.html_content:
-        logger.warning("Failed to crawl, using URL extraction only")
-        return CatalogItemCreate(
-            vendor_name=vendor_name,
-            vendor_product_id=vendor_product_id,
-            raw_name=raw_name,
-            product_url=product_url,
-            is_food=True,
-            net_quantity_value=url_qty,
-            net_quantity_unit=url_unit,
-            price=crawl.extracted_price,
-            currency="EUR",
-            nutriscore=crawl.nutriscore,
-            nutriscore_svg=crawl.nutriscore_svg,
-            promotion_until_date=crawl.promotion_until_date,
-            image_url=crawl.image_url,
-        )
+        logger.warning(f"Failed to crawl {product_url} — skipping DB write")
+        return None
 
     # If redirected, try extracting quantity from final URL too
     if crawl.final_url and crawl.final_url != product_url:
