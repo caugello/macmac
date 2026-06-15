@@ -648,11 +648,36 @@ async def _crawl_nutrition_page_once(
 
         nutrition_table_text = None
         try:
-            await page.wait_for_selector("table", timeout=5000, state="visible")
+            # Collect&Go info pages hide nutrition in collapsed accordion sections.
+            # Try clicking expand buttons so the table becomes visible.
+            for sel in [
+                'button:has-text("Valeurs nutritionnelles")',
+                'button:has-text("Voedingswaarde")',
+                'button:has-text("Nutritional")',
+                '[class*="accordion"]:has-text("nutri")',
+            ]:
+                try:
+                    btn = await page.query_selector(sel)
+                    if btn:
+                        await btn.click()
+                        await page.wait_for_timeout(500)
+                        break
+                except Exception:
+                    pass
+
+            table_visible = True
+            try:
+                await page.wait_for_selector("table", timeout=5000, state="visible")
+            except Exception:
+                # Table in DOM but hidden (collapsed accordion) — still readable
+                table_visible = False
+                await page.wait_for_selector("table", timeout=2000, state="attached")
+
             tables = await page.query_selector_all("table")
             for table in tables:
-                table_text = await table.inner_text()
-                if any(
+                # inner_text() respects CSS visibility; text_content() does not
+                table_text = await (table.inner_text() if table_visible else table.text_content())
+                if table_text and any(
                     keyword in table_text.lower()
                     for keyword in [
                         "valeur nutritionnelle",
