@@ -256,6 +256,38 @@ def test_write_to_db_propagates_unexpected_errors():
             write_to_db(payload, ch)
 
 
+@pytest.mark.unit
+def test_write_to_db_skips_db_on_failed_crawl():
+    """write_to_db must not call create_catalog_item when enrichment returns None."""
+    from services.catalog.enricher.main import write_to_db
+
+    payload = {
+        "raw_name": "Blocked Product",
+        "vendor_name": "colruyt",
+        "vendor_product_id": "blocked-500g",
+        "product_url": "https://www.collectandgo.be/fr/assortiment/blocked-500g",
+    }
+    ch = MagicMock()
+
+    mock_loop = MagicMock()
+    mock_loop.run_until_complete.return_value = None
+
+    mock_create = MagicMock()
+
+    with (
+        patch("services.catalog.enricher.main.enrich_catalog_item", new=MagicMock()),
+        patch("services.catalog.enricher.main.get_event_loop", return_value=mock_loop),
+        patch("services.catalog.enricher.main.get_db") as mock_get_db,
+        patch("services.catalog.enricher.main.create_catalog_item", mock_create),
+    ):
+        mock_get_session = MagicMock()
+        mock_get_db.return_value.__enter__ = MagicMock(return_value=mock_get_session)
+        mock_get_db.return_value.__exit__ = MagicMock(return_value=False)
+        write_to_db(payload, ch)
+
+    mock_create.assert_not_called()
+
+
 # ===== UNIT TESTS - BrowserPool (shared browser reuse) =====
 
 
