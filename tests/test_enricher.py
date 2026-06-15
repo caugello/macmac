@@ -436,8 +436,10 @@ async def test_browser_pool_uses_cdp_when_proxy_url_set():
 
     pool = BrowserPool()
 
+    mock_context = MagicMock()
     mock_browser = MagicMock()
     mock_browser.is_connected.return_value = True
+    mock_browser.new_context = AsyncMock(return_value=mock_context)
     mock_chromium = MagicMock()
     mock_chromium.connect_over_cdp = AsyncMock(return_value=mock_browser)
     mock_chromium.launch = AsyncMock()
@@ -449,24 +451,17 @@ async def test_browser_pool_uses_cdp_when_proxy_url_set():
     mock_async_pw_fn = MagicMock(return_value=mock_async_pw)
     fake_pw_module = MagicMock(async_playwright=mock_async_pw_fn)
 
-    mock_context = MagicMock()
-
-    async def _set_context(self=pool):
-        self._context = mock_context
-
     with patch.dict(
         sys.modules,
         {"playwright": MagicMock(), "playwright.async_api": fake_pw_module},
     ):
-        with (
-            patch("services.catalog.enricher.main.PROXY_URL", "wss://proxy.example.com:9222"),
-            patch.object(pool, "_warm_session", side_effect=_set_context),
-        ):
+        with patch("services.catalog.enricher.main.PROXY_URL", "wss://proxy.example.com:9222"):
             ctx = await pool.get_context()
 
     assert ctx is mock_context
     mock_chromium.connect_over_cdp.assert_awaited_once_with("wss://proxy.example.com:9222")
     mock_chromium.launch.assert_not_awaited()
+    mock_browser.new_context.assert_awaited_once()
 
 
 @pytest.mark.unit

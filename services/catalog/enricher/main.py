@@ -305,15 +305,14 @@ WEBDRIVER_OVERRIDE = """
 
 
 class BrowserPool:
-    """Owns a single long-lived Playwright browser and a warmed context.
+    """Owns a Playwright browser for crawling product pages.
 
-    The anti-bot system requires a full JavaScript challenge to pass before
-    product pages can be accessed. Cookies alone are insufficient — the
-    session state (TLS fingerprint, challenge tokens) must persist. So we
-    keep a single browser context alive and reuse it for all product pages.
+    Local mode: keeps a single long-lived browser with a warmed context
+    (homepage visit, cookie consent) so session state persists across pages.
 
-    A new page is created per product within the shared context for DOM
-    isolation, then closed after extraction.
+    Proxy mode: creates a fresh CDP connection per get_context() call.
+    Each remote session has a navigation limit, and the proxy handles
+    anti-detection, so warm-up is skipped and sessions are disposable.
     """
 
     def __init__(self) -> None:
@@ -327,6 +326,19 @@ class BrowserPool:
         if self._playwright is None:
             self._playwright = await async_playwright().start()
 
+        if PROXY_URL:
+            # Fresh CDP connection each time — sessions have a navigation limit
+            if self._browser is not None:
+                try:
+                    await self._browser.close()
+                except Exception:
+                    pass
+            self._browser = await self._playwright.chromium.connect_over_cdp(PROXY_URL)
+            self._context = await self._browser.new_context(
+                locale="fr-BE", timezone_id="Europe/Brussels"
+            )
+            return self._context
+
         if self._browser is None or not self._browser.is_connected():
             if self._browser is not None:
                 logger.warning("Chromium browser disconnected, relaunching")
@@ -334,14 +346,10 @@ class BrowserPool:
                     await self._browser.close()
                 except Exception:
                     pass
-            if PROXY_URL:
-                self._browser = await self._playwright.chromium.connect_over_cdp(PROXY_URL)
-                logger.info("Connected to remote browser via CDP")
-            else:
-                self._browser = await self._playwright.chromium.launch(
-                    headless=True, args=CHROMIUM_ARGS
-                )
-                logger.info("Launched local Chromium browser")
+            self._browser = await self._playwright.chromium.launch(
+                headless=True, args=CHROMIUM_ARGS
+            )
+            logger.info("Launched local Chromium browser")
             self._context = None
 
         if self._context is None:
@@ -350,17 +358,10 @@ class BrowserPool:
         return self._context
 
     async def _warm_session(self) -> None:
-        """Create a context, visit homepage to pass anti-bot challenge."""
-        if PROXY_URL:
-            # Remote browser handles fingerprinting; only set locale for French content
-            self._context = await self._browser.new_context(
-                locale="fr-BE", timezone_id="Europe/Brussels"
-            )
-        else:
-            self._context = await self._browser.new_context(**CONTEXT_OPTIONS)
+        """Create a context, visit homepage to pass anti-bot challenge (local mode only)."""
+        self._context = await self._browser.new_context(**CONTEXT_OPTIONS)
         page = await self._context.new_page()
-        if not PROXY_URL:
-            await page.add_init_script(WEBDRIVER_OVERRIDE)
+        await page.add_init_script(WEBDRIVER_OVERRIDE)
 
         try:
             resp = await page.goto(HOMEPAGE_URL, timeout=15000, wait_until="domcontentloaded")
@@ -588,8 +589,6 @@ async def crawl_product_page(url: str) -> CrawlResult:
     validate_url(url)
 
     async def _attempt() -> CrawlResult:
-        # Ensure the shared context is ready (warms session on first call).
-        await browser_pool.get_context()
         return await _crawl_product_page_once(url)
 
     try:
@@ -695,7 +694,6 @@ async def crawl_nutrition_page(info_url: str, main_page_url: str) -> tuple[str |
     logger.debug(f"Crawling nutrition page: {info_url}")
 
     async def _attempt() -> tuple[str | None, str | None]:
-        await browser_pool.get_context()
         return await _crawl_nutrition_page_once(info_url, main_page_url)
 
     try:
@@ -1074,25 +1072,27 @@ async def enrich_catalog_item(
 ) -> CatalogItemCreate | None:
     """
     Enrich catalog item using Playwright + OpenAI LLM.
-    Implements rate limiting to avoid WAF blocks.
+    Implements rate limiting to avoid WAF blocks (local mode only).
     """
     global items_processed, batch_start_time
 
-    # Rate limiting: pause between batches
     items_processed += 1
-    if items_processed % BATCH_SIZE == 0:
-        elapsed = time.time() - batch_start_time
-        if elapsed < BATCH_PAUSE:
-            sleep_time = BATCH_PAUSE - elapsed
-            logger.info(
-                f"Batch {items_processed // BATCH_SIZE} complete. Pausing {sleep_time:.1f}s..."
-            )
-            await asyncio.sleep(sleep_time)
-        batch_start_time = time.time()
 
-    # Delay between individual requests
-    if items_processed > 1:
-        await asyncio.sleep(DELAY_BETWEEN_REQUESTS)
+    if not PROXY_URL:
+        # Rate limiting: pause between batches (local mode only — proxy rotates IPs)
+        if items_processed % BATCH_SIZE == 0:
+            elapsed = time.time() - batch_start_time
+            if elapsed < BATCH_PAUSE:
+                sleep_time = BATCH_PAUSE - elapsed
+                logger.info(
+                    f"Batch {items_processed // BATCH_SIZE} complete. Pausing {sleep_time:.1f}s..."
+                )
+                await asyncio.sleep(sleep_time)
+            batch_start_time = time.time()
+
+        # Delay between individual requests
+        if items_processed > 1:
+            await asyncio.sleep(DELAY_BETWEEN_REQUESTS)
 
     logger.info(f"[{items_processed}] Enriching: {raw_name}")
 
