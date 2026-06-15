@@ -354,6 +354,7 @@ services:
       circuit_breaker_threshold: 10
       circuit_breaker_base_pause: 1800
       circuit_breaker_max_pause: 7200
+      # proxy_url comes from BRIGHTDATA_PROXY_URL env var, not config
     routes:
       - name: list_catalog_items
         method: get

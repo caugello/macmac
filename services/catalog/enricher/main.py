@@ -63,6 +63,7 @@ CIRCUIT_BREAKER_BASE_PAUSE = (
 CIRCUIT_BREAKER_MAX_PAUSE = (
     catalog_config.enricher.circuit_breaker_max_pause if catalog_config.enricher else 7200
 )
+PROXY_URL = catalog_config.enricher.proxy_url if catalog_config.enricher else None
 
 # Global counters for rate limiting
 items_processed = 0
@@ -333,10 +334,14 @@ class BrowserPool:
                     await self._browser.close()
                 except Exception:
                     pass
-            self._browser = await self._playwright.chromium.launch(
-                headless=True, args=CHROMIUM_ARGS
-            )
-            logger.info("Launched shared Chromium browser")
+            if PROXY_URL:
+                self._browser = await self._playwright.chromium.connect_over_cdp(PROXY_URL)
+                logger.info("Connected to remote browser via CDP")
+            else:
+                self._browser = await self._playwright.chromium.launch(
+                    headless=True, args=CHROMIUM_ARGS
+                )
+                logger.info("Launched local Chromium browser")
             self._context = None
 
         if self._context is None:
@@ -346,9 +351,16 @@ class BrowserPool:
 
     async def _warm_session(self) -> None:
         """Create a context, visit homepage to pass anti-bot challenge."""
-        self._context = await self._browser.new_context(**CONTEXT_OPTIONS)
+        if PROXY_URL:
+            # Remote browser handles fingerprinting; only set locale for French content
+            self._context = await self._browser.new_context(
+                locale="fr-BE", timezone_id="Europe/Brussels"
+            )
+        else:
+            self._context = await self._browser.new_context(**CONTEXT_OPTIONS)
         page = await self._context.new_page()
-        await page.add_init_script(WEBDRIVER_OVERRIDE)
+        if not PROXY_URL:
+            await page.add_init_script(WEBDRIVER_OVERRIDE)
 
         try:
             resp = await page.goto(HOMEPAGE_URL, timeout=15000, wait_until="domcontentloaded")
@@ -412,7 +424,8 @@ browser_pool = BrowserPool()
 async def _crawl_product_page_once(url: str) -> CrawlResult:
     context = await browser_pool.get_context()
     page = await context.new_page()
-    await page.add_init_script(WEBDRIVER_OVERRIDE)
+    if not PROXY_URL:
+        await page.add_init_script(WEBDRIVER_OVERRIDE)
 
     try:
         logger.debug("Navigating to product page")
@@ -604,7 +617,8 @@ async def _crawl_nutrition_page_once(
     context = await browser_pool.get_context()
 
     page = await context.new_page()
-    await page.add_init_script(WEBDRIVER_OVERRIDE)
+    if not PROXY_URL:
+        await page.add_init_script(WEBDRIVER_OVERRIDE)
 
     try:
         response = await page.goto(
