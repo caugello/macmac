@@ -55,8 +55,9 @@ def test_microservice_routes_registered():
 
     app = create_microservice("recipes", mock_get_db)
 
-    # Get all routes
-    routes = [route.path for route in app.routes]
+    # Get all registered paths from the OpenAPI schema (robust to FastAPI's
+    # internal route-object structure, which changed in 0.138)
+    routes = list(app.openapi()["paths"].keys())
 
     # Should have healthz
     assert "/healthz" in routes
