@@ -1,5 +1,4 @@
 -r requirements-base.txt
--r requirements-cache.txt
 -r requirements-messaging.txt
 
 # AI & Web Scraping (Catalog Enrichment)

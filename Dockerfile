@@ -49,7 +49,7 @@ RUN --mount=type=secret,id=UV_INDEX_RHTL_USERNAME,required=false \
     --mount=type=secret,id=UV_INDEX_RHTL_PASSWORD,required=false \
     export UV_INDEX_RHTL_USERNAME="$(cat /run/secrets/UV_INDEX_RHTL_USERNAME 2>/dev/null || echo "$UV_INDEX_RHTL_USERNAME")" && \
     export UV_INDEX_RHTL_PASSWORD="$(cat /run/secrets/UV_INDEX_RHTL_PASSWORD 2>/dev/null || echo "$UV_INDEX_RHTL_PASSWORD")" && \
-    uv export --frozen --no-emit-project --extra cache -o /tmp/requirements.lock.txt && \
+    uv export --frozen --no-emit-project --extra cache --extra db -o /tmp/requirements.lock.txt && \
     uv pip install --require-hashes --no-cache --only-binary :all: \
         --python /opt/venv/bin/python -r /tmp/requirements.lock.txt && \
     python3 /tmp/scripts/verify-packages.py \
@@ -62,7 +62,7 @@ RUN --mount=type=secret,id=UV_INDEX_RHTL_USERNAME,required=false \
     --mount=type=secret,id=UV_INDEX_RHTL_PASSWORD,required=false \
     export UV_INDEX_RHTL_USERNAME="$(cat /run/secrets/UV_INDEX_RHTL_USERNAME 2>/dev/null || echo "$UV_INDEX_RHTL_USERNAME")" && \
     export UV_INDEX_RHTL_PASSWORD="$(cat /run/secrets/UV_INDEX_RHTL_PASSWORD 2>/dev/null || echo "$UV_INDEX_RHTL_PASSWORD")" && \
-    uv export --frozen --no-emit-project --extra cache --extra messaging -o /tmp/requirements.lock.txt && \
+    uv export --frozen --no-emit-project --extra cache --extra messaging --extra db -o /tmp/requirements.lock.txt && \
     uv pip install --require-hashes --no-cache --only-binary :all: \
         --python /opt/venv/bin/python -r /tmp/requirements.lock.txt && \
     python3 /tmp/scripts/verify-packages.py \
@@ -75,7 +75,7 @@ RUN --mount=type=secret,id=UV_INDEX_RHTL_USERNAME,required=false \
     --mount=type=secret,id=UV_INDEX_RHTL_PASSWORD,required=false \
     export UV_INDEX_RHTL_USERNAME="$(cat /run/secrets/UV_INDEX_RHTL_USERNAME 2>/dev/null || echo "$UV_INDEX_RHTL_USERNAME")" && \
     export UV_INDEX_RHTL_PASSWORD="$(cat /run/secrets/UV_INDEX_RHTL_PASSWORD 2>/dev/null || echo "$UV_INDEX_RHTL_PASSWORD")" && \
-    uv export --frozen --no-emit-project --extra cache -o /tmp/requirements.lock.txt && \
+    uv export --frozen --no-emit-project --extra cache --extra db -o /tmp/requirements.lock.txt && \
     uv pip install --require-hashes --no-cache --only-binary :all: \
         --python /opt/venv/bin/python -r /tmp/requirements.lock.txt && \
     python3 /tmp/scripts/verify-packages.py \
@@ -88,7 +88,7 @@ RUN --mount=type=secret,id=UV_INDEX_RHTL_USERNAME,required=false \
     --mount=type=secret,id=UV_INDEX_RHTL_PASSWORD,required=false \
     export UV_INDEX_RHTL_USERNAME="$(cat /run/secrets/UV_INDEX_RHTL_USERNAME 2>/dev/null || echo "$UV_INDEX_RHTL_USERNAME")" && \
     export UV_INDEX_RHTL_PASSWORD="$(cat /run/secrets/UV_INDEX_RHTL_PASSWORD 2>/dev/null || echo "$UV_INDEX_RHTL_PASSWORD")" && \
-    uv export --frozen --no-emit-project --extra auth -o /tmp/requirements.lock.txt && \
+    uv export --frozen --no-emit-project --extra auth --extra db -o /tmp/requirements.lock.txt && \
     uv pip install --require-hashes --no-cache --only-binary :all: \
         --python /opt/venv/bin/python -r /tmp/requirements.lock.txt && \
     python3 /tmp/scripts/verify-packages.py \
@@ -202,7 +202,7 @@ RUN --mount=type=secret,id=UV_INDEX_RHTL_USERNAME,required=false \
     --mount=type=secret,id=UV_INDEX_RHTL_PASSWORD,required=false \
     export UV_INDEX_RHTL_USERNAME="$(cat /run/secrets/UV_INDEX_RHTL_USERNAME 2>/dev/null || echo "$UV_INDEX_RHTL_USERNAME")" && \
     export UV_INDEX_RHTL_PASSWORD="$(cat /run/secrets/UV_INDEX_RHTL_PASSWORD 2>/dev/null || echo "$UV_INDEX_RHTL_PASSWORD")" && \
-    uv export --frozen --no-emit-project --extra enricher --extra cache --extra messaging -o /tmp/requirements.lock.txt && \
+    uv export --frozen --no-emit-project --extra enricher --extra messaging -o /tmp/requirements.lock.txt && \
     uv pip install --require-hashes --system --no-cache --only-binary :all: \
         --python /usr/bin/python3.12 -r /tmp/requirements.lock.txt && \
     python3.12 /tmp/scripts/verify-packages.py --lockfile /opt/app-root/src/uv.lock \
