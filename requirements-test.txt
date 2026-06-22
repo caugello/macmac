@@ -3,6 +3,7 @@
 -r requirements-base.txt
 -r requirements-cache.txt
 -r requirements-messaging.txt
+-r requirements-db.txt
 
 # Testing
 pytest==9.0.3
