@@ -65,6 +65,33 @@ CIRCUIT_BREAKER_MAX_PAUSE = (
 )
 PROXY_URL = catalog_config.enricher.proxy_url if catalog_config.enricher else None
 
+PROXY_HOLD_SECONDS = 24 * 3600
+WAF_BLOCK_STATUSES = {403, 405}
+
+
+class ProxyFallback:
+    """Start with local Chromium; switch to proxy on WAF block; hold for 24h."""
+
+    def __init__(self, proxy_url: str | None, hold_seconds: int = PROXY_HOLD_SECONDS):
+        self._proxy_url = proxy_url
+        self._hold_seconds = hold_seconds
+        self._blocked_until: float = 0
+
+    def use_proxy(self) -> bool:
+        if not self._proxy_url:
+            return False
+        return time.time() < self._blocked_until
+
+    def record_block(self) -> None:
+        if not self._proxy_url:
+            return
+        self._blocked_until = time.time() + self._hold_seconds
+        logger.warning(f"WAF block detected — switching to proxy for {self._hold_seconds // 3600}h")
+
+
+proxy_fallback = ProxyFallback(PROXY_URL)
+
+
 # Global counters for rate limiting
 items_processed = 0
 batch_start_time = time.time()
@@ -319,6 +346,7 @@ class BrowserPool:
         self._playwright: Any = None
         self._browser: Browser | None = None
         self._context: Any = None
+        self._using_proxy: bool = False
 
     async def get_context(self) -> Any:
         from playwright.async_api import async_playwright
@@ -326,19 +354,37 @@ class BrowserPool:
         if self._playwright is None:
             self._playwright = await async_playwright().start()
 
-        if PROXY_URL:
+        want_proxy = proxy_fallback.use_proxy()
+
+        # Mode switch (local → proxy): tear down local browser
+        if want_proxy and not self._using_proxy and self._browser is not None:
+            logger.info("Switching from local browser to proxy")
+            try:
+                if self._context:
+                    await self._context.close()
+                await self._browser.close()
+            except Exception:
+                pass
+            self._browser = None
+            self._context = None
+
+        if want_proxy:
             # Fresh CDP connection each time — sessions have a navigation limit
             if self._browser is not None:
                 try:
                     await self._browser.close()
                 except Exception:
                     pass
-            self._browser = await self._playwright.chromium.connect_over_cdp(PROXY_URL)
+            self._browser = await self._playwright.chromium.connect_over_cdp(
+                proxy_fallback._proxy_url
+            )
             self._context = await self._browser.new_context(
                 locale="fr-BE", timezone_id="Europe/Brussels"
             )
+            self._using_proxy = True
             return self._context
 
+        self._using_proxy = False
         if self._browser is None or not self._browser.is_connected():
             if self._browser is not None:
                 logger.warning("Chromium browser disconnected, relaunching")
@@ -425,7 +471,7 @@ browser_pool = BrowserPool()
 async def _crawl_product_page_once(url: str) -> CrawlResult:
     context = await browser_pool.get_context()
     page = await context.new_page()
-    if not PROXY_URL:
+    if not proxy_fallback.use_proxy():
         await page.add_init_script(WEBDRIVER_OVERRIDE)
 
     try:
@@ -439,6 +485,10 @@ async def _crawl_product_page_once(url: str) -> CrawlResult:
 
         if response.status == 404:
             raise PermanentCrawlError(f"HTTP 404 from {url}")
+
+        if response.status in WAF_BLOCK_STATUSES and not proxy_fallback.use_proxy():
+            proxy_fallback.record_block()
+            raise RuntimeError(f"WAF block (HTTP {response.status}), retrying via proxy")
 
         if response.status in (429, 502, 503):
             raise RuntimeError(f"HTTP {response.status} from {url}")
@@ -616,7 +666,7 @@ async def _crawl_nutrition_page_once(
     context = await browser_pool.get_context()
 
     page = await context.new_page()
-    if not PROXY_URL:
+    if not proxy_fallback.use_proxy():
         await page.add_init_script(WEBDRIVER_OVERRIDE)
 
     try:
@@ -629,6 +679,12 @@ async def _crawl_nutrition_page_once(
 
         if response.status == 404:
             raise PermanentCrawlError(f"HTTP 404 from nutrition page {info_url}")
+
+        if response.status in WAF_BLOCK_STATUSES and not proxy_fallback.use_proxy():
+            proxy_fallback.record_block()
+            raise RuntimeError(
+                f"WAF block (HTTP {response.status}) on nutrition page, retrying via proxy"
+            )
 
         if response.status in (429, 502, 503):
             raise RuntimeError(f"HTTP {response.status} from nutrition page {info_url}")
@@ -1103,7 +1159,7 @@ async def enrich_catalog_item(
 
     items_processed += 1
 
-    if not PROXY_URL:
+    if not proxy_fallback.use_proxy():
         # Rate limiting: pause between batches (local mode only — proxy rotates IPs)
         if items_processed % BATCH_SIZE == 0:
             elapsed = time.time() - batch_start_time
