@@ -2,6 +2,6 @@
 -r requirements-messaging.txt
 
 # AI & Web Scraping (Catalog Enrichment)
-openai==2.38.0
+openai==2.43.0
 playwright==1.60.0
-beautifulsoup4==4.14.3
+beautifulsoup4==4.15.0
