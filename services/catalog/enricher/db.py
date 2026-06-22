@@ -1,5 +1,5 @@
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -27,6 +27,36 @@ MUTABLE_FIELDS = [
     "is_food",
     "last_enriched_at",
 ]
+
+
+def is_item_fresh(
+    vendor_name: str,
+    vendor_product_id: str,
+    freshness_days: int,
+    db: Session,
+) -> bool:
+    item = (
+        db.query(CatalogItem)
+        .filter(
+            CatalogItem.vendor_name == vendor_name,
+            CatalogItem.vendor_product_id == vendor_product_id,
+        )
+        .first()
+    )
+    if not item or not item.last_enriched_at:
+        return False
+
+    cutoff = datetime.now(UTC) - timedelta(days=freshness_days)
+    enriched_at = item.last_enriched_at
+    if enriched_at.tzinfo is None:
+        enriched_at = enriched_at.replace(tzinfo=UTC)
+    if enriched_at < cutoff:
+        return False
+
+    if item.is_food:
+        return item.nutrition is not None and item.image_url is not None and item.price is not None
+
+    return item.image_url is not None and item.price is not None
 
 
 def create_catalog_item(data: rs.CatalogItemCreate, db: Session):

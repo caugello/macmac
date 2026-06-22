@@ -64,6 +64,7 @@ class EnricherConfig:
     circuit_breaker_base_pause: int = 1800
     circuit_breaker_max_pause: int = 7200
     proxy_url: str | None = None
+    freshness_threshold_days: int = 14
 
 
 @dataclass

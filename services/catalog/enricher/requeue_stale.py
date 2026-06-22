@@ -4,7 +4,7 @@ Re-enrichment cron job.
 Queries the catalog DB for items that need re-enrichment and publishes them
 back to the enricher queue. Two buckets:
   1. Backfill: items missing image_url, nutrition, or nutriscore
-  2. Refresh: items with stale price/promotion data (last_enriched_at > 3 days)
+  2. Refresh: items with stale price/promotion data (last_enriched_at > 14 days)
 """
 
 import os
@@ -22,7 +22,7 @@ from services.shared.lib.messaging_bus import MessagingBus
 
 logger = setup_logging()
 
-STALE_THRESHOLD_DAYS = 3
+STALE_THRESHOLD_DAYS = 14
 
 
 def find_items_to_requeue(db) -> list[dict]:
