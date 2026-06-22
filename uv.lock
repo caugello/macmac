@@ -159,14 +159,14 @@ wheels = [
 
 [[package]]
 name = "cryptography"
-version = "48.0.0"
+version = "49.0.0"
 source = { registry = "https://packages.redhat.com/trusted-libraries/python" }
 dependencies = [
     { name = "cffi", marker = "platform_python_implementation != 'PyPy'" },
 ]
-sdist = { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/cryptography-48.0.0.tar.gz", hash = "sha256:b69f619d07bdd1b98302fcb26332232b7b5d0bb17f73d92b53d495f6d2fa196d" }
+sdist = { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/cryptography-49.0.0.tar.gz", hash = "sha256:8ad5a2c3bd9969f24b8fe5286ff9a5194c334221a1ce6f63e23440c00ce0a2a4" }
 wheels = [
-    { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/cryptography-48.0.0-0-cp312-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:8bff3de351be0bcbb36d620376de068f2076d39906a9cff380a3de6523581de2" },
+    { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/cryptography-49.0.0-0-cp312-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:ddab4a0352edba30f4fc64b33e6cea6006d76c55d58467eefcebb7ec988a8eb9" },
 ]
 
 [[package]]
@@ -641,11 +641,11 @@ wheels = [
 
 [[package]]
 name = "msgpack"
-version = "1.1.2"
+version = "1.2.1"
 source = { registry = "https://packages.redhat.com/trusted-libraries/python" }
-sdist = { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/msgpack-1.1.2.tar.gz", hash = "sha256:121753bb86c2e136e3ae518c8f74b9c22afb26bb61464181e539430cfb623d68" }
+sdist = { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/msgpack-1.2.1.tar.gz", hash = "sha256:218621fed0c402b8d155ef415cdb723375ca997cd04a528adf99eb0519cfdfee" }
 wheels = [
-    { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/msgpack-1.1.2-0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:2c5acfef20dfefdc85ea7a5820207c4070efa01e74852eefefa46554296ee9b5" },
+    { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/msgpack-1.2.1-0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:d9c009cbaec43a39d527fd4db85091259eea97f6468fac572fe7a4c1db649388" },
 ]
 
 [[package]]
@@ -1066,15 +1066,15 @@ wheels = [
 
 [[package]]
 name = "starlette"
-version = "1.2.0"
+version = "1.3.1"
 source = { registry = "https://packages.redhat.com/trusted-libraries/python" }
 dependencies = [
     { name = "anyio" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
 ]
-sdist = { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/starlette-1.2.0.tar.gz", hash = "sha256:e2d40c08b212913815774e284b960241fecf29b420d32daa181f42213545a6e6" }
+sdist = { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/starlette-1.3.1.tar.gz", hash = "sha256:e2949913a13576bf2ef8081c8f68fede708ea6f92c3ae698951c0f2c5981be74" }
 wheels = [
-    { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/starlette-1.2.0-0-py3-none-any.whl", hash = "sha256:fbe3300ef378608ac8a7dcfd42f4ccd1a2cff6c19de414d9e043467f2849a8f0" },
+    { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/starlette-1.3.1-0-py3-none-any.whl", hash = "sha256:5b603ca971d8895c0347fdb67a6f28cd608961a23e805e55f41e5d9a062d9638" },
 ]
 
 [[package]]
