@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from playwright.async_api import Browser
 
 from services.catalog.db import SessionLocal
-from services.catalog.enricher.db import create_catalog_item
+from services.catalog.enricher.db import create_catalog_item, is_item_fresh
 from services.config import get_config, get_config_for_service, get_config_for_service_dependency
 from services.framework.logging import setup_logging
 from services.shared.constant import CATALOG_PROCESS_ENTITY_QUEUE
@@ -64,6 +64,9 @@ CIRCUIT_BREAKER_MAX_PAUSE = (
     catalog_config.enricher.circuit_breaker_max_pause if catalog_config.enricher else 7200
 )
 PROXY_URL = catalog_config.enricher.proxy_url if catalog_config.enricher else None
+FRESHNESS_THRESHOLD_DAYS = (
+    catalog_config.enricher.freshness_threshold_days if catalog_config.enricher else 14
+)
 
 # Global counters for rate limiting
 items_processed = 0
@@ -1255,6 +1258,13 @@ def write_to_db(payload: dict, ch):
         return
 
     vendor_product_id = payload.get("vendor_product_id", product_url.rstrip("/").split("/")[-1])
+    vendor_name = payload.get("vendor_name", "")
+
+    # Skip items that were recently enriched with complete data
+    with get_db(SessionLocal) as db:
+        if is_item_fresh(vendor_name, vendor_product_id, FRESHNESS_THRESHOLD_DAYS, db):
+            logger.debug(f"Skipping fresh item: {payload.get('raw_name', 'unknown')}")
+            return
 
     # Run async enrichment on the persistent loop so the shared browser
     # (bound to that loop) is reused across messages instead of relaunched.

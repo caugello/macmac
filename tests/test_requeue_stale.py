@@ -82,7 +82,7 @@ def test_stale_items_requeued(mock_catalog_db):
         image_url="http://img.jpg",
         nutrition={"cal": 100},
         nutriscore="A",
-        last_enriched_at=datetime.now(UTC) - timedelta(days=5),
+        last_enriched_at=datetime.now(UTC) - timedelta(days=20),
     )
 
     items = find_items_to_requeue(mock_catalog_db)
