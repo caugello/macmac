@@ -125,6 +125,11 @@ COPY --from=builder-catalog /opt/venv /opt/venv
 COPY . .
 EXPOSE 8002
 
+# ── Catalog Snitch (results-queue consumer, no HTTP port) ───
+FROM runtime AS snitch
+COPY --from=builder-catalog /opt/venv /opt/venv
+COPY . .
+
 # ── Meal Plans API ──────────────────────────────────────────
 FROM runtime AS meal-plans
 COPY --from=builder-meal-plans /opt/venv /opt/venv
