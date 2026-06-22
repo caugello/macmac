@@ -2,6 +2,7 @@
 -r requirements-base.txt
 -r requirements-cache.txt
 -r requirements-messaging.txt
+-r requirements-db.txt
 
 # Auth service
 firebase-admin==7.4.0

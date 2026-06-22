@@ -518,20 +518,17 @@ name = "macmac"
 version = "0.2.6"
 source = { editable = "." }
 dependencies = [
-    { name = "alembic" },
     { name = "click" },
     { name = "defusedxml" },
     { name = "email-validator" },
     { name = "fastapi" },
     { name = "gunicorn" },
     { name = "httpx" },
-    { name = "pg8000" },
     { name = "pydantic" },
     { name = "pyjwt" },
     { name = "python-dotenv" },
     { name = "python-multipart" },
     { name = "pyyaml" },
-    { name = "sqlalchemy" },
     { name = "uvicorn" },
 ]
 
@@ -545,11 +542,18 @@ cache = [
 crawler = [
     { name = "playwright" },
 ]
+db = [
+    { name = "alembic" },
+    { name = "pg8000" },
+    { name = "sqlalchemy" },
+]
 dev = [
+    { name = "alembic" },
     { name = "beautifulsoup4" },
     { name = "firebase-admin" },
     { name = "mypy" },
     { name = "openai" },
+    { name = "pg8000" },
     { name = "pika" },
     { name = "playwright" },
     { name = "pytest" },
@@ -559,6 +563,7 @@ dev = [
     { name = "pytest-timeout" },
     { name = "redis" },
     { name = "ruff" },
+    { name = "sqlalchemy" },
 ]
 enricher = [
     { name = "beautifulsoup4" },
@@ -573,6 +578,8 @@ messaging = [
     { name = "pika" },
 ]
 test = [
+    { name = "alembic" },
+    { name = "pg8000" },
     { name = "pika" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -580,11 +587,12 @@ test = [
     { name = "pytest-mock" },
     { name = "pytest-timeout" },
     { name = "redis" },
+    { name = "sqlalchemy" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "alembic", specifier = ">=1.18.4,<2" },
+    { name = "alembic", marker = "extra == 'db'", specifier = ">=1.18.4,<2" },
     { name = "beautifulsoup4", marker = "extra == 'enricher'", specifier = ">=4.14.3,<5" },
     { name = "click", specifier = ">=8.4.1,<9" },
     { name = "defusedxml", specifier = ">=0.7.1,<1" },
@@ -593,11 +601,11 @@ requires-dist = [
     { name = "firebase-admin", marker = "extra == 'auth'", specifier = ">=7.4.0,<8" },
     { name = "gunicorn", specifier = ">=26.0.0,<27" },
     { name = "httpx", specifier = ">=0.28.1,<1" },
-    { name = "macmac", extras = ["cache", "messaging"], marker = "extra == 'test'" },
-    { name = "macmac", extras = ["cache", "messaging", "auth", "enricher", "crawler", "test", "lint"], marker = "extra == 'dev'" },
+    { name = "macmac", extras = ["cache", "messaging", "db"], marker = "extra == 'test'" },
+    { name = "macmac", extras = ["cache", "messaging", "db", "auth", "enricher", "crawler", "test", "lint"], marker = "extra == 'dev'" },
     { name = "mypy", marker = "extra == 'lint'", specifier = ">=2.1.0,<3" },
     { name = "openai", marker = "extra == 'enricher'", specifier = ">=2.41.0,<3" },
-    { name = "pg8000", specifier = ">=1.30.0,<2" },
+    { name = "pg8000", marker = "extra == 'db'", specifier = ">=1.30.0,<2" },
     { name = "pika", marker = "extra == 'messaging'", specifier = ">=1.4.1,<2" },
     { name = "playwright", marker = "extra == 'crawler'", specifier = ">=1.60.0,<2" },
     { name = "playwright", marker = "extra == 'enricher'", specifier = ">=1.60.0,<2" },
@@ -613,10 +621,10 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0.3,<7" },
     { name = "redis", marker = "extra == 'cache'", specifier = ">=8.0.0,<9" },
     { name = "ruff", marker = "extra == 'lint'", specifier = ">=0.15.16" },
-    { name = "sqlalchemy", specifier = ">=2.0.49,<3" },
+    { name = "sqlalchemy", marker = "extra == 'db'", specifier = ">=2.0.49,<3" },
     { name = "uvicorn", specifier = ">=0.49.0,<1" },
 ]
-provides-extras = ["cache", "messaging", "auth", "enricher", "crawler", "lint", "test", "dev"]
+provides-extras = ["db", "cache", "messaging", "auth", "enricher", "crawler", "lint", "test", "dev"]
 
 [[package]]
 name = "mako"

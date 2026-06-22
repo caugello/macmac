@@ -1,4 +1,5 @@
 -r requirements-base.txt
+-r requirements-db.txt
 
 # Firebase Admin SDK (server-side token verification)
 firebase-admin==7.4.0
