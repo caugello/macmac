@@ -1,6 +1,7 @@
 """Tests for catalog enricher functionality."""
 
 import sys
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -8,6 +9,7 @@ import pytest
 from services.catalog.enricher.main import (
     CircuitBreaker,
     PermanentCrawlError,
+    ProxyFallback,
     async_retry,
     extract_quantity_from_url,
     normalize_unit,
@@ -453,11 +455,15 @@ async def test_browser_pool_uses_cdp_when_proxy_url_set():
     mock_async_pw_fn = MagicMock(return_value=mock_async_pw)
     fake_pw_module = MagicMock(async_playwright=mock_async_pw_fn)
 
+    mock_fallback = MagicMock()
+    mock_fallback.use_proxy.return_value = True
+    mock_fallback._proxy_url = "wss://proxy.example.com:9222"
+
     with patch.dict(
         sys.modules,
         {"playwright": MagicMock(), "playwright.async_api": fake_pw_module},
     ):
-        with patch("services.catalog.enricher.main.PROXY_URL", "wss://proxy.example.com:9222"):
+        with patch("services.catalog.enricher.main.proxy_fallback", mock_fallback):
             ctx = await pool.get_context()
 
     assert ctx is mock_context
@@ -492,12 +498,15 @@ async def test_browser_pool_launches_locally_without_proxy():
     async def _set_context(self=pool):
         self._context = mock_context
 
+    mock_fallback = MagicMock()
+    mock_fallback.use_proxy.return_value = False
+
     with patch.dict(
         sys.modules,
         {"playwright": MagicMock(), "playwright.async_api": fake_pw_module},
     ):
         with (
-            patch("services.catalog.enricher.main.PROXY_URL", None),
+            patch("services.catalog.enricher.main.proxy_fallback", mock_fallback),
             patch.object(pool, "_warm_session", side_effect=_set_context),
         ):
             ctx = await pool.get_context()
@@ -926,3 +935,37 @@ async def test_circuit_breaker_pause_capped_at_max():
         mock_sleep.assert_awaited_with(200)
         await cb.record_failure()
         mock_sleep.assert_awaited_with(200)
+
+
+# ===== UNIT TESTS - ProxyFallback =====
+
+
+@pytest.mark.unit
+def test_proxy_fallback_starts_local():
+    fallback = ProxyFallback("wss://proxy.example.com:9222", hold_seconds=100)
+    assert fallback.use_proxy() is False
+
+
+@pytest.mark.unit
+def test_proxy_fallback_no_proxy_url_always_local():
+    fallback = ProxyFallback(None, hold_seconds=100)
+    fallback.record_block()
+    assert fallback.use_proxy() is False
+
+
+@pytest.mark.unit
+def test_proxy_fallback_switches_on_block():
+    fallback = ProxyFallback("wss://proxy.example.com:9222", hold_seconds=100)
+    assert fallback.use_proxy() is False
+    fallback.record_block()
+    assert fallback.use_proxy() is True
+
+
+@pytest.mark.unit
+def test_proxy_fallback_expires_after_hold():
+    fallback = ProxyFallback("wss://proxy.example.com:9222", hold_seconds=100)
+    fallback.record_block()
+    assert fallback.use_proxy() is True
+    # Simulate time passing
+    fallback._blocked_until = time.time() - 1
+    assert fallback.use_proxy() is False
