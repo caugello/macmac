@@ -232,12 +232,12 @@ async def test_async_retry_does_not_retry_non_retryable():
     assert func.call_count == 1
 
 
-# ===== UNIT TESTS - write_to_db exception handling =====
+# ===== UNIT TESTS - process_item exception handling =====
 
 
 @pytest.mark.unit
-def test_write_to_db_propagates_unexpected_errors():
-    from services.catalog.enricher.main import write_to_db
+def test_process_item_propagates_unexpected_errors():
+    from services.catalog.enricher.main import process_item
 
     payload = {
         "raw_name": "Test Product",
@@ -246,23 +246,23 @@ def test_write_to_db_propagates_unexpected_errors():
         "product_url": "https://www.collectandgo.be/fr/assortiment/test-500g",
     }
     ch = MagicMock()
+    bus = MagicMock()
 
     mock_loop = MagicMock()
-    mock_loop.run_until_complete.side_effect = ConnectionError("db down")
+    mock_loop.run_until_complete.side_effect = ConnectionError("crawl down")
 
     with (
         patch("services.catalog.enricher.main.enrich_catalog_item", new=MagicMock()),
-        patch("services.catalog.enricher.main.is_item_fresh", return_value=False),
         patch("services.catalog.enricher.main.get_event_loop", return_value=mock_loop),
     ):
-        with pytest.raises(ConnectionError, match="db down"):
-            write_to_db(payload, ch)
+        with pytest.raises(ConnectionError, match="crawl down"):
+            process_item(payload, ch, bus=bus)
 
 
 @pytest.mark.unit
-def test_write_to_db_skips_db_on_failed_crawl():
-    """write_to_db must not call create_catalog_item when enrichment returns None."""
-    from services.catalog.enricher.main import write_to_db
+def test_process_item_skips_publish_on_failed_crawl():
+    """process_item must not publish when enrichment returns None."""
+    from services.catalog.enricher.main import process_item
 
     payload = {
         "raw_name": "Blocked Product",
@@ -271,25 +271,18 @@ def test_write_to_db_skips_db_on_failed_crawl():
         "product_url": "https://www.collectandgo.be/fr/assortiment/blocked-500g",
     }
     ch = MagicMock()
+    bus = MagicMock()
 
     mock_loop = MagicMock()
     mock_loop.run_until_complete.return_value = None
 
-    mock_create = MagicMock()
-
     with (
         patch("services.catalog.enricher.main.enrich_catalog_item", new=MagicMock()),
-        patch("services.catalog.enricher.main.is_item_fresh", return_value=False),
         patch("services.catalog.enricher.main.get_event_loop", return_value=mock_loop),
-        patch("services.catalog.enricher.main.get_db") as mock_get_db,
-        patch("services.catalog.enricher.main.create_catalog_item", mock_create),
     ):
-        mock_get_session = MagicMock()
-        mock_get_db.return_value.__enter__ = MagicMock(return_value=mock_get_session)
-        mock_get_db.return_value.__exit__ = MagicMock(return_value=False)
-        write_to_db(payload, ch)
+        process_item(payload, ch, bus=bus)
 
-    mock_create.assert_not_called()
+    bus.publish.assert_not_called()
 
 
 # ===== UNIT TESTS - BrowserPool (shared browser reuse) =====
@@ -618,9 +611,10 @@ def test_create_catalog_item_stores_non_food(mock_catalog_db):
 
 
 @pytest.mark.unit
-def test_write_to_db_stores_non_food_item():
-    """write_to_db must not skip is_food=False products."""
-    from services.catalog.enricher.main import write_to_db
+def test_process_item_publishes_non_food_item():
+    """process_item must not skip is_food=False products."""
+    from services.catalog.enricher.main import process_item
+    from services.shared.constant import CATALOG_ENRICHMENT_RESULTS_QUEUE
 
     payload = {
         "raw_name": "Dish Soap 500ml",
@@ -629,6 +623,7 @@ def test_write_to_db_stores_non_food_item():
         "product_url": "https://www.collectandgo.be/fr/assortiment/dish-soap-500ml",
     }
     ch = MagicMock()
+    bus = MagicMock()
 
     mock_enriched = CatalogItemCreate(
         vendor_name="colruyt",
@@ -640,33 +635,81 @@ def test_write_to_db_stores_non_food_item():
         category="Household",
     )
 
-    mock_item = MagicMock()
-    mock_item.canonical_name = "Dish Soap"
-    mock_item.raw_name = "Dish Soap 500ml"
-    mock_item.net_quantity_value = 500.0
-    mock_item.net_quantity_unit = "ml"
-    mock_item.price = 1.99
-    mock_item.category = "Household"
-    mock_item.nutrition = None
+    mock_loop = MagicMock()
+    mock_loop.run_until_complete.return_value = mock_enriched
+
+    with (
+        patch("services.catalog.enricher.main.enrich_catalog_item", new=MagicMock()),
+        patch("services.catalog.enricher.main.get_event_loop", return_value=mock_loop),
+    ):
+        process_item(payload, ch, bus=bus)
+
+    bus.publish.assert_called_once()
+    queue_arg, result_arg = bus.publish.call_args.args
+    assert queue_arg == CATALOG_ENRICHMENT_RESULTS_QUEUE
+    assert result_arg["vendor_name"] == "colruyt"
+    assert result_arg["vendor_product_id"] == "dish-soap-500ml"
+    assert result_arg["raw_name"] == "Dish Soap 500ml"
+    assert result_arg["product_url"] == payload["product_url"]
+    assert result_arg["enriched"]["is_food"] is False
+    assert result_arg["enriched"]["price"] == 1.99
+    assert result_arg["enriched"]["category"] == "Household"
+
+
+@pytest.mark.unit
+def test_process_item_publishes_enriched_payload_shape():
+    """process_item must publish original fields plus the full enriched item."""
+    from services.catalog.enricher.main import process_item
+    from services.shared.constant import CATALOG_ENRICHMENT_RESULTS_QUEUE
+
+    payload = {
+        "raw_name": "Pasta 500g",
+        "vendor_name": "colruyt",
+        "vendor_product_id": "pasta-500g",
+        "product_url": "https://www.collectandgo.be/fr/assortiment/pasta-500g",
+    }
+    ch = MagicMock()
+    bus = MagicMock()
+
+    mock_enriched = CatalogItemCreate(
+        vendor_name="colruyt",
+        vendor_product_id="pasta-500g",
+        raw_name="Pasta 500g",
+        product_url="https://www.collectandgo.be/fr/assortiment/pasta-500g",
+        canonical_name="Pasta",
+        brand="Barilla",
+        net_quantity_value=500.0,
+        net_quantity_unit="g",
+        is_food=True,
+        price=1.89,
+        currency="EUR",
+        category="Pasta",
+        nutrition={"energy_kcal": 350},
+        image_url="https://example.com/pasta.jpg",
+    )
 
     mock_loop = MagicMock()
     mock_loop.run_until_complete.return_value = mock_enriched
 
-    mock_db_session = MagicMock()
-    mock_create = MagicMock(return_value=mock_item)
-
     with (
         patch("services.catalog.enricher.main.enrich_catalog_item", new=MagicMock()),
-        patch("services.catalog.enricher.main.is_item_fresh", return_value=False),
         patch("services.catalog.enricher.main.get_event_loop", return_value=mock_loop),
-        patch("services.catalog.enricher.main.get_db") as mock_get_db,
-        patch("services.catalog.enricher.main.create_catalog_item", mock_create),
     ):
-        mock_get_db.return_value.__enter__ = MagicMock(return_value=mock_db_session)
-        mock_get_db.return_value.__exit__ = MagicMock(return_value=False)
-        write_to_db(payload, ch)
+        process_item(payload, ch, bus=bus)
 
-    mock_create.assert_called_once_with(mock_enriched, mock_db_session)
+    bus.publish.assert_called_once()
+    queue_arg, result_arg = bus.publish.call_args.args
+    assert queue_arg == CATALOG_ENRICHMENT_RESULTS_QUEUE
+    # Original message fields preserved
+    assert result_arg["vendor_name"] == "colruyt"
+    assert result_arg["vendor_product_id"] == "pasta-500g"
+    assert result_arg["raw_name"] == "Pasta 500g"
+    assert result_arg["product_url"] == payload["product_url"]
+    # Enriched block mirrors the full CatalogItemCreate
+    assert result_arg["enriched"] == mock_enriched.model_dump(mode="json")
+    assert result_arg["enriched"]["brand"] == "Barilla"
+    assert result_arg["enriched"]["nutrition"] == {"energy_kcal": 350}
+    assert result_arg["enriched"]["image_url"] == "https://example.com/pasta.jpg"
 
 
 # ===== UNIT TESTS - is_item_fresh / incremental crawl =====
@@ -772,88 +815,6 @@ def test_is_item_fresh_returns_true_for_complete_non_food_item(mock_catalog_db):
     mock_catalog_db.commit()
 
     assert is_item_fresh("colruyt", "sponge-3pc", 14, mock_catalog_db) is True
-
-
-@pytest.mark.unit
-def test_write_to_db_skips_fresh_item():
-    """write_to_db must skip enrichment for items that are already fresh."""
-    from services.catalog.enricher.main import write_to_db
-
-    payload = {
-        "raw_name": "Fresh Pasta 500g",
-        "vendor_name": "colruyt",
-        "vendor_product_id": "fresh-pasta-500g",
-        "product_url": "https://www.collectandgo.be/fr/assortiment/fresh-pasta-500g",
-    }
-    ch = MagicMock()
-
-    mock_db_session = MagicMock()
-    mock_is_fresh = MagicMock(return_value=True)
-    mock_loop = MagicMock()
-
-    with (
-        patch("services.catalog.enricher.main.get_db") as mock_get_db,
-        patch("services.catalog.enricher.main.is_item_fresh", mock_is_fresh),
-        patch("services.catalog.enricher.main.get_event_loop", mock_loop),
-    ):
-        mock_get_db.return_value.__enter__ = MagicMock(return_value=mock_db_session)
-        mock_get_db.return_value.__exit__ = MagicMock(return_value=False)
-        write_to_db(payload, ch)
-
-    mock_is_fresh.assert_called_once()
-    mock_loop.assert_not_called()
-
-
-@pytest.mark.unit
-def test_write_to_db_processes_stale_item():
-    """write_to_db must proceed with enrichment for stale items."""
-    from services.catalog.enricher.main import write_to_db
-
-    payload = {
-        "raw_name": "Stale Pasta 500g",
-        "vendor_name": "colruyt",
-        "vendor_product_id": "stale-pasta-500g",
-        "product_url": "https://www.collectandgo.be/fr/assortiment/stale-pasta-500g",
-    }
-    ch = MagicMock()
-
-    mock_enriched = CatalogItemCreate(
-        vendor_name="colruyt",
-        vendor_product_id="stale-pasta-500g",
-        raw_name="Stale Pasta 500g",
-        product_url="https://www.collectandgo.be/fr/assortiment/stale-pasta-500g",
-        is_food=True,
-        price=1.89,
-    )
-
-    mock_item = MagicMock()
-    mock_item.canonical_name = "Pasta"
-    mock_item.raw_name = "Stale Pasta 500g"
-    mock_item.net_quantity_value = 500.0
-    mock_item.net_quantity_unit = "g"
-    mock_item.price = 1.89
-    mock_item.category = "Pasta"
-    mock_item.nutrition = {"energy_kcal": 350}
-
-    mock_loop = MagicMock()
-    mock_loop.run_until_complete.return_value = mock_enriched
-
-    mock_db_session = MagicMock()
-    mock_create = MagicMock(return_value=mock_item)
-
-    with (
-        patch("services.catalog.enricher.main.enrich_catalog_item", new=MagicMock()),
-        patch("services.catalog.enricher.main.is_item_fresh", return_value=False),
-        patch("services.catalog.enricher.main.get_event_loop", return_value=mock_loop),
-        patch("services.catalog.enricher.main.get_db") as mock_get_db,
-        patch("services.catalog.enricher.main.create_catalog_item", mock_create),
-    ):
-        mock_get_db.return_value.__enter__ = MagicMock(return_value=mock_db_session)
-        mock_get_db.return_value.__exit__ = MagicMock(return_value=False)
-        write_to_db(payload, ch)
-
-    mock_loop.run_until_complete.assert_called_once()
-    mock_create.assert_called_once()
 
 
 # ===== UNIT TESTS - CircuitBreaker =====

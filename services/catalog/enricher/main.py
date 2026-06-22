@@ -1,4 +1,5 @@
 import asyncio
+import functools
 import json
 import os
 import re
@@ -11,12 +12,12 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from playwright.async_api import Browser
 
-from services.catalog.db import SessionLocal
-from services.catalog.enricher.db import create_catalog_item, is_item_fresh
 from services.config import get_config, get_config_for_service, get_config_for_service_dependency
 from services.framework.logging import setup_logging
-from services.shared.constant import CATALOG_PROCESS_ENTITY_QUEUE
-from services.shared.lib.db import get_db
+from services.shared.constant import (
+    CATALOG_ENRICHMENT_RESULTS_QUEUE,
+    CATALOG_PROCESS_ENTITY_QUEUE,
+)
 from services.shared.lib.messaging_bus import MessagingBus
 from services.shared.lib.svg_sanitizer import sanitize_nutriscore_svg
 from services.shared.lib.url_validator import validate_url
@@ -64,9 +65,6 @@ CIRCUIT_BREAKER_MAX_PAUSE = (
     catalog_config.enricher.circuit_breaker_max_pause if catalog_config.enricher else 7200
 )
 PROXY_URL = catalog_config.enricher.proxy_url if catalog_config.enricher else None
-FRESHNESS_THRESHOLD_DAYS = (
-    catalog_config.enricher.freshness_threshold_days if catalog_config.enricher else 14
-)
 
 PROXY_HOLD_SECONDS = 24 * 3600
 WAF_BLOCK_STATUSES = {403, 405}
@@ -1296,10 +1294,11 @@ async def enrich_catalog_item(
     )
 
 
-def write_to_db(payload: dict, ch):
+def process_item(payload: dict, ch, bus: MessagingBus):
     """
     Callback for RabbitMQ message processing.
-    Enriches the item and writes to database.
+    Enriches the item and publishes the result to the results queue.
+    The snitch consumer is responsible for persisting it.
     Only processes French (/fr/) URLs to avoid duplicates.
     """
     # Skip Dutch URLs - only process French to avoid duplicates
@@ -1314,13 +1313,6 @@ def write_to_db(payload: dict, ch):
         return
 
     vendor_product_id = payload.get("vendor_product_id", product_url.rstrip("/").split("/")[-1])
-    vendor_name = payload.get("vendor_name", "")
-
-    # Skip items that were recently enriched with complete data
-    with get_db(SessionLocal) as db:
-        if is_item_fresh(vendor_name, vendor_product_id, FRESHNESS_THRESHOLD_DAYS, db):
-            logger.debug(f"Skipping fresh item: {payload.get('raw_name', 'unknown')}")
-            return
 
     # Run async enrichment on the persistent loop so the shared browser
     # (bound to that loop) is reused across messages instead of relaunched.
@@ -1335,53 +1327,49 @@ def write_to_db(payload: dict, ch):
         )
     )
 
-    with get_db(SessionLocal) as db:
-        if enriched_item:
-            item = create_catalog_item(enriched_item, db)
+    if not enriched_item:
+        logger.warning(f"Enrichment produced no result for {payload.get('raw_name', 'unknown')}")
+        return
 
-            # Safe formatting with type checking
-            if item.net_quantity_value and item.net_quantity_unit:
-                # Handle enum or string unit
-                unit_str = (
-                    item.net_quantity_unit.value
-                    if hasattr(item.net_quantity_unit, "value")
-                    else item.net_quantity_unit
-                )
-                qty_str = f"{item.net_quantity_value}{unit_str}"
-            else:
-                qty_str = "N/A"
+    result = {
+        "vendor_name": payload["vendor_name"],
+        "vendor_product_id": vendor_product_id,
+        "raw_name": payload["raw_name"],
+        "product_url": product_url,
+        "enriched": enriched_item.model_dump(mode="json"),
+    }
 
-            # Handle price carefully - ensure it's a number
-            if item.price is not None:
-                try:
-                    price_str = f"€{float(item.price):.2f}"
-                except (ValueError, TypeError):
-                    price_str = f"€{item.price} (invalid)"
-            else:
-                price_str = "N/A"
+    bus.publish(CATALOG_ENRICHMENT_RESULTS_QUEUE, result)
 
-            category_str = item.category or "N/A"
-            nutrition_str = "yes" if item.nutrition else "no"
+    # Safe formatting with type checking
+    if enriched_item.net_quantity_value and enriched_item.net_quantity_unit:
+        # Handle enum or string unit
+        unit_str = (
+            enriched_item.net_quantity_unit.value
+            if hasattr(enriched_item.net_quantity_unit, "value")
+            else enriched_item.net_quantity_unit
+        )
+        qty_str = f"{enriched_item.net_quantity_value}{unit_str}"
+    else:
+        qty_str = "N/A"
 
-            logger.info(
-                f"Stored: {item.canonical_name or item.raw_name}, is_food={enriched_item.is_food}"
-            )
-            logger.info(f"{qty_str} | {price_str} | {category_str} | Nutrition: {nutrition_str}")
+    # Handle price carefully - ensure it's a number
+    if enriched_item.price is not None:
+        try:
+            price_str = f"€{float(enriched_item.price):.2f}"
+        except (ValueError, TypeError):
+            price_str = f"€{enriched_item.price} (invalid)"
+    else:
+        price_str = "N/A"
 
-            # Detailed nutrition logging
-            if item.nutrition:
-                logger.debug("Nutrition values saved to DB:")
-                if isinstance(item.nutrition, dict):
-                    nutrition_json = item.nutrition
-                elif hasattr(item.nutrition, "model_dump"):
-                    nutrition_json = item.nutrition.model_dump(exclude_none=True)
-                else:
-                    nutrition_json = json.loads(item.nutrition)
-                for key, value in nutrition_json.items():
-                    if value is not None:
-                        logger.debug(f"  {key}: {value}")
-            else:
-                logger.warning("No nutrition data was saved to database!")
+    category_str = enriched_item.category or "N/A"
+    nutrition_str = "yes" if enriched_item.nutrition else "no"
+
+    logger.info(
+        f"Published: {enriched_item.canonical_name or enriched_item.raw_name}, "
+        f"is_food={enriched_item.is_food}"
+    )
+    logger.info(f"{qty_str} | {price_str} | {category_str} | Nutrition: {nutrition_str}")
 
 
 if __name__ == "__main__":
@@ -1411,7 +1399,8 @@ if __name__ == "__main__":
             time.sleep(5)
 
     bus.declare_queue(CATALOG_PROCESS_ENTITY_QUEUE)
-    bus.consume(CATALOG_PROCESS_ENTITY_QUEUE, write_to_db)
+    bus.declare_queue(CATALOG_ENRICHMENT_RESULTS_QUEUE)
+    bus.consume(CATALOG_PROCESS_ENTITY_QUEUE, functools.partial(process_item, bus=bus))
 
     def _handle_shutdown(signum, frame):
         logger.info(f"Received signal {signum}, shutting down consumer")
