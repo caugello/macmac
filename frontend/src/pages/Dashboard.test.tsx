@@ -46,6 +46,8 @@ const createWrapper = () => {
   return Wrapper
 }
 
+// The Dashboard matches the Stitch "Dashboard - Ivory Flux" composition:
+// greeting -> smart suggestion -> featured recipe -> today's trajectory.
 describe('Dashboard Page', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -77,15 +79,23 @@ describe('Dashboard Page', () => {
   })
 
   describe('loading state', () => {
-    it('should render section headings while data loads', () => {
+    it('should render the Stitch section headings while data loads', () => {
       mockUseRecipes.mockReturnValue({ data: undefined, isLoading: true, error: null })
       mockUseMealPlans.mockReturnValue({ data: undefined, isLoading: true, error: null })
 
       render(<Dashboard />, { wrapper: createWrapper() })
-      expect(screen.getByText('Recent recipes')).toBeInTheDocument()
-      expect(screen.getByText("This week's plan")).toBeInTheDocument()
       expect(screen.getByText('Featured recipe')).toBeInTheDocument()
       expect(screen.getByText("Today's trajectory")).toBeInTheDocument()
+    })
+
+    it('should not render sections absent from the Stitch design', () => {
+      mockUseRecipes.mockReturnValue({ data: undefined, isLoading: true, error: null })
+      mockUseMealPlans.mockReturnValue({ data: undefined, isLoading: true, error: null })
+
+      render(<Dashboard />, { wrapper: createWrapper() })
+      expect(screen.queryByText('Recent recipes')).not.toBeInTheDocument()
+      expect(screen.queryByText("This week's plan")).not.toBeInTheDocument()
+      expect(screen.queryByText('Quick actions')).not.toBeInTheDocument()
     })
 
     it('should not render the smart suggestion while data loads', () => {
@@ -109,26 +119,6 @@ describe('Dashboard Page', () => {
         isLoading: false,
         error: null,
       })
-    })
-
-    it('should show empty meal plan state with CTA', () => {
-      render(<Dashboard />, { wrapper: createWrapper() })
-      expect(screen.getByText('No meals planned yet')).toBeInTheDocument()
-      // "Plan meals" appears as both the empty-state CTA and a quick action.
-      expect(screen.getAllByText('Plan meals').length).toBeGreaterThanOrEqual(1)
-    })
-
-    it('should show empty recipes state with CTA', () => {
-      render(<Dashboard />, { wrapper: createWrapper() })
-      expect(screen.getByText('No recipes yet')).toBeInTheDocument()
-      // "Add recipe" appears as both the empty-state CTA and a quick action.
-      expect(screen.getAllByText('Add recipe').length).toBeGreaterThanOrEqual(1)
-    })
-
-    it('should show zero stats', () => {
-      render(<Dashboard />, { wrapper: createWrapper() })
-      expect(screen.getByText('Recipes')).toBeInTheDocument()
-      expect(screen.getByText('Meals this week')).toBeInTheDocument()
     })
 
     it('should suggest adding a first recipe when there are none', () => {
@@ -195,14 +185,6 @@ describe('Dashboard Page', () => {
               category: 'main',
               ingredients: [{}, {}],
             },
-            {
-              id: 'r2',
-              title: 'Pancakes',
-              description: null,
-              servings: null,
-              category: 'breakfast',
-              ingredients: [{}],
-            },
           ],
         },
         isLoading: false,
@@ -233,16 +215,6 @@ describe('Dashboard Page', () => {
       })
     })
 
-    it('should render recipe stat total', () => {
-      render(<Dashboard />, { wrapper: createWrapper() })
-      expect(screen.getByText('12')).toBeInTheDocument()
-    })
-
-    it('should render planned meals count', () => {
-      render(<Dashboard />, { wrapper: createWrapper() })
-      expect(screen.getByText('2')).toBeInTheDocument()
-    })
-
     it('should feature the newest recipe with real metadata', () => {
       render(<Dashboard />, { wrapper: createWrapper() })
       const featured = screen.getByLabelText('Featured recipe')
@@ -251,28 +223,11 @@ describe('Dashboard Page', () => {
       expect(featured).toHaveTextContent('2 ingredients')
     })
 
-    it('should render planned meal recipe titles', () => {
-      render(<Dashboard />, { wrapper: createWrapper() })
-      // Title appears in featured card, plan list, trajectory and recipes grid.
-      expect(screen.getAllByText('Pasta Carbonara').length).toBeGreaterThanOrEqual(1)
-    })
-
     it('should place today meals into the trajectory timeline', () => {
       render(<Dashboard />, { wrapper: createWrapper() })
       const trajectory = screen.getByLabelText("Today's trajectory")
       expect(trajectory).toHaveTextContent('Pancakes')
       expect(trajectory).toHaveTextContent('Pasta Carbonara')
-    })
-
-    it('should render recent recipe cards linking to detail', () => {
-      render(<Dashboard />, { wrapper: createWrapper() })
-      const links = screen.getAllByRole('link', { name: /Pancakes/ })
-      expect(links.some((l) => l.getAttribute('href') === '/recipes/r2')).toBe(true)
-    })
-
-    it('should render ingredient counts in the recipes grid', () => {
-      render(<Dashboard />, { wrapper: createWrapper() })
-      expect(screen.getByText('1 ingredient')).toBeInTheDocument()
     })
 
     it('should suggest a shopping list when meals are planned', () => {
@@ -313,48 +268,6 @@ describe('Dashboard Page', () => {
       render(<Dashboard />, { wrapper: createWrapper() })
       const trajectory = screen.getByLabelText("Today's trajectory")
       expect(trajectory).not.toHaveTextContent('Old Stew')
-    })
-  })
-
-  describe('quick actions', () => {
-    beforeEach(() => {
-      mockUseRecipes.mockReturnValue({
-        data: { data: [], total: 0 },
-        isLoading: false,
-        error: null,
-      })
-      mockUseMealPlans.mockReturnValue({
-        data: { data: [], total: 0 },
-        isLoading: false,
-        error: null,
-      })
-    })
-
-    it('should link quick actions to the correct routes', () => {
-      render(<Dashboard />, { wrapper: createWrapper() })
-      expect(screen.getByRole('link', { name: /Plan meals.*weekly calendar/i })).toHaveAttribute(
-        'href',
-        '/meal-plans'
-      )
-      expect(screen.getByRole('link', { name: /Add recipe.*collection/i })).toHaveAttribute(
-        'href',
-        '/recipes/new'
-      )
-      // "Browse catalog" appears in both the smart suggestion and the quick actions.
-      const catalogLinks = screen.getAllByRole('link', { name: /Browse catalog/i })
-      expect(catalogLinks.some((l) => l.getAttribute('href') === '/catalog')).toBe(true)
-    })
-
-    it('should link section headers to their pages', () => {
-      render(<Dashboard />, { wrapper: createWrapper() })
-      expect(screen.getAllByRole('link', { name: /View calendar/i })[0]).toHaveAttribute(
-        'href',
-        '/meal-plans'
-      )
-      expect(screen.getAllByRole('link', { name: /View all/i })[0]).toHaveAttribute(
-        'href',
-        '/recipes'
-      )
     })
   })
 })
