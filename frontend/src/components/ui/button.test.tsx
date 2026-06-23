@@ -157,6 +157,31 @@ describe('Button Component', () => {
     })
   })
 
+  describe('asChild', () => {
+    it('should render the child element instead of a button', () => {
+      render(
+        <Button asChild>
+          <a href="/go">Go</a>
+        </Button>
+      )
+      expect(screen.queryByRole('button')).not.toBeInTheDocument()
+      const link = screen.getByRole('link', { name: 'Go' })
+      expect(link).toBeInTheDocument()
+    })
+
+    it('should apply custom className and variant classes to the child', () => {
+      render(
+        <Button asChild variant="outline" className="custom-class">
+          <a href="/go">Go</a>
+        </Button>
+      )
+      const link = screen.getByRole('link', { name: 'Go' })
+      expect(link.className).toContain('custom-class')
+      expect(link.className).toContain('border') // outline variant
+      expect(link.className).toContain('inline-flex') // base class
+    })
+  })
+
   describe('ref forwarding', () => {
     it('should forward ref to button element', () => {
       const ref = vi.fn()
