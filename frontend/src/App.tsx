@@ -5,6 +5,7 @@ import { ToastProvider } from './components/ui/toast'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AppLayout } from './components/layout/AppLayout'
 import { Landing } from './pages/Landing'
+import { Dashboard } from './pages/Dashboard'
 import { Login } from './pages/Login'
 import { Groups } from './pages/Groups'
 import { RecipeList } from './pages/RecipeList'
@@ -42,7 +43,8 @@ function App() {
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route element={<ProtectedLayout />}>
-                <Route path="/" element={<Landing />} />
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/welcome" element={<Landing />} />
                 <Route path="/recipes" element={<RecipeList />} />
                 <Route path="/recipes/new" element={<RecipeForm />} />
                 <Route path="/recipes/:id/edit" element={<RecipeForm />} />

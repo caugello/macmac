@@ -7,6 +7,10 @@ vi.mock('./pages/Landing', () => ({
   Landing: () => <div>Landing Page</div>,
 }))
 
+vi.mock('./pages/Dashboard', () => ({
+  Dashboard: () => <div>Dashboard Page</div>,
+}))
+
 vi.mock('./pages/Login', () => ({
   Login: () => <div>Login Page</div>,
 }))
