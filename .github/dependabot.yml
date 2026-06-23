@@ -47,6 +47,13 @@ updates:
       container-deps:
         patterns:
           - "*"
+    ignore:
+      # RHTL only ships cp312 wheels; stay on python 3.12 until cp314 wheels
+      # exist there (3.14 bump broke --only-binary builds, see fix/python-base-revert-3.12)
+      - dependency-name: "registry.access.redhat.com/hi/python"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
 
   - package-ecosystem: "docker"
     directory: "/frontend"
