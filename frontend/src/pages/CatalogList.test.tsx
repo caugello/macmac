@@ -121,7 +121,7 @@ describe('CatalogList Page', () => {
 
     it('should render page title', () => {
       render(<CatalogList />, { wrapper: createWrapper() })
-      expect(screen.getByText('Product Catalog')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Catalog' })).toBeInTheDocument()
     })
 
     it('should render search bar', () => {
@@ -152,6 +152,22 @@ describe('CatalogList Page', () => {
     it('should render nutri-score badge', () => {
       render(<CatalogList />, { wrapper: createWrapper() })
       expect(screen.getByText('A')).toBeInTheDocument()
+    })
+
+    it('should render quantity and category as the description line', () => {
+      render(<CatalogList />, { wrapper: createWrapper() })
+      expect(screen.getByText('1 L · Dairy & Eggs')).toBeInTheDocument()
+    })
+
+    it('should render a favorite button that does not navigate', async () => {
+      const user = userEvent.setup()
+      render(<CatalogList />, { wrapper: createWrapper() })
+
+      const favButtons = screen.getAllByRole('button', { name: 'Add to favorites' })
+      expect(favButtons.length).toBe(2)
+
+      await user.click(favButtons[0])
+      expect(window.location.pathname).toBe('/')
     })
 
     it('should link to product detail pages', () => {
