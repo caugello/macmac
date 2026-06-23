@@ -8,6 +8,11 @@ vi.mock('./Navbar', () => ({
   Navbar: () => <nav data-testid="navbar">Navbar</nav>,
 }))
 
+// Mock MyListLauncher (depends on MyListProvider, not present in this test)
+vi.mock('@/components/my-list/MyListLauncher', () => ({
+  MyListLauncher: () => <div data-testid="my-list-launcher" />,
+}))
+
 // Mock auth context
 vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({

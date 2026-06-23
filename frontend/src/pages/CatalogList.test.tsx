@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { CatalogList } from './CatalogList'
 import * as useCatalogHook from '@/hooks/useCatalog'
+import { MyListProvider } from '@/hooks/useMyList'
 
 const mockUseCatalog = vi.fn()
 const mockUseCatalogCategories = vi.fn()
@@ -21,7 +22,9 @@ const createWrapper = () => {
   })
   const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>{children}</BrowserRouter>
+      <BrowserRouter>
+        <MyListProvider>{children}</MyListProvider>
+      </BrowserRouter>
     </QueryClientProvider>
   )
   return Wrapper
@@ -36,6 +39,7 @@ const mockCategories = {
 describe('CatalogList Page', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorage.clear()
     mockUseCatalogCategories.mockReturnValue(mockCategories)
   })
 
@@ -163,7 +167,7 @@ describe('CatalogList Page', () => {
       const user = userEvent.setup()
       render(<CatalogList />, { wrapper: createWrapper() })
 
-      const favButtons = screen.getAllByRole('button', { name: 'Add to favorites' })
+      const favButtons = screen.getAllByRole('button', { name: 'Add to My List' })
       expect(favButtons.length).toBe(2)
 
       await user.click(favButtons[0])
