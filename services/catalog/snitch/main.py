@@ -4,7 +4,7 @@ import signal
 import time
 
 from services.catalog.db import SessionLocal
-from services.catalog.enricher.db import create_catalog_item, is_item_fresh
+from services.catalog.snitch.db import create_catalog_item, is_item_fresh
 from services.config import get_config_for_service, get_config_for_service_dependency
 from services.framework.logging import setup_logging
 from services.shared.constant import CATALOG_ENRICHMENT_RESULTS_QUEUE
@@ -90,7 +90,7 @@ def persist_result(payload: dict, ch):
 if __name__ == "__main__":
     logger.info("Starting snitch consumer")
 
-    config = get_config_for_service_dependency("catalog", "crawler")
+    config = get_config_for_service_dependency("catalog", "snitch")
     rabbitmq_url = os.getenv("RABBITMQ_URL", config.url)
 
     max_retries = 10

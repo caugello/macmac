@@ -1383,7 +1383,7 @@ if __name__ == "__main__":
         f"Rate limits: {BATCH_SIZE} items/batch, {DELAY_BETWEEN_REQUESTS}s delay, {BATCH_PAUSE}s pause"
     )
 
-    config = get_config_for_service_dependency("catalog", "crawler")
+    config = get_config_for_service_dependency("catalog", "enricher")
     rabbitmq_url = os.getenv("RABBITMQ_URL", config.url)
 
     max_retries = 10

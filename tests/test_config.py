@@ -109,6 +109,27 @@ def test_get_config_for_service_dependency():
     assert isinstance(dep, Dependency)
     assert dep.name == "crawler"
     assert dep.title == "Crawler"
+    assert dep.url == "amqp://rabbitmq:5672/%2F"
+
+
+@pytest.mark.unit
+def test_get_config_for_service_dependency_enricher():
+    """Test retrieving the enricher catalog dependency configuration."""
+    dep = get_config_for_service_dependency("catalog", "enricher")
+
+    assert isinstance(dep, Dependency)
+    assert dep.name == "enricher"
+    assert dep.url == "amqp://rabbitmq:5672/%2F"
+
+
+@pytest.mark.unit
+def test_get_config_for_service_dependency_snitch():
+    """Test retrieving the snitch catalog dependency configuration."""
+    dep = get_config_for_service_dependency("catalog", "snitch")
+
+    assert isinstance(dep, Dependency)
+    assert dep.name == "snitch"
+    assert dep.url == "amqp://rabbitmq:5672/%2F"
 
 
 @pytest.mark.unit
