@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom'
 import { NutriscoreBadge } from '@/components/catalog/NutriscoreBadge'
 import { ProductImage } from '@/components/catalog/ProductImage'
 import { Icon } from '@/components/ui/icon'
+import { useMyList } from '@/hooks/useMyList'
+import { cn } from '@/lib/utils'
 import type { CatalogItemOut } from '@/lib/types'
 
 interface CatalogProductCardProps {
@@ -15,7 +17,21 @@ interface CatalogProductCardProps {
  * price. Bespoke to the Catalog list — not shared with Product Detail.
  */
 export const CatalogProductCard = ({ item }: CatalogProductCardProps) => {
+  const { has, toggleItem } = useMyList()
   const name = item.canonical_name || item.raw_name
+  const inList = has(item.id)
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.preventDefault()
+    toggleItem({
+      id: item.id,
+      name,
+      brand: item.brand,
+      price: item.price,
+      imageUrl: item.image_url,
+      nutriscore: item.nutriscore,
+    })
+  }
 
   // Editorial "material" line: quantity + category, à la the Stitch descriptions.
   const quantity =
@@ -45,14 +61,18 @@ export const CatalogProductCard = ({ item }: CatalogProductCardProps) => {
             </span>
           )}
 
-          {/* Favorite action — matches the Stitch heart, top-right floating glass */}
+          {/* Favorite action — matches the Stitch heart, top-right floating glass. Toggles My List. */}
           <button
             type="button"
-            onClick={(e) => e.preventDefault()}
-            aria-label="Add to favorites"
-            className="absolute top-3 right-3 w-11 h-11 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-[20px] text-on-surface-variant hover:text-primary active:scale-90 transition-all"
+            onClick={handleToggle}
+            aria-label={inList ? 'Remove from My List' : 'Add to My List'}
+            aria-pressed={inList}
+            className={cn(
+              'absolute top-3 right-3 w-11 h-11 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-[20px] hover:text-primary active:scale-90 transition-all',
+              inList ? 'text-primary' : 'text-on-surface-variant'
+            )}
           >
-            <Icon name="favorite" size={20} />
+            <Icon name="favorite" size={20} filled={inList} />
           </button>
         </div>
 

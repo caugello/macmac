@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import { ToastProvider } from './components/ui/toast'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AppLayout } from './components/layout/AppLayout'
+import { MyListProvider } from './hooks/useMyList'
 import { Landing } from './pages/Landing'
 import { Dashboard } from './pages/Dashboard'
 import { Login } from './pages/Login'
@@ -27,9 +28,11 @@ const queryClient = new QueryClient({
 function ProtectedLayout() {
   return (
     <ProtectedRoute>
-      <AppLayout>
-        <Outlet />
-      </AppLayout>
+      <MyListProvider>
+        <AppLayout>
+          <Outlet />
+        </AppLayout>
+      </MyListProvider>
     </ProtectedRoute>
   )
 }

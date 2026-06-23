@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { CatalogDetail } from './CatalogDetail'
 import * as useCatalogHook from '@/hooks/useCatalog'
+import { MyListProvider } from '@/hooks/useMyList'
 
 const mockUseCatalogItem = vi.fn()
 
@@ -20,9 +21,11 @@ const createWrapper = (initialRoute = '/catalog/1') => {
   const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Routes>
-          <Route path="/catalog/:id" element={children} />
-        </Routes>
+        <MyListProvider>
+          <Routes>
+            <Route path="/catalog/:id" element={children} />
+          </Routes>
+        </MyListProvider>
       </BrowserRouter>
     </QueryClientProvider>
   )
@@ -32,6 +35,7 @@ const createWrapper = (initialRoute = '/catalog/1') => {
 describe('CatalogDetail Page', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorage.clear()
   })
 
   describe('loading state', () => {

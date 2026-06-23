@@ -4,6 +4,8 @@ import { NutriscoreBadge } from '@/components/catalog/NutriscoreBadge'
 import { ProductDetailHero } from '@/components/catalog/ProductDetailHero'
 import { ProductDetailNutrition } from '@/components/catalog/ProductDetailNutrition'
 import { Icon } from '@/components/ui/icon'
+import { useMyList } from '@/hooks/useMyList'
+import { cn } from '@/lib/utils'
 
 const STALE_DAYS = 7
 
@@ -22,6 +24,7 @@ function freshnessBadge(lastEnrichedAt: string | null): {
 export const CatalogDetail = () => {
   const { id } = useParams<{ id: string }>()
   const { data: item, isLoading, error } = useCatalogItem(id!)
+  const { has, toggleItem } = useMyList()
 
   if (isLoading) {
     return (
@@ -48,6 +51,18 @@ export const CatalogDetail = () => {
 
   const title = item.canonical_name || item.raw_name
   const fresh = freshnessBadge(item.last_enriched_at)
+  const inList = has(item.id)
+
+  const handleToggleList = () => {
+    toggleItem({
+      id: item.id,
+      name: title,
+      brand: item.brand,
+      price: item.price,
+      imageUrl: item.image_url,
+      nutriscore: item.nutriscore,
+    })
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-12 pt-6 pb-16">
@@ -129,16 +144,32 @@ export const CatalogDetail = () => {
             )}
           </div>
 
-          {/* Vendor site button */}
-          <a
-            href={item.product_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-6 inline-flex w-full items-center justify-center gap-2 h-12 rounded-full bg-primary text-on-primary font-semibold transition-all hover:-translate-y-px hover:ambient-shadow active:scale-[0.98]"
-          >
-            <Icon name="open_in_new" size={18} />
-            View on Vendor Site
-          </a>
+          {/* Actions */}
+          <div className="mt-6 flex flex-col sm:flex-row gap-3">
+            <a
+              href={item.product_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex flex-1 items-center justify-center gap-2 h-12 rounded-full bg-primary text-on-primary font-semibold transition-all hover:-translate-y-px hover:ambient-shadow active:scale-[0.98]"
+            >
+              <Icon name="open_in_new" size={18} />
+              View on Vendor Site
+            </a>
+            <button
+              type="button"
+              onClick={handleToggleList}
+              aria-pressed={inList}
+              className={cn(
+                'inline-flex flex-1 items-center justify-center gap-2 h-12 rounded-full border font-semibold transition-all hover:-translate-y-px active:scale-[0.98]',
+                inList
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-outline-variant text-on-surface hover:border-primary hover:text-primary'
+              )}
+            >
+              <Icon name="favorite" size={18} filled={inList} />
+              {inList ? 'In My List' : 'Add to My List'}
+            </button>
+          </div>
         </div>
       </div>
 
