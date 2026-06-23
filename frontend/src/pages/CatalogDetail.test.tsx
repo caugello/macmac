@@ -155,7 +155,8 @@ describe('CatalogDetail Page', () => {
 
     it('should render nutri-score badge with label', () => {
       render(<CatalogDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText('A')).toBeInTheDocument()
+      // Badge appears both as a hero overlay and in the info column.
+      expect(screen.getAllByText('A').length).toBeGreaterThan(0)
       expect(screen.getByText('Nutri-Score')).toBeInTheDocument()
     })
 
@@ -216,6 +217,18 @@ describe('CatalogDetail Page', () => {
       expect(link).toHaveAttribute('href', 'https://example.com/product')
       expect(link).toHaveAttribute('target', '_blank')
       expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    })
+
+    it('should show a Promo overlay badge when the item is on promotion', () => {
+      mockUseCatalogItem.mockReturnValue({
+        data: { ...mockProduct, promotion_until_date: '2026-12-31T00:00:00Z' },
+        isLoading: false,
+        error: null,
+      })
+
+      render(<CatalogDetail />, { wrapper: createWrapper() })
+      expect(screen.getByText('Promo')).toBeInTheDocument()
+      expect(screen.getByText(/Promo until/)).toBeInTheDocument()
     })
 
     it('should render back button', () => {
