@@ -29,6 +29,11 @@ const createWrapper = () => {
   return Wrapper
 }
 
+// The category chips are revealed via the "tune" control, mirroring the Stitch layout.
+const openCategoryFilters = async (user: ReturnType<typeof userEvent.setup>) => {
+  await user.click(screen.getByRole('button', { name: /toggle category filters/i }))
+}
+
 describe('RecipeList Page', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -103,7 +108,7 @@ describe('RecipeList Page', () => {
 
     it('should render page title', () => {
       render(<RecipeList />, { wrapper: createWrapper() })
-      expect(screen.getByText('Recipes')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { level: 1, name: 'Recipes' })).toBeInTheDocument()
     })
 
     it('should render create recipe button', () => {
@@ -116,13 +121,20 @@ describe('RecipeList Page', () => {
       expect(screen.getByPlaceholderText('Search recipes...')).toBeInTheDocument()
     })
 
-    it('should render recipe cards', () => {
+    it('should render the first recipe as a featured hero card', () => {
       render(<RecipeList />, { wrapper: createWrapper() })
-      expect(screen.getByText('Pasta Carbonara')).toBeInTheDocument()
-      expect(screen.getByText('Chicken Curry')).toBeInTheDocument()
+      const featured = screen.getByRole('heading', { level: 2, name: 'Pasta Carbonara' })
+      expect(featured).toBeInTheDocument()
+      // The featured region wraps the hero card.
+      expect(screen.getByRole('region', { name: /featured recipe/i })).toBeInTheDocument()
     })
 
-    it('should render recipe cards with titles', () => {
+    it('should render the remaining recipes in the grid', () => {
+      render(<RecipeList />, { wrapper: createWrapper() })
+      expect(screen.getByRole('heading', { level: 3, name: 'Chicken Curry' })).toBeInTheDocument()
+    })
+
+    it('should render recipe cards', () => {
       render(<RecipeList />, { wrapper: createWrapper() })
       expect(screen.getByText('Pasta Carbonara')).toBeInTheDocument()
       expect(screen.getByText('Chicken Curry')).toBeInTheDocument()
@@ -154,6 +166,27 @@ describe('RecipeList Page', () => {
       expect(screen.getByText('1 ingredient')).toBeInTheDocument()
     })
 
+    it('should render servings when provided and omit it otherwise', () => {
+      mockUseRecipes.mockReturnValue({
+        data: {
+          data: [
+            {
+              id: '1',
+              title: 'With Servings',
+              servings: 4,
+              ingredients: [{ name: 'salt' }],
+            },
+          ],
+          total: 1,
+        },
+        isLoading: false,
+        error: null,
+      })
+
+      render(<RecipeList />, { wrapper: createWrapper() })
+      expect(screen.getByText('4 servings')).toBeInTheDocument()
+    })
+
     it('should link to recipe detail pages', () => {
       render(<RecipeList />, { wrapper: createWrapper() })
       const link1 = screen.getByText('Pasta Carbonara').closest('a')
@@ -177,7 +210,9 @@ describe('RecipeList Page', () => {
     it('should render pagination when total exceeds limit', () => {
       mockUseRecipes.mockReturnValue({
         data: {
-          data: Array(20).fill({ id: '1', title: 'Recipe', ingredients: [] }),
+          data: Array(20)
+            .fill(null)
+            .map((_, i) => ({ id: String(i), title: 'Recipe', ingredients: [] })),
           total: 50,
         },
         isLoading: false,
@@ -205,22 +240,28 @@ describe('RecipeList Page', () => {
       })
     })
 
-    it('should render category filter chips', () => {
+    it('should reveal category filter chips via the tune control', async () => {
+      const user = userEvent.setup()
       render(<RecipeList />, { wrapper: createWrapper() })
+
+      await openCategoryFilters(user)
+
       expect(screen.getByRole('button', { name: /Breakfast/ })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /Dessert/ })).toBeInTheDocument()
     })
 
     it('should render category badges on recipe cards', () => {
       render(<RecipeList />, { wrapper: createWrapper() })
-      // Badge label "Breakfast" appears on the card (filter chip also exists -> 2 total)
-      expect(screen.getAllByText('Breakfast').length).toBeGreaterThanOrEqual(2)
+      // The featured card (Pancakes) carries a "Breakfast" category badge even
+      // before the filter chips are revealed.
+      expect(screen.getByText('Breakfast')).toBeInTheDocument()
     })
 
     it('should call useRecipes with the selected category on toggle', async () => {
       const user = userEvent.setup()
       render(<RecipeList />, { wrapper: createWrapper() })
 
+      await openCategoryFilters(user)
       await user.click(screen.getByRole('button', { name: /Dessert/ }))
 
       await waitFor(() => {
@@ -260,7 +301,9 @@ describe('RecipeList Page', () => {
       const user = userEvent.setup()
       mockUseRecipes.mockReturnValue({
         data: {
-          data: Array(20).fill({ id: '1', title: 'Recipe', ingredients: [] }),
+          data: Array(20)
+            .fill(null)
+            .map((_, i) => ({ id: String(i), title: 'Recipe', ingredients: [] })),
           total: 50,
         },
         isLoading: false,
