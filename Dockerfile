@@ -4,7 +4,7 @@
 # reproducible. To bump a base image, update its digest here after scanning.
 
 # ── Builder stage (hi/python builder — has shell, no dnf) ──
-FROM --platform=linux/amd64 registry.access.redhat.com/hi/python:3.14-builder@sha256:7654cf75ef20ce948ab4e62879ef5ce1694d9c5a33493ccfe6ac150728ffaf7e AS builder
+FROM --platform=linux/amd64 registry.access.redhat.com/hi/python:3.12-builder@sha256:3d37bf07a9b663ac561e94dab30d771d0cb4a1dffbcd6aa4785af1d9b6bc5848 AS builder
 
 ARG UV_INDEX_RHTL_USERNAME=""
 ARG UV_INDEX_RHTL_PASSWORD=""
@@ -95,7 +95,7 @@ RUN --mount=type=secret,id=UV_INDEX_RHTL_USERNAME,required=false \
         --lockfile /build/uv.lock /opt/venv/lib/python3.12/site-packages
 
 # ── Runtime base (hi/python distroless — no shell) ─────────
-FROM --platform=linux/amd64 registry.access.redhat.com/hi/python:3.14@sha256:5c31322e06bdfb28703b89de394011f6408bf7346eeb635924153091a8c227ec AS runtime
+FROM --platform=linux/amd64 registry.access.redhat.com/hi/python:3.12@sha256:227cd08bc68a2fb2d79ed21d198c5dad0d130238feb4088881670296902c2754 AS runtime
 
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
