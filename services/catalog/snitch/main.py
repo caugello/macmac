@@ -90,7 +90,7 @@ def persist_result(payload: dict, ch):
 if __name__ == "__main__":
     logger.info("Starting snitch consumer")
 
-    config = get_config_for_service_dependency("catalog", "crawler")
+    config = get_config_for_service_dependency("catalog", "snitch")
     rabbitmq_url = os.getenv("RABBITMQ_URL", config.url)
 
     max_retries = 10

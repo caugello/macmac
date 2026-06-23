@@ -415,6 +415,14 @@ services:
         title: Crawler
         version: 0.2.6
         url: "amqp://rabbitmq:5672/%2F"
+      - name: enricher
+        title: Enricher
+        version: 0.2.6
+        url: "amqp://rabbitmq:5672/%2F"
+      - name: snitch
+        title: Snitch
+        version: 0.2.6
+        url: "amqp://rabbitmq:5672/%2F"
   meal_plans:
     name: meal_plans
     title: Meal Plans API
