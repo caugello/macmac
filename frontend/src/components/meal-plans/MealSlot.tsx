@@ -99,7 +99,7 @@ export const MealSlot = ({ date, mealType, mealPlan }: MealSlotProps) => {
   return (
     <>
       {mealPlan ? (
-        <div className="bg-surface rounded-lg wireframe-border p-3 card-hover-shadow group">
+        <div className="bg-surface rounded-xl wireframe-border p-3 card-hover-shadow group">
           <div className="flex items-center gap-3">
             <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-surface-container-low to-surface-container flex items-center justify-center shrink-0 overflow-hidden">
               <Icon name="restaurant_menu" size={24} className="text-outline-variant/40" />
@@ -153,7 +153,7 @@ export const MealSlot = ({ date, mealType, mealPlan }: MealSlotProps) => {
           className="w-full dashed-outline rounded-lg p-4 flex items-center justify-center gap-2 text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
         >
           <Icon name="add_circle" size={20} />
-          <span className="text-label-sm">Add meal</span>
+          <span className="text-caption">Add meal</span>
         </button>
       )}
 

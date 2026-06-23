@@ -16,7 +16,7 @@ export const Navbar = () => {
   const isActiveLink = (path: string) => location.pathname.startsWith(path)
 
   return (
-    <nav className="bg-surface-container-lowest border-b border-outline-variant sticky top-0 z-40">
+    <nav className="bg-white/80 backdrop-blur-[20px] border-b border-outline-variant sticky top-0 z-40">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         {/* Left section: hamburger (mobile) + logo */}
         <div className="flex items-center gap-2">

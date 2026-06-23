@@ -91,7 +91,7 @@ export const CopyWeekModal = ({ open, onOpenChange, sourceWeekStart }: CopyWeekM
             className="w-full h-11 px-3 rounded-lg wireframe-border bg-surface-container-lowest text-body-md"
           />
           {targetWeekStart && (
-            <p className="text-label-sm text-on-surface-variant">
+            <p className="text-caption text-on-surface-variant">
               Copies into week of {formatWeekRange(targetWeekStart)}
             </p>
           )}
@@ -103,7 +103,7 @@ export const CopyWeekModal = ({ open, onOpenChange, sourceWeekStart }: CopyWeekM
             className="flex items-start gap-2 p-3 rounded-lg bg-error-container text-on-error-container"
           >
             <Icon name="warning" size={20} className="shrink-0 mt-0.5" />
-            <p className="text-label-sm">
+            <p className="text-caption">
               The target week already has meals. They will be replaced.
             </p>
           </div>

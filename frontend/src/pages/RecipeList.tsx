@@ -52,13 +52,13 @@ export const RecipeList = () => {
   if (isLoading) {
     return (
       <div className="max-w-7xl mx-auto px-4 md:px-12 pt-6 pb-32">
-        <h1 className="text-headline-xl font-heading font-bold mb-6">Recipes</h1>
+        <h1 className="text-headline-lg font-heading font-bold mb-6">Recipes</h1>
         <p className="sr-only">Loading recipes...</p>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
           {[1, 2, 3].map((n) => (
             <div
               key={n}
-              className="bg-surface-container-lowest wireframe-border rounded-lg overflow-hidden"
+              className="bg-surface-container-lowest wireframe-border rounded-xl overflow-hidden"
             >
               <div className="aspect-square skeleton-shimmer" />
               <div className="p-4 space-y-3">
@@ -83,7 +83,7 @@ export const RecipeList = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-12 pt-6 pb-32">
-      <h1 className="text-headline-xl font-heading font-bold mb-6">Recipes</h1>
+      <h1 className="text-headline-lg font-heading font-bold mb-6">Recipes</h1>
 
       {/* Search with filter icon */}
       <div className="flex items-center gap-3">
@@ -169,7 +169,7 @@ export const RecipeList = () => {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 mt-6 stagger-grid">
             {data?.data.map((recipe) => (
               <Link key={recipe.id} to={`/recipes/${recipe.id}`} className="group">
-                <div className="bg-surface-container-lowest wireframe-border rounded-lg overflow-hidden card-hover-shadow">
+                <div className="bg-surface-container-lowest wireframe-border rounded-xl overflow-hidden card-hover-shadow">
                   <div className="aspect-square relative overflow-hidden">
                     <div
                       className="w-full h-full flex items-center justify-center group-hover:scale-105 transition-transform duration-500"
@@ -183,7 +183,7 @@ export const RecipeList = () => {
                       category={recipe.category}
                       className="absolute top-2 left-2 backdrop-blur-sm"
                     />
-                    <span className="absolute bottom-2 right-2 bg-surface-container-lowest/90 backdrop-blur-sm text-primary text-sm md:text-label-sm px-2 py-1 rounded-full border border-outline-variant">
+                    <span className="absolute bottom-2 right-2 bg-surface-container-lowest/90 backdrop-blur-sm text-primary text-sm md:text-caption px-2 py-1 rounded-full border border-outline-variant">
                       {recipe.ingredients.length} ingredient
                       {recipe.ingredients.length !== 1 ? 's' : ''}
                     </span>
@@ -210,7 +210,7 @@ export const RecipeList = () => {
                       </div>
                     )}
                     <div className="flex items-center justify-between mt-2 pt-2 border-t border-outline-variant/30">
-                      <span className="text-sm md:text-label-sm text-on-surface-variant">
+                      <span className="text-sm md:text-caption text-on-surface-variant">
                         {new Date(recipe.created_at).toLocaleDateString()}
                       </span>
                       <Icon name="favorite" size={18} className="text-outline-variant" />

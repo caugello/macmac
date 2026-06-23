@@ -68,7 +68,7 @@ export const Login: React.FC = () => {
         >
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-headline-xl font-heading font-bold text-center">MacMac</h1>
+            <h1 className="text-headline-lg font-heading font-bold text-center">MacMac</h1>
             <p className="text-body-lg text-on-surface-variant text-center mt-2">
               AI-powered meal planning. Real store prices.
             </p>

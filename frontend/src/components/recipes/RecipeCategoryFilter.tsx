@@ -43,7 +43,7 @@ export const RecipeCategoryFilter = ({
             {count !== undefined && (
               <span
                 className={cn(
-                  'text-label-sm tabular-nums',
+                  'text-caption tabular-nums',
                   isActive ? 'text-on-primary/80' : 'text-on-surface-variant/70'
                 )}
               >

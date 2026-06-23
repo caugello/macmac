@@ -41,13 +41,13 @@ export const CatalogList = () => {
   if (isLoading) {
     return (
       <div className="max-w-7xl mx-auto px-4 md:px-12 pt-6 pb-32">
-        <h1 className="text-headline-xl font-heading font-bold mb-6">Product Catalog</h1>
+        <h1 className="text-headline-lg font-heading font-bold mb-6">Product Catalog</h1>
         <SearchBar value="" onChange={() => {}} placeholder="Search products..." />
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 mt-6">
           {Array.from({ length: 10 }).map((_, i) => (
             <div
               key={i}
-              className="bg-surface-container-lowest wireframe-border rounded-lg overflow-hidden flex flex-col"
+              className="bg-surface-container-lowest wireframe-border rounded-xl overflow-hidden flex flex-col"
             >
               <div className="aspect-square skeleton-shimmer" />
               <div className="p-3 space-y-2">
@@ -77,7 +77,7 @@ export const CatalogList = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-12 pt-6 pb-32">
-      <h1 className="text-headline-xl font-heading font-bold mb-6">Product Catalog</h1>
+      <h1 className="text-headline-lg font-heading font-bold mb-6">Product Catalog</h1>
 
       <div>
         <SearchBar value={search} onChange={handleSearchChange} placeholder="Search products..." />
@@ -111,7 +111,7 @@ export const CatalogList = () => {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 mt-4 stagger-grid">
             {data?.data.map((item) => (
               <Link key={item.id} to={`/catalog/${item.id}`} className="group">
-                <div className="bg-surface-container-lowest wireframe-border rounded-lg overflow-hidden card-hover-shadow flex flex-col h-full">
+                <div className="bg-surface-container-lowest wireframe-border rounded-xl overflow-hidden card-hover-shadow flex flex-col h-full">
                   {/* Image area with nutri-score badge */}
                   <div className="aspect-square relative overflow-hidden">
                     <ProductImage

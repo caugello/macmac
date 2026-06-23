@@ -99,13 +99,13 @@ export const RecipeDetail = () => {
 
       {/* Title and description */}
       <div>
-        <h1 className="text-headline-xl font-heading font-bold mb-2">{recipe.title}</h1>
+        <h1 className="text-headline-lg font-heading font-bold mb-2">{recipe.title}</h1>
         {recipe.description && (
           <p className="text-body-lg text-on-surface-variant leading-relaxed">
             {recipe.description}
           </p>
         )}
-        <div className="flex items-center gap-4 mt-4 text-label-sm text-on-surface-variant">
+        <div className="flex items-center gap-4 mt-4 text-caption text-on-surface-variant">
           {recipe.servings != null && (
             <span className="flex items-center gap-1">
               <Icon name="group" size={16} />
@@ -184,7 +184,7 @@ export const RecipeDetail = () => {
       </div>
 
       {/* Meta footer */}
-      <div className="dashed-outline rounded-lg p-4 flex items-center justify-between text-label-sm text-on-surface-variant">
+      <div className="dashed-outline rounded-lg p-4 flex items-center justify-between text-caption text-on-surface-variant">
         <span>Created: {new Date(recipe.created_at).toLocaleDateString()}</span>
         <span>Updated: {new Date(recipe.updated_at).toLocaleDateString()}</span>
       </div>
