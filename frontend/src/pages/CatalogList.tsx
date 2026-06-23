@@ -1,8 +1,6 @@
 import { useState, useCallback } from 'react'
-import { Link } from 'react-router-dom'
 import { useCatalog, useCatalogCategories } from '@/hooks/useCatalog'
-import { NutriscoreBadge } from '@/components/catalog/NutriscoreBadge'
-import { ProductImage } from '@/components/catalog/ProductImage'
+import { CatalogProductCard } from '@/components/catalog/CatalogProductCard'
 import { SearchBar } from '@/components/shared/SearchBar'
 import { Pagination } from '@/components/shared/Pagination'
 import { FilterChips } from '@/components/shared/FilterChips'
@@ -38,26 +36,36 @@ export const CatalogList = () => {
     setPage(0)
   }, [])
 
+  // Editorial intro lifted from the Stitch "Catalog - Ivory Flux" header.
+  const header = (
+    <header className="mb-6">
+      <h1 className="text-headline-lg-mobile md:text-headline-lg font-heading font-bold">
+        Catalog
+      </h1>
+      <p className="text-body-lg text-on-surface-variant mt-2 max-w-2xl">
+        Discover premium selections curated for your kitchen. Ethereal design meets practical
+        utility.
+      </p>
+    </header>
+  )
+
   if (isLoading) {
     return (
       <div className="max-w-7xl mx-auto px-4 md:px-12 pt-6 pb-32">
-        <h1 className="text-headline-lg font-heading font-bold mb-6">Product Catalog</h1>
+        {header}
         <SearchBar value="" onChange={() => {}} placeholder="Search products..." />
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 mt-6">
-          {Array.from({ length: 10 }).map((_, i) => (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-gutter mt-6">
+          {Array.from({ length: 8 }).map((_, i) => (
             <div
               key={i}
               className="bg-surface-container-lowest wireframe-border rounded-xl overflow-hidden flex flex-col"
             >
               <div className="aspect-square skeleton-shimmer" />
-              <div className="p-3 space-y-2">
+              <div className="p-4 space-y-2">
                 <div className="h-3 w-16 skeleton-shimmer rounded" />
-                <div className="h-4 w-full skeleton-shimmer rounded" />
+                <div className="h-5 w-full skeleton-shimmer rounded" />
                 <div className="h-4 w-2/3 skeleton-shimmer rounded" />
-                <div className="flex items-center justify-between pt-2">
-                  <div className="h-5 w-14 skeleton-shimmer rounded" />
-                  <div className="h-8 w-8 skeleton-shimmer rounded-full" />
-                </div>
+                <div className="h-6 w-20 skeleton-shimmer rounded mt-2" />
               </div>
             </div>
           ))}
@@ -77,10 +85,24 @@ export const CatalogList = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-12 pt-6 pb-32">
-      <h1 className="text-headline-lg font-heading font-bold mb-6">Product Catalog</h1>
+      {header}
 
-      <div>
-        <SearchBar value={search} onChange={handleSearchChange} placeholder="Search products..." />
+      {/* Search with Filters button — matches the Stitch "tune Filters" affordance */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <SearchBar
+            value={search}
+            onChange={handleSearchChange}
+            placeholder="Search products..."
+          />
+        </div>
+        <button
+          type="button"
+          className="w-14 h-14 flex items-center justify-center rounded-lg wireframe-border bg-surface-container-lowest hover:bg-surface-container-low transition-colors shrink-0"
+          aria-label="Filters"
+        >
+          <Icon name="tune" size={22} className="text-on-surface-variant" />
+        </button>
       </div>
 
       {categories.length > 1 && (
@@ -88,7 +110,7 @@ export const CatalogList = () => {
           items={categories}
           activeItem={activeCategory}
           onItemChange={handleCategoryChange}
-          className="mt-3"
+          className="mt-4"
         />
       )}
 
@@ -108,60 +130,9 @@ export const CatalogList = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 mt-4 stagger-grid">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-gutter mt-6 stagger-grid">
             {data?.data.map((item) => (
-              <Link key={item.id} to={`/catalog/${item.id}`} className="group">
-                <div className="bg-surface-container-lowest wireframe-border rounded-xl overflow-hidden card-hover-shadow flex flex-col h-full">
-                  {/* Image area with nutri-score badge */}
-                  <div className="aspect-square relative overflow-hidden">
-                    <ProductImage
-                      src={item.image_url}
-                      alt={item.canonical_name || item.raw_name}
-                      className="group-hover:scale-105 transition-transform duration-500"
-                    />
-                    {item.nutriscore && (
-                      <NutriscoreBadge
-                        score={item.nutriscore}
-                        size="sm"
-                        className="absolute top-2 left-2"
-                      />
-                    )}
-                    {item.promotion_until_date && (
-                      <span className="absolute top-2 right-2 bg-primary-container text-on-primary-container text-[10px] font-bold px-2 py-0.5 rounded-full">
-                        Promo
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Card body */}
-                  <div className="p-3 flex flex-col flex-grow">
-                    {item.brand && (
-                      <span className="text-on-surface-variant text-xs sm:text-[11px] font-medium mb-0.5">
-                        {item.brand}
-                      </span>
-                    )}
-                    <h3 className="text-label-md font-heading font-semibold leading-tight line-clamp-2 min-h-[2.5em]">
-                      {item.canonical_name || item.raw_name}
-                    </h3>
-                    <div className="flex items-center justify-between mt-auto pt-2">
-                      {item.price ? (
-                        <span className="font-bold text-primary">
-                          {item.price.toFixed(2)}&nbsp;&euro;
-                        </span>
-                      ) : (
-                        <span />
-                      )}
-                      <button
-                        className="bg-primary text-on-primary w-12 h-12 rounded-full flex items-center justify-center active:scale-90 transition-transform"
-                        onClick={(e) => e.preventDefault()}
-                        aria-label="Add to list"
-                      >
-                        <Icon name="add" size={24} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </Link>
+              <CatalogProductCard key={item.id} item={item} />
             ))}
           </div>
 
