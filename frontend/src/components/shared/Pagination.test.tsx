@@ -37,15 +37,46 @@ describe('Pagination Component', () => {
       render(<Pagination total={50} limit={10} page={0} onPageChange={onPageChange} />)
 
       // Should have page 1 (page 0 in 0-indexed)
-      expect(screen.getByRole('button', { name: '1' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Go to page 1' })).toBeInTheDocument()
     })
 
     it('should highlight current page', () => {
       const onPageChange = vi.fn()
       render(<Pagination total={50} limit={10} page={2} onPageChange={onPageChange} />)
 
-      const currentPageButton = screen.getByRole('button', { name: '3' })
+      const currentPageButton = screen.getByRole('button', { name: 'Go to page 3' })
       expect(currentPageButton.className).toContain('bg-primary')
+    })
+  })
+
+  describe('accessibility', () => {
+    it('should label page buttons with their page number', () => {
+      const onPageChange = vi.fn()
+      render(<Pagination total={50} limit={10} page={0} onPageChange={onPageChange} />)
+
+      expect(screen.getByRole('button', { name: 'Go to page 1' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Go to page 2' })).toBeInTheDocument()
+    })
+
+    it('should mark the active page with aria-current="page"', () => {
+      const onPageChange = vi.fn()
+      render(<Pagination total={50} limit={10} page={2} onPageChange={onPageChange} />)
+
+      const currentPageButton = screen.getByRole('button', { name: 'Go to page 3' })
+      expect(currentPageButton).toHaveAttribute('aria-current', 'page')
+
+      // Non-active pages should not be marked current
+      expect(screen.getByRole('button', { name: 'Go to page 1' })).not.toHaveAttribute(
+        'aria-current'
+      )
+    })
+
+    it('should label the previous and next buttons', () => {
+      const onPageChange = vi.fn()
+      render(<Pagination total={50} limit={10} page={1} onPageChange={onPageChange} />)
+
+      expect(screen.getByRole('button', { name: 'Previous page' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Next page' })).toBeInTheDocument()
     })
   })
 
@@ -56,7 +87,7 @@ describe('Pagination Component', () => {
       // 50 items, 10 per page = 5 pages
       render(<Pagination total={50} limit={10} page={0} onPageChange={onPageChange} />)
 
-      expect(screen.getByRole('button', { name: '5' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Go to page 5' })).toBeInTheDocument()
     })
 
     it('should round up partial pages', () => {
@@ -65,7 +96,7 @@ describe('Pagination Component', () => {
       // 55 items, 10 per page = 6 pages (55/10 = 5.5, rounded up)
       render(<Pagination total={55} limit={10} page={0} onPageChange={onPageChange} />)
 
-      expect(screen.getByRole('button', { name: '6' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Go to page 6' })).toBeInTheDocument()
     })
   })
 
@@ -86,9 +117,9 @@ describe('Pagination Component', () => {
       render(<Pagination total={100} limit={10} page={5} onPageChange={onPageChange} />)
 
       // Should show pages 5, 6, 7 (0-indexed = 6, 7, 8 in UI)
-      expect(screen.getByRole('button', { name: '5' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: '6' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: '7' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Go to page 5' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Go to page 6' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Go to page 7' })).toBeInTheDocument()
     })
 
     it('should always show first and last page', () => {
@@ -96,8 +127,8 @@ describe('Pagination Component', () => {
 
       render(<Pagination total={100} limit={10} page={5} onPageChange={onPageChange} />)
 
-      expect(screen.getByRole('button', { name: '1' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: '10' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Go to page 1' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Go to page 10' })).toBeInTheDocument()
     })
   })
 
@@ -109,7 +140,7 @@ describe('Pagination Component', () => {
       render(<Pagination total={50} limit={10} page={0} onPageChange={onPageChange} />)
 
       // Click on page 2 (which is visible on first page)
-      const page2Button = screen.getByRole('button', { name: '2' })
+      const page2Button = screen.getByRole('button', { name: 'Go to page 2' })
       await user.click(page2Button)
 
       expect(onPageChange).toHaveBeenCalledWith(1) // 0-indexed
@@ -222,8 +253,8 @@ describe('Pagination Component', () => {
       const onPageChange = vi.fn()
       render(<Pagination total={11} limit={10} page={0} onPageChange={onPageChange} />)
 
-      expect(screen.getByRole('button', { name: '1' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: '2' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Go to page 1' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Go to page 2' })).toBeInTheDocument()
     })
 
     it('should handle very large totals', () => {
@@ -233,8 +264,8 @@ describe('Pagination Component', () => {
       // Should show ellipsis
       expect(screen.getByText('...')).toBeInTheDocument()
       // Should show first and last page
-      expect(screen.getByRole('button', { name: '1' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: '1000' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Go to page 1' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Go to page 1000' })).toBeInTheDocument()
     })
   })
 
@@ -245,9 +276,9 @@ describe('Pagination Component', () => {
 
       // 40/10 = 4 pages
       // On page 0, shows: page 1 (0), page 2 (1), ..., page 4 (3)
-      expect(screen.getByRole('button', { name: '1' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: '2' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: '4' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Go to page 1' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Go to page 2' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Go to page 4' })).toBeInTheDocument()
     })
 
     it('should condense pages with ellipsis when total pages > 5', () => {
@@ -255,8 +286,8 @@ describe('Pagination Component', () => {
       render(<Pagination total={100} limit={10} page={0} onPageChange={onPageChange} />)
 
       // Should not show all 10 pages
-      expect(screen.queryByRole('button', { name: '5' })).not.toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: '6' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Go to page 5' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Go to page 6' })).not.toBeInTheDocument()
 
       // Should show ellipsis
       expect(screen.getByText('...')).toBeInTheDocument()

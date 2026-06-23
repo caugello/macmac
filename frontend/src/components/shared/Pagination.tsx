@@ -27,6 +27,7 @@ export const Pagination = ({ total, limit, page, onPageChange }: PaginationProps
       <Button
         variant="outline"
         size="icon"
+        aria-label="Previous page"
         onClick={() => onPageChange(page - 1)}
         disabled={page === 0}
         className="border-outline-variant text-muted-foreground hover:bg-surface-variant hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
@@ -50,6 +51,8 @@ export const Pagination = ({ total, limit, page, onPageChange }: PaginationProps
             <Button
               key={p}
               size="icon"
+              aria-label={`Go to page ${p + 1}`}
+              aria-current={p === page ? 'page' : undefined}
               onClick={() => onPageChange(p)}
               className={
                 p === page
@@ -66,6 +69,7 @@ export const Pagination = ({ total, limit, page, onPageChange }: PaginationProps
       <Button
         variant="outline"
         size="icon"
+        aria-label="Next page"
         onClick={() => onPageChange(page + 1)}
         disabled={page >= totalPages - 1}
         className="border-outline-variant text-muted-foreground hover:bg-surface-variant hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
