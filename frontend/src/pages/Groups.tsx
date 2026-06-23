@@ -41,7 +41,7 @@ const SentInvitations: React.FC<{ group: Group }> = ({ group }) => {
 
   return (
     <div className="mt-4 space-y-2">
-      <p className="text-label-sm text-on-surface-variant">Pending invitations</p>
+      <p className="text-caption text-on-surface-variant">Pending invitations</p>
       {error && (
         <div className="p-2 rounded-lg bg-error-container text-on-error-container text-sm">
           {error}
@@ -233,7 +233,7 @@ export const Groups: React.FC = () => {
     <div className="max-w-7xl mx-auto px-4 md:px-12 pt-6 pb-12">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-headline-xl font-heading font-bold">Groups</h1>
+          <h1 className="text-headline-lg font-heading font-bold">Groups</h1>
           <p className="text-on-surface-variant text-body-md max-w-lg">
             Manage your family groups and share recipes &amp; meal plans
           </p>
@@ -436,7 +436,7 @@ export const Groups: React.FC = () => {
 
                     {group.members.length > 0 && (
                       <div className="mt-4 space-y-2">
-                        <p className="text-label-sm text-on-surface-variant">Members</p>
+                        <p className="text-caption text-on-surface-variant">Members</p>
                         <div className="space-y-1">
                           {group.members.map((member: GroupMember) => (
                             <div
@@ -445,7 +445,7 @@ export const Groups: React.FC = () => {
                             >
                               <div className="flex items-center gap-3 min-w-0">
                                 <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center flex-shrink-0">
-                                  <span className="text-on-primary-container text-label-sm font-bold">
+                                  <span className="text-on-primary-container text-caption font-bold">
                                     {member.username.charAt(0).toUpperCase()}
                                   </span>
                                 </div>
@@ -482,9 +482,7 @@ export const Groups: React.FC = () => {
 
                     {group.owner_id === user?.id && (
                       <div className="dashed-outline rounded-lg p-4 mt-4">
-                        <p className="text-label-sm text-on-surface-variant mb-2">
-                          Invite by email
-                        </p>
+                        <p className="text-caption text-on-surface-variant mb-2">Invite by email</p>
                         <div className="flex gap-2">
                           <Input
                             type="email"

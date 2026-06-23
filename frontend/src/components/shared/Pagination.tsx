@@ -53,7 +53,7 @@ export const Pagination = ({ total, limit, page, onPageChange }: PaginationProps
               onClick={() => onPageChange(p)}
               className={
                 p === page
-                  ? 'bg-primary hover:bg-primary-container text-primary-foreground font-semibold'
+                  ? 'bg-primary text-primary-foreground font-semibold ambient-shadow'
                   : 'border border-outline-variant bg-transparent text-foreground hover:bg-surface-variant'
               }
             >

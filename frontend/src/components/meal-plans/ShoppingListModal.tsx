@@ -130,7 +130,7 @@ export const ShoppingListModal = ({
                       {category || 'Other'}
                     </h3>
                   </div>
-                  <span className="text-label-sm bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full print:hidden">
+                  <span className="text-caption bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full print:hidden">
                     {items.length}
                   </span>
                 </div>
@@ -144,11 +144,11 @@ export const ShoppingListModal = ({
                         <span className="text-label-md text-on-surface print:text-black">
                           {item.catalog_item_name}
                         </span>
-                        <span className="text-label-sm text-on-surface-variant ml-2 print:text-black">
+                        <span className="text-caption text-on-surface-variant ml-2 print:text-black">
                           {item.total_qty} {item.unit}
                         </span>
                         {item.packages_needed != null && (
-                          <span className="text-label-sm text-outline ml-1 print:text-black">
+                          <span className="text-caption text-outline ml-1 print:text-black">
                             &mdash; buy {item.packages_needed} x {item.package_size}
                             {item.package_unit}
                           </span>
@@ -181,7 +181,7 @@ export const ShoppingListModal = ({
 
             <div className="bg-primary/5 border border-outline-variant p-4 rounded-lg flex flex-col sm:flex-row gap-4 sm:gap-6 print:border-0 print:bg-transparent print:px-0">
               <div>
-                <span className="text-label-sm text-on-surface-variant uppercase tracking-wider block print:text-black">
+                <span className="text-caption text-on-surface-variant uppercase tracking-wider block print:text-black">
                   Total Items
                 </span>
                 <span className="text-headline-md font-heading font-semibold print:text-black">
@@ -189,7 +189,7 @@ export const ShoppingListModal = ({
                 </span>
               </div>
               <div>
-                <span className="text-label-sm text-on-surface-variant uppercase tracking-wider block print:text-black">
+                <span className="text-caption text-on-surface-variant uppercase tracking-wider block print:text-black">
                   Estimated Total
                 </span>
                 <span className="text-headline-md font-heading font-semibold text-primary print:text-black">

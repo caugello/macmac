@@ -4,64 +4,64 @@
 
 @layer base {
   :root {
-    --background: #fef7f4;
-    --foreground: #201a17;
+    --background: #fff8f6;
+    --foreground: #231917;
     --card: #ffffff;
-    --card-foreground: #201a17;
+    --card-foreground: #231917;
     --popover: #ffffff;
-    --popover-foreground: #201a17;
-    --primary: #9c4323;
+    --popover-foreground: #231917;
+    --primary: #9d3d2c;
     --primary-foreground: #ffffff;
-    --primary-container: #ffdbd0;
-    --on-primary-container: #7a2e12;
-    --secondary: #77574b;
+    --primary-container: #bd5541;
+    --on-primary-container: #fffbff;
+    --secondary: #555f6f;
     --secondary-foreground: #ffffff;
-    --secondary-container: #ffdbd0;
-    --on-secondary-container: #5d4037;
-    --muted: #f5ded7;
-    --muted-foreground: #6f5b53;
-    --accent: #6c5d2f;
+    --secondary-container: #d6e0f3;
+    --on-secondary-container: #596373;
+    --muted: #f2dedb;
+    --muted-foreground: #56423e;
+    --accent: #5b5c5a;
     --accent-foreground: #ffffff;
     --destructive: #ba1a1a;
     --destructive-foreground: #ffffff;
     --error-container: #ffdad6;
-    --on-error-container: #410002;
-    --border: #d8c2ba;
-    --input: #d8c2ba;
-    --ring: #9c4323;
+    --on-error-container: #93000a;
+    --border: #ddc0bb;
+    --input: #ddc0bb;
+    --ring: #9d3d2c;
     --radius: 0.5rem;
 
-    --surface: #fef7f4;
-    --surface-dim: #e0d9d5;
-    --surface-bright: #fef7f4;
-    --surface-tint: #9c4323;
+    --surface: #fff8f6;
+    --surface-dim: #e9d6d2;
+    --surface-bright: #fff8f6;
+    --surface-tint: #a03f2e;
     --surface-container-lowest: #ffffff;
-    --surface-container-low: #faf1ed;
-    --surface-container: #f4ebe7;
-    --surface-container-high: #eee6e1;
-    --surface-container-highest: #e8e0dc;
-    --surface-variant: #f5ded7;
-    --outline: #a08c85;
-    --outline-variant: #d8c2ba;
-    --inverse-surface: #362f2c;
-    --inverse-on-surface: #fbeeea;
-    --inverse-primary: #ffb4a0;
-    --tertiary: #6c5d2f;
-    --tertiary-container: #f6e1a6;
-    --on-tertiary-container: #534619;
+    --surface-container-low: #fff0ee;
+    --surface-container: #feeae6;
+    --surface-container-high: #f8e4e0;
+    --surface-container-highest: #f2dedb;
+    --surface-variant: #f2dedb;
+    --outline: #89726d;
+    --outline-variant: #ddc0bb;
+    --inverse-surface: #392e2b;
+    --inverse-on-surface: #ffede9;
+    --inverse-primary: #ffb4a5;
+    --tertiary: #5b5c5a;
+    --tertiary-container: #747572;
+    --on-tertiary-container: #fdfcf9;
 
-    --primary-fixed: #ffdbd0;
-    --primary-fixed-dim: #ffb4a0;
-    --on-primary-fixed: #380d00;
-    --on-primary-fixed-variant: #7e2e12;
-    --secondary-fixed: #ffdbd0;
-    --secondary-fixed-dim: #e7bdb0;
-    --on-secondary-fixed: #2c160d;
-    --on-secondary-fixed-variant: #5d4037;
-    --tertiary-fixed: #f6e1a6;
-    --tertiary-fixed-dim: #d9c58d;
-    --on-tertiary-fixed: #231b00;
-    --on-tertiary-fixed-variant: #534619;
+    --primary-fixed: #ffdad3;
+    --primary-fixed-dim: #ffb4a5;
+    --on-primary-fixed: #3f0400;
+    --on-primary-fixed-variant: #802919;
+    --secondary-fixed: #d9e3f6;
+    --secondary-fixed-dim: #bdc7d9;
+    --on-secondary-fixed: #121c2a;
+    --on-secondary-fixed-variant: #3d4756;
+    --tertiary-fixed: #e3e2e0;
+    --tertiary-fixed-dim: #c7c6c4;
+    --on-tertiary-fixed: #1a1c1a;
+    --on-tertiary-fixed-variant: #464745;
 
     --nutri-a: #008142;
     --nutri-b: #85bb2f;
@@ -69,8 +69,8 @@
     --nutri-d: #ee8100;
     --nutri-e: #e63e11;
 
-    --font-heading: 'Literata', 'Georgia', serif;
-    --font-body: 'Plus Jakarta Sans', sans-serif;
+    --font-heading: 'Epilogue', sans-serif;
+    --font-body: 'Manrope', sans-serif;
   }
 }
 
@@ -160,8 +160,16 @@
   animation: shimmer 1.5s infinite linear;
 }
 
+.ambient-shadow {
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.04),
+    0 12px 40px rgba(0, 0, 0, 0.02);
+}
+
 .wireframe-border {
-  border: 1px solid var(--surface-container-highest);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.04),
+    0 12px 40px rgba(0, 0, 0, 0.02);
 }
 
 .dashed-outline {
@@ -221,12 +229,14 @@
 .card-hover-shadow {
   transition:
     transform 0.2s ease,
-    filter 0.2s ease;
+    box-shadow 0.2s ease;
 }
 
 .card-hover-shadow:hover {
   transform: translateY(-2px);
-  filter: brightness(1.1);
+  box-shadow:
+    0 8px 30px rgba(0, 0, 0, 0.08),
+    0 20px 60px rgba(0, 0, 0, 0.04);
 }
 
 /* Print: show only the shopping-list region, hide all other chrome */

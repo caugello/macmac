@@ -43,7 +43,7 @@ export const SearchBar = ({
         value={localValue}
         onChange={(e) => setLocalValue(e.target.value)}
         placeholder={placeholder}
-        className="pl-12 h-14 rounded bg-surface-container-lowest border-outline-variant text-on-surface placeholder:text-on-surface-variant"
+        className="pl-12 h-14 rounded bg-surface-container-low text-on-surface placeholder:text-on-surface-variant"
       />
     </div>
   )

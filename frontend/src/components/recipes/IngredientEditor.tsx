@@ -110,7 +110,7 @@ export const IngredientEditor = ({ ingredients, onChange }: IngredientEditorProp
                   <div className="font-medium text-label-md text-on-surface">
                     {item.canonical_name || item.raw_name}
                   </div>
-                  <div className="text-label-sm text-on-surface-variant">
+                  <div className="text-caption text-on-surface-variant">
                     {item.brand && `${item.brand} • `}
                     {item.net_quantity_value && item.net_quantity_unit && (
                       <span>
@@ -173,7 +173,7 @@ export const IngredientEditor = ({ ingredients, onChange }: IngredientEditorProp
                       'Unknown Item'}
                   </div>
                   {ing._catalog_item?.brand && (
-                    <div className="text-label-sm text-on-surface-variant leading-tight truncate">
+                    <div className="text-caption text-on-surface-variant leading-tight truncate">
                       {ing._catalog_item.brand}
                     </div>
                   )}

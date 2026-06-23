@@ -27,22 +27,22 @@ const DayCard = ({
   return (
     <div
       ref={cardRef}
-      className={`bg-surface-container-lowest rounded-lg wireframe-border overflow-hidden ${
+      className={`bg-surface-container-lowest rounded-xl wireframe-border overflow-hidden ${
         isToday ? 'ring-2 ring-primary shadow-lg' : ''
       } ${className ?? ''}`}
     >
       <div className="bg-primary/5 px-4 py-3 border-b border-outline-variant/50 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div>
-            <span className="text-headline-md-mobile font-heading font-semibold text-primary">
+            <span className="text-title-lg font-heading font-semibold text-primary">
               {format(day, 'EEE')}
             </span>
-            <span className="text-label-sm text-on-surface-variant ml-2">
+            <span className="text-caption text-on-surface-variant ml-2">
               {format(day, 'MMM d')}
             </span>
           </div>
           {isToday && (
-            <span className="text-label-sm font-medium px-2 py-0.5 rounded-full bg-primary text-on-primary">
+            <span className="text-caption font-medium px-2 py-0.5 rounded-full bg-primary text-on-primary">
               Today
             </span>
           )}

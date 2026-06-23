@@ -34,10 +34,10 @@ export const FilterChips = ({ items, activeItem, onItemChange, className }: Filt
             key={item}
             onClick={() => onItemChange(item)}
             className={cn(
-              'px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-label-md font-medium whitespace-nowrap transition-colors',
+              'px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-caption font-medium uppercase tracking-wider whitespace-nowrap transition-colors',
               activeItem === item
-                ? 'bg-primary text-on-primary'
-                : 'bg-surface-container-low text-on-surface-variant wireframe-border hover:bg-surface-container'
+                ? 'bg-primary/10 text-primary'
+                : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'
             )}
           >
             {item}
@@ -47,7 +47,7 @@ export const FilterChips = ({ items, activeItem, onItemChange, className }: Filt
       {overflows && (
         <button
           onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-1 mt-1 text-label-sm text-primary font-medium hover:underline"
+          className="flex items-center gap-1 mt-1 text-caption text-primary font-medium hover:underline"
         >
           {expanded ? 'Show less' : `Show all (${items.length})`}
           <Icon name={expanded ? 'expand_less' : 'expand_more'} size={16} />

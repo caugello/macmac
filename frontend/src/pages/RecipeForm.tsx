@@ -130,7 +130,7 @@ export const RecipeForm = () => {
 
   return (
     <div className="max-w-3xl mx-auto px-4 md:px-12 pt-6 pb-12">
-      <h1 className="text-headline-xl font-heading font-bold mb-8">
+      <h1 className="text-headline-lg font-heading font-bold mb-8">
         {isEditMode ? 'Edit Recipe' : 'Create Recipe'}
       </h1>
 
@@ -235,7 +235,7 @@ export const RecipeForm = () => {
             onChange={(e) => setStepsText(e.target.value)}
             rows={6}
           />
-          <p className="text-label-sm text-on-surface-variant mt-2">
+          <p className="text-caption text-on-surface-variant mt-2">
             Enter each step on a new line. Leave blank if not needed.
           </p>
         </div>

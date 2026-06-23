@@ -14,7 +14,7 @@ export const MealPlansPage = () => {
   return (
     <div className="container mx-auto max-w-7xl px-4 md:px-12 pt-6 pb-32 space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h1 className="text-headline-xl font-heading font-bold">Meal Calendar</h1>
+        <h1 className="text-headline-lg font-heading font-bold">Meal Calendar</h1>
         <div className="flex items-center gap-2">
           <button className="bg-surface-container-lowest px-4 py-2 rounded-lg wireframe-border text-label-md flex items-center gap-2 whitespace-nowrap hover:bg-surface-container-low transition-colors">
             <Icon name="content_copy" size={18} />

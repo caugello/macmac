@@ -127,7 +127,7 @@ export const RecipeSelectorModal = ({
                     <p className="text-label-md font-semibold text-on-surface truncate">
                       {recipe.title}
                     </p>
-                    <p className="text-label-sm text-on-surface-variant line-clamp-1">
+                    <p className="text-caption text-on-surface-variant line-clamp-1">
                       {recipe.description || 'No description'}
                     </p>
                   </div>

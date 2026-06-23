@@ -19,8 +19,8 @@ describe('FilterChips Component', () => {
       render(<FilterChips items={items} activeItem="Fruits" onItemChange={vi.fn()} />)
 
       const activeButton = screen.getByRole('button', { name: 'Fruits' })
-      expect(activeButton.className).toContain('bg-primary')
-      expect(activeButton.className).toContain('text-on-primary')
+      expect(activeButton.className).toContain('bg-primary/10')
+      expect(activeButton.className).toContain('text-primary')
     })
 
     it('should style inactive chips differently', () => {

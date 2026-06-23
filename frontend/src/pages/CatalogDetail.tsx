@@ -74,7 +74,7 @@ export const CatalogDetail = () => {
         {item.nutriscore && (
           <div className="flex items-center gap-2 mb-3">
             <NutriscoreBadge score={item.nutriscore} size="lg" />
-            <span className="text-label-sm text-on-surface-variant uppercase tracking-wider">
+            <span className="text-caption text-on-surface-variant uppercase tracking-wider">
               Nutri-Score
             </span>
           </div>
@@ -109,7 +109,7 @@ export const CatalogDetail = () => {
 
         {/* Promo alert */}
         {item.promotion_until_date && (
-          <div className="inline-flex items-center gap-2 bg-error-container text-on-error-container px-3 py-1.5 rounded-full text-label-sm font-semibold mt-3">
+          <div className="inline-flex items-center gap-2 bg-error-container text-on-error-container px-3 py-1.5 rounded-full text-caption font-semibold mt-3">
             <Icon name="schedule" size={16} />
             Promo until {new Date(item.promotion_until_date).toLocaleDateString()}
           </div>
@@ -121,7 +121,7 @@ export const CatalogDetail = () => {
           if (!badge) return null
           return (
             <div
-              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-label-sm font-semibold mt-3 ${
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-caption font-semibold mt-3 ${
                 badge.stale
                   ? 'bg-error-container text-on-error-container'
                   : 'bg-secondary-container text-on-secondary-container'
@@ -210,7 +210,7 @@ export const CatalogDetail = () => {
               })}
           </div>
           {item.nutrition.serving_size && (
-            <p className="text-label-sm text-on-surface-variant mt-3">
+            <p className="text-caption text-on-surface-variant mt-3">
               Serving size: {item.nutrition.serving_size}
             </p>
           )}
