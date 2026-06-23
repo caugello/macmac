@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { format } from 'date-fns'
 import { Dashboard } from './Dashboard'
 import * as useRecipesHook from '@/hooks/useRecipes'
 import * as useMealPlansHook from '@/hooks/useMealPlans'
@@ -26,6 +27,9 @@ vi.spyOn(AuthContext, 'useAuth').mockReturnValue({
   isAuthenticated: true,
   isLoading: false,
 })
+
+// Today's ISO date, so meal-plan fixtures land in "Today's trajectory".
+const TODAY = format(new Date(), 'yyyy-MM-dd')
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -63,7 +67,12 @@ describe('Dashboard Page', () => {
 
     it('should greet the user by username', () => {
       render(<Dashboard />, { wrapper: createWrapper() })
-      expect(screen.getByText('Welcome back, Chris')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: /Chris/, level: 1 })).toBeInTheDocument()
+    })
+
+    it('should show a time-of-day greeting', () => {
+      render(<Dashboard />, { wrapper: createWrapper() })
+      expect(screen.getByText(/Good (morning|afternoon|evening), Chris/)).toBeInTheDocument()
     })
   })
 
@@ -75,6 +84,16 @@ describe('Dashboard Page', () => {
       render(<Dashboard />, { wrapper: createWrapper() })
       expect(screen.getByText('Recent recipes')).toBeInTheDocument()
       expect(screen.getByText("This week's plan")).toBeInTheDocument()
+      expect(screen.getByText('Featured recipe')).toBeInTheDocument()
+      expect(screen.getByText("Today's trajectory")).toBeInTheDocument()
+    })
+
+    it('should not render the smart suggestion while data loads', () => {
+      mockUseRecipes.mockReturnValue({ data: undefined, isLoading: true, error: null })
+      mockUseMealPlans.mockReturnValue({ data: undefined, isLoading: true, error: null })
+
+      render(<Dashboard />, { wrapper: createWrapper() })
+      expect(screen.queryByLabelText('Smart suggestion')).not.toBeInTheDocument()
     })
   })
 
@@ -111,6 +130,20 @@ describe('Dashboard Page', () => {
       expect(screen.getByText('Recipes')).toBeInTheDocument()
       expect(screen.getByText('Meals this week')).toBeInTheDocument()
     })
+
+    it('should suggest adding a first recipe when there are none', () => {
+      render(<Dashboard />, { wrapper: createWrapper() })
+      const suggestion = screen.getByLabelText('Smart suggestion')
+      expect(suggestion).toHaveTextContent('Add your first recipe')
+    })
+
+    it('should show empty trajectory slots for each meal', () => {
+      render(<Dashboard />, { wrapper: createWrapper() })
+      const trajectory = screen.getByLabelText("Today's trajectory")
+      expect(trajectory).toHaveTextContent('Breakfast')
+      expect(trajectory).toHaveTextContent('Lunch')
+      expect(trajectory).toHaveTextContent('Dinner')
+    })
   })
 
   describe('error state', () => {
@@ -127,8 +160,24 @@ describe('Dashboard Page', () => {
       })
 
       render(<Dashboard />, { wrapper: createWrapper() })
-      expect(screen.getByText(/Couldn't load your meal plan/i)).toBeInTheDocument()
-      expect(screen.getByText(/Couldn't load your recipes/i)).toBeInTheDocument()
+      expect(screen.getAllByText(/Couldn't load your meal plan/i).length).toBeGreaterThanOrEqual(1)
+      expect(screen.getAllByText(/Couldn't load your recipes/i).length).toBeGreaterThanOrEqual(1)
+    })
+
+    it('should not render the smart suggestion when data errors', () => {
+      mockUseRecipes.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        error: new Error('boom'),
+      })
+      mockUseMealPlans.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        error: new Error('boom'),
+      })
+
+      render(<Dashboard />, { wrapper: createWrapper() })
+      expect(screen.queryByLabelText('Smart suggestion')).not.toBeInTheDocument()
     })
   })
 
@@ -138,8 +187,22 @@ describe('Dashboard Page', () => {
         data: {
           total: 12,
           data: [
-            { id: 'r1', title: 'Pasta Carbonara', category: 'main', ingredients: [{}, {}] },
-            { id: 'r2', title: 'Pancakes', category: 'breakfast', ingredients: [{}] },
+            {
+              id: 'r1',
+              title: 'Pasta Carbonara',
+              description: 'Creamy Roman classic',
+              servings: 4,
+              category: 'main',
+              ingredients: [{}, {}],
+            },
+            {
+              id: 'r2',
+              title: 'Pancakes',
+              description: null,
+              servings: null,
+              category: 'breakfast',
+              ingredients: [{}],
+            },
           ],
         },
         isLoading: false,
@@ -151,14 +214,14 @@ describe('Dashboard Page', () => {
           data: [
             {
               id: 'm1',
-              date: '2026-06-22',
+              date: TODAY,
               meal_type: 'dinner',
               recipe_id: 'r1',
               recipe_title: 'Pasta Carbonara',
             },
             {
               id: 'm2',
-              date: '2026-06-23',
+              date: TODAY,
               meal_type: 'breakfast',
               recipe_id: 'r2',
               recipe_title: 'Pancakes',
@@ -180,22 +243,76 @@ describe('Dashboard Page', () => {
       expect(screen.getByText('2')).toBeInTheDocument()
     })
 
+    it('should feature the newest recipe with real metadata', () => {
+      render(<Dashboard />, { wrapper: createWrapper() })
+      const featured = screen.getByLabelText('Featured recipe')
+      expect(featured).toHaveTextContent('Pasta Carbonara')
+      expect(featured).toHaveTextContent('4 servings')
+      expect(featured).toHaveTextContent('2 ingredients')
+    })
+
     it('should render planned meal recipe titles', () => {
       render(<Dashboard />, { wrapper: createWrapper() })
-      // Title appears both in the plan list and the recent recipes grid
+      // Title appears in featured card, plan list, trajectory and recipes grid.
       expect(screen.getAllByText('Pasta Carbonara').length).toBeGreaterThanOrEqual(1)
+    })
+
+    it('should place today meals into the trajectory timeline', () => {
+      render(<Dashboard />, { wrapper: createWrapper() })
+      const trajectory = screen.getByLabelText("Today's trajectory")
+      expect(trajectory).toHaveTextContent('Pancakes')
+      expect(trajectory).toHaveTextContent('Pasta Carbonara')
     })
 
     it('should render recent recipe cards linking to detail', () => {
       render(<Dashboard />, { wrapper: createWrapper() })
-      const link = screen.getByRole('link', { name: /Pancakes/ })
-      expect(link).toHaveAttribute('href', '/recipes/r2')
+      const links = screen.getAllByRole('link', { name: /Pancakes/ })
+      expect(links.some((l) => l.getAttribute('href') === '/recipes/r2')).toBe(true)
     })
 
-    it('should render ingredient counts', () => {
+    it('should render ingredient counts in the recipes grid', () => {
       render(<Dashboard />, { wrapper: createWrapper() })
       expect(screen.getByText('1 ingredient')).toBeInTheDocument()
-      expect(screen.getByText('2 ingredients')).toBeInTheDocument()
+    })
+
+    it('should suggest a shopping list when meals are planned', () => {
+      render(<Dashboard />, { wrapper: createWrapper() })
+      const suggestion = screen.getByLabelText('Smart suggestion')
+      expect(suggestion).toHaveTextContent('Turn your plan into a shopping list')
+    })
+  })
+
+  describe('today vs other days', () => {
+    afterEach(() => {
+      vi.clearAllMocks()
+    })
+
+    it('should keep non-today meals out of the trajectory', () => {
+      mockUseRecipes.mockReturnValue({
+        data: { data: [], total: 5 },
+        isLoading: false,
+        error: null,
+      })
+      mockUseMealPlans.mockReturnValue({
+        data: {
+          total: 1,
+          data: [
+            {
+              id: 'm1',
+              date: '2020-01-01',
+              meal_type: 'dinner',
+              recipe_id: 'r1',
+              recipe_title: 'Old Stew',
+            },
+          ],
+        },
+        isLoading: false,
+        error: null,
+      })
+
+      render(<Dashboard />, { wrapper: createWrapper() })
+      const trajectory = screen.getByLabelText("Today's trajectory")
+      expect(trajectory).not.toHaveTextContent('Old Stew')
     })
   })
 
@@ -223,19 +340,21 @@ describe('Dashboard Page', () => {
         'href',
         '/recipes/new'
       )
-      expect(screen.getByRole('link', { name: /Browse catalog/i })).toHaveAttribute(
-        'href',
-        '/catalog'
-      )
+      // "Browse catalog" appears in both the smart suggestion and the quick actions.
+      const catalogLinks = screen.getAllByRole('link', { name: /Browse catalog/i })
+      expect(catalogLinks.some((l) => l.getAttribute('href') === '/catalog')).toBe(true)
     })
 
     it('should link section headers to their pages', () => {
       render(<Dashboard />, { wrapper: createWrapper() })
-      expect(screen.getByRole('link', { name: /View calendar/i })).toHaveAttribute(
+      expect(screen.getAllByRole('link', { name: /View calendar/i })[0]).toHaveAttribute(
         'href',
         '/meal-plans'
       )
-      expect(screen.getByRole('link', { name: /View all/i })).toHaveAttribute('href', '/recipes')
+      expect(screen.getAllByRole('link', { name: /View all/i })[0]).toHaveAttribute(
+        'href',
+        '/recipes'
+      )
     })
   })
 })
