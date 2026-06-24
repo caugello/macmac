@@ -4,7 +4,7 @@ version = "0.2.6"
 description = "MacMac meal planning platform"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.138.0,<1",
+    "fastapi>=0.136.3,<1",
     "uvicorn>=0.49.0,<1",
     "gunicorn>=26.0.0,<27",
     "pydantic>=2.13.4,<3",
@@ -42,12 +42,12 @@ crawler = [
     "playwright>=1.60.0,<2",
 ]
 lint = [
-    "ruff>=0.15.18",
+    "ruff>=0.15.17",
     "mypy>=2.1.0,<3",
 ]
 test = [
     "macmac[cache,messaging,db]",
-    "pytest>=9.1.1,<10",
+    "pytest>=9.1.0,<10",
     "pytest-asyncio>=1.4.0,<2",
     "pytest-cov>=7.1.0,<8",
     "pytest-mock>=3.15.1,<4",
@@ -59,6 +59,14 @@ dev = [
 
 [tool.uv]
 index-strategy = "first-index"
+
+# SECURITY EXCEPTION (time-bounded): msgpack 1.2.0 on the trusted index has
+# GHSA-6v7p-g79w-8964 (High); fixed 1.2.1 was on RHTL but is currently de-listed.
+# Pull msgpack 1.2.1 from PyPI until RHTL re-lists it, then revert this override.
+constraint-dependencies = ["msgpack>=1.2.1"]
+
+[tool.uv.sources]
+msgpack = { index = "pypi" }
 
 [[tool.uv.index]]
 name = "rhtl"
