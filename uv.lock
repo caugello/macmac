@@ -593,7 +593,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "alembic", marker = "extra == 'db'", specifier = ">=1.18.4,<2" },
-    { name = "beautifulsoup4", marker = "extra == 'enricher'", specifier = ">=4.14.3,<5" },
+    { name = "beautifulsoup4", marker = "extra == 'enricher'", specifier = ">=4.15.0,<5" },
     { name = "click", specifier = ">=8.4.1,<9" },
     { name = "defusedxml", specifier = ">=0.7.1,<1" },
     { name = "email-validator", specifier = ">=2.3.0,<3" },
@@ -604,14 +604,14 @@ requires-dist = [
     { name = "macmac", extras = ["cache", "messaging", "db"], marker = "extra == 'test'" },
     { name = "macmac", extras = ["cache", "messaging", "db", "auth", "enricher", "crawler", "test", "lint"], marker = "extra == 'dev'" },
     { name = "mypy", marker = "extra == 'lint'", specifier = ">=2.1.0,<3" },
-    { name = "openai", marker = "extra == 'enricher'", specifier = ">=2.41.0,<3" },
+    { name = "openai", marker = "extra == 'enricher'", specifier = ">=2.43.0,<3" },
     { name = "pg8000", marker = "extra == 'db'", specifier = ">=1.30.0,<2" },
     { name = "pika", marker = "extra == 'messaging'", specifier = ">=1.4.1,<2" },
     { name = "playwright", marker = "extra == 'crawler'", specifier = ">=1.60.0,<2" },
     { name = "playwright", marker = "extra == 'enricher'", specifier = ">=1.60.0,<2" },
     { name = "pydantic", specifier = ">=2.13.4,<3" },
     { name = "pyjwt", specifier = ">=2.13.0,<3" },
-    { name = "pytest", marker = "extra == 'test'", specifier = ">=9.0.3,<10" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=9.1.0,<10" },
     { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=1.4.0,<2" },
     { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=7.1.0,<8" },
     { name = "pytest-mock", marker = "extra == 'test'", specifier = ">=3.15.1,<4" },
@@ -620,8 +620,8 @@ requires-dist = [
     { name = "python-multipart", specifier = ">=0.0.32,<1" },
     { name = "pyyaml", specifier = ">=6.0.3,<7" },
     { name = "redis", marker = "extra == 'cache'", specifier = ">=8.0.0,<9" },
-    { name = "ruff", marker = "extra == 'lint'", specifier = ">=0.15.16" },
-    { name = "sqlalchemy", marker = "extra == 'db'", specifier = ">=2.0.49,<3" },
+    { name = "ruff", marker = "extra == 'lint'", specifier = ">=0.15.17" },
+    { name = "sqlalchemy", marker = "extra == 'db'", specifier = ">=2.0.51,<3" },
     { name = "uvicorn", specifier = ">=0.49.0,<1" },
 ]
 provides-extras = ["db", "cache", "messaging", "auth", "enricher", "crawler", "lint", "test", "dev"]
@@ -649,11 +649,11 @@ wheels = [
 
 [[package]]
 name = "msgpack"
-version = "1.2.1"
+version = "1.2.0"
 source = { registry = "https://packages.redhat.com/trusted-libraries/python" }
-sdist = { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/msgpack-1.2.1.tar.gz", hash = "sha256:218621fed0c402b8d155ef415cdb723375ca997cd04a528adf99eb0519cfdfee" }
+sdist = { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/msgpack-1.2.0.tar.gz", hash = "sha256:118851479da73bb315dfc86f6e9e73100442e52d3e9233fe6045c51ddf5c14d4" }
 wheels = [
-    { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/msgpack-1.2.1-0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:d9c009cbaec43a39d527fd4db85091259eea97f6468fac572fe7a4c1db649388" },
+    { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/msgpack-1.2.0-0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:98a0ba3e95129530c63fa36a2f30237d2dd500dc75a1e0f94565eced90455252" },
 ]
 
 [[package]]
@@ -683,7 +683,7 @@ wheels = [
 
 [[package]]
 name = "openai"
-version = "2.41.0"
+version = "2.43.0"
 source = { registry = "https://packages.redhat.com/trusted-libraries/python" }
 dependencies = [
     { name = "anyio" },
@@ -695,9 +695,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/openai-2.41.0.tar.gz", hash = "sha256:b3307ad77ecdd93f82f1c1b6cbf01202c57beae89e393d607c85f88bd79f7872" }
+sdist = { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/openai-2.43.0.tar.gz", hash = "sha256:7589d486a2f0ad2e94768280b44d4828a07cc67971917a566c796fec27da2afd" }
 wheels = [
-    { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/openai-2.41.0-0-py3-none-any.whl", hash = "sha256:151bfed2c93880f9100fdac87e150e3940767ea2ddc6869d497c664f2162c6bd" },
+    { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/openai-2.43.0-0-py3-none-any.whl", hash = "sha256:355e257c0d84d26d8200af0e7d0d4cc69cddef32a2dfe18f0e7f7fdc41365cf1" },
 ]
 
 [[package]]
@@ -883,7 +883,7 @@ crypto = [
 
 [[package]]
 name = "pytest"
-version = "9.0.3"
+version = "9.1.0"
 source = { registry = "https://packages.redhat.com/trusted-libraries/python" }
 dependencies = [
     { name = "colorama", marker = "sys_platform == 'win32'" },
@@ -892,9 +892,9 @@ dependencies = [
     { name = "pluggy" },
     { name = "pygments" },
 ]
-sdist = { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/pytest-9.0.3.tar.gz", hash = "sha256:3f22463e30e9af55957971ad8175980cd85b439a5f97cfa4843d9053c4133fe7" }
+sdist = { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/pytest-9.1.0.tar.gz", hash = "sha256:6de4f659d3cecad241df9d54e3a9515f680d69cbcd80a8b733e1f4c125d2d26e" }
 wheels = [
-    { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/pytest-9.0.3-0-py3-none-any.whl", hash = "sha256:b66df1a7cef2611447110dc9eae94b7d1890b36dd9b7edda24c2660dbdaf6109" },
+    { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/pytest-9.1.0-0-py3-none-any.whl", hash = "sha256:e03248db2c70e584453ebbebc80da1f2a091a944c15dcc037b404e70b8fd1c80" },
 ]
 
 [[package]]
@@ -1013,11 +1013,11 @@ wheels = [
 
 [[package]]
 name = "ruff"
-version = "0.15.16"
+version = "0.15.17"
 source = { registry = "https://packages.redhat.com/trusted-libraries/python" }
-sdist = { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/ruff-0.15.16.tar.gz", hash = "sha256:f35ee8202be7a954ee5ff97f52adadadc705e734b3a6a27c61ca7b8aa53f8336" }
+sdist = { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/ruff-0.15.17.tar.gz", hash = "sha256:7f16eae8d074defed37f83351a98fd377ef0881ba123dc57b1eed215125d768a" }
 wheels = [
-    { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/ruff-0.15.16-0-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:a9a19811560349668ea957b552ad76af886df03022c0879d42888bf9d6ee1ba7" },
+    { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/ruff-0.15.17-0-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:4a03975e79e5d5ee944b7562e9480af17ce2e7e16af9c9ceee72b7f1680af8f3" },
 ]
 
 [[package]]
@@ -1061,15 +1061,15 @@ wheels = [
 
 [[package]]
 name = "sqlalchemy"
-version = "2.0.50"
+version = "2.0.51"
 source = { registry = "https://packages.redhat.com/trusted-libraries/python" }
 dependencies = [
     { name = "greenlet", marker = "platform_machine == 'AMD64' or platform_machine == 'WIN32' or platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'ppc64le' or platform_machine == 'win32' or platform_machine == 'x86_64'" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/sqlalchemy-2.0.50.tar.gz", hash = "sha256:6ac9c352d6c1763a634f13263dc527a62d1d761843de9ac0be38dc1a3c037279" }
+sdist = { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/sqlalchemy-2.0.51.tar.gz", hash = "sha256:4dc7a6dfbd93d335afbbf16d07757c5cb0cbe53d83b450cc393d31211964fd39" }
 wheels = [
-    { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/sqlalchemy-2.0.50-0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:657b3898fe83ccbbc4b6503c1001c049b99adfe1fcd0b96a9dbb94d03eafc723" },
+    { url = "https://packages.redhat.com/api/pulp-content/public-trusted-libraries/main/sqlalchemy-2.0.51-0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:12d627fa1bbed74773c1f4f8a58e2a7fa499b3d28eb6bfa9e7ab303bcf4fbbbc" },
 ]
 
 [[package]]
