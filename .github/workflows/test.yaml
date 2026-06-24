@@ -85,3 +85,78 @@ jobs:
           name: coverage-report
           path: |
             coverage.xml
+
+  test-integration:
+    name: Run Integration Tests
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    needs: [lint, test]
+    env:
+      UV_INDEX_RHTL_USERNAME: ${{ secrets.UV_INDEX_RHTL_USERNAME }}
+      UV_INDEX_RHTL_PASSWORD: ${{ secrets.UV_INDEX_RHTL_PASSWORD }}
+      # Fixed dummy value, consistent within the run (not a real secret).
+      JWT_SECRET_KEY: integration-test-secret-minimum-32chars!
+      ENVIRONMENT: testing
+      TESTING: "1"
+      # Per-service test databases on the dev Postgres ports (see tests/integration/conftest.py).
+      RECIPES_DATABASE_URL: postgresql+pg8000://dbuser:dbpass@localhost:5432/recipes_test
+      CATALOG_DATABASE_URL: postgresql+pg8000://dbuser:dbpass@localhost:5433/catalog_test
+      MEAL_PLANS_DATABASE_URL: postgresql+pg8000://dbuser:dbpass@localhost:5434/meal_plans_test
+
+    services:
+      recipes-db:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dbuser
+          POSTGRES_PASSWORD: dbpass
+          POSTGRES_DB: recipes_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dbuser -d recipes_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      catalog-db:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dbuser
+          POSTGRES_PASSWORD: dbpass
+          POSTGRES_DB: catalog_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U dbuser -d catalog_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      meal-plans-db:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dbuser
+          POSTGRES_PASSWORD: dbpass
+          POSTGRES_DB: meal_plans_test
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U dbuser -d meal_plans_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --extra test
+
+      - name: Run integration tests
+        run: uv run pytest tests/integration/ -m integration --timeout=60 -v
