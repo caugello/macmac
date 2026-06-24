@@ -36,10 +36,20 @@ export enum RecipeCategoryEnum {
   OTHER = 'other',
 }
 
+export enum RecipeDifficultyEnum {
+  EASY = 'easy',
+  MEDIUM = 'medium',
+  HARD = 'hard',
+}
+
 export interface RecipeCreate {
   title: string
   description?: string
   servings?: number
+  prep_time?: number
+  calories?: number
+  difficulty?: RecipeDifficultyEnum
+  image_url?: string
   category?: RecipeCategoryEnum
   ingredients: IngredientCreate[]
   steps?: string[]
@@ -49,6 +59,11 @@ export interface RecipeUpdate {
   title?: string
   description?: string
   servings?: number
+  prep_time?: number
+  calories?: number
+  // `null` explicitly clears the value; `undefined` leaves it unchanged.
+  difficulty?: RecipeDifficultyEnum | null
+  image_url?: string | null
   // `null` explicitly clears the category back to Uncategorized; `undefined` leaves it unchanged.
   category?: RecipeCategoryEnum | null
   ingredients?: IngredientCreate[]
@@ -61,6 +76,10 @@ export interface RecipeOut {
   normalized_title: string
   description: string | null
   servings: number | null
+  prep_time: number | null
+  calories: number | null
+  difficulty: RecipeDifficultyEnum | null
+  image_url: string | null
   category: RecipeCategoryEnum | null
   ingredients: IngredientOut[]
   steps: string[] | null

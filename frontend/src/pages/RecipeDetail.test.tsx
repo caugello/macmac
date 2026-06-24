@@ -190,6 +190,42 @@ describe('RecipeDetail Page', () => {
       expect(screen.getByText('1 serving')).toBeInTheDocument()
     })
 
+    it('should render prep time, calories and difficulty when present', () => {
+      mockUseRecipe.mockReturnValue({
+        data: { ...mockRecipe, prep_time: 25, calories: 480, difficulty: 'medium' },
+        isLoading: false,
+        error: null,
+      })
+
+      render(<RecipeDetail />, { wrapper: createWrapper() })
+      expect(screen.getByText('25 min')).toBeInTheDocument()
+      expect(screen.getByText('480 kcal')).toBeInTheDocument()
+      expect(screen.getByText('Medium')).toBeInTheDocument()
+    })
+
+    it('should not render prep time, calories or difficulty when missing', () => {
+      render(<RecipeDetail />, { wrapper: createWrapper() })
+      expect(screen.queryByText(/kcal/)).not.toBeInTheDocument()
+      expect(screen.queryByText('Medium')).not.toBeInTheDocument()
+    })
+
+    it('should render the recipe image when image_url is present', () => {
+      mockUseRecipe.mockReturnValue({
+        data: { ...mockRecipe, image_url: 'https://example.com/pasta.jpg' },
+        isLoading: false,
+        error: null,
+      })
+
+      render(<RecipeDetail />, { wrapper: createWrapper() })
+      const img = screen.getByAltText('Pasta Carbonara')
+      expect(img).toHaveAttribute('src', 'https://example.com/pasta.jpg')
+    })
+
+    it('should fall back to the placeholder when image_url is missing', () => {
+      render(<RecipeDetail />, { wrapper: createWrapper() })
+      expect(screen.queryByAltText('Pasta Carbonara')).not.toBeInTheDocument()
+    })
+
     it('should render creation date', () => {
       render(<RecipeDetail />, { wrapper: createWrapper() })
       expect(screen.getByText(/Created:/)).toBeInTheDocument()

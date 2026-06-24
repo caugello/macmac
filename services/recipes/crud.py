@@ -126,6 +126,10 @@ async def create_recipe(data: rs.RecipeCreate, db: Session):
             normalized_title=normalized_title,
             description=data.description,
             servings=data.servings,
+            prep_time=data.prep_time,
+            calories=data.calories,
+            difficulty=data.difficulty,
+            image_url=data.image_url,
             category=data.category,
             steps=data.steps,
             user_id=user_ctx.user_id,
@@ -175,6 +179,10 @@ async def create_recipe(data: rs.RecipeCreate, db: Session):
             normalized_title=recipe.normalized_title,
             description=recipe.description,
             servings=recipe.servings,
+            prep_time=recipe.prep_time,
+            calories=recipe.calories,
+            difficulty=recipe.difficulty,
+            image_url=recipe.image_url,
             category=recipe.category,
             ingredients=ingredients_out,
             steps=recipe.steps,
@@ -294,6 +302,10 @@ async def list_recipes(
                     normalized_title=recipe.normalized_title,
                     description=recipe.description,
                     servings=recipe.servings,
+                    prep_time=recipe.prep_time,
+                    calories=recipe.calories,
+                    difficulty=recipe.difficulty,
+                    image_url=recipe.image_url,
                     category=recipe.category,
                     ingredients=ingredients_out,
                     steps=recipe.steps,
@@ -409,6 +421,10 @@ async def get_recipe(recipe_id: UUID4, db: Session) -> rs.RecipeOut:
             normalized_title=recipe.normalized_title,
             description=recipe.description,
             servings=recipe.servings,
+            prep_time=recipe.prep_time,
+            calories=recipe.calories,
+            difficulty=recipe.difficulty,
+            image_url=recipe.image_url,
             category=recipe.category,
             ingredients=ingredients_out,
             steps=recipe.steps,
@@ -449,11 +465,20 @@ async def update_recipe(recipe_id: UUID4, data: rs.RecipeUpdate, db: Session):
             recipe.description = data.description
         if data.servings is not None:
             recipe.servings = data.servings
-        # Category uses explicit-null (PATCH) semantics: distinguish "field omitted"
-        # (leave unchanged) from "category": null (clear to uncategorized). An omitted
-        # field is absent from model_fields_set, whereas an explicit null is present.
+        if data.prep_time is not None:
+            recipe.prep_time = data.prep_time
+        if data.calories is not None:
+            recipe.calories = data.calories
+        # Category, difficulty and image_url use explicit-null (PATCH) semantics:
+        # distinguish "field omitted" (leave unchanged) from an explicit null (clear
+        # the value). An omitted field is absent from model_fields_set, whereas an
+        # explicit null is present.
         if "category" in data.model_fields_set:
             recipe.category = data.category
+        if "difficulty" in data.model_fields_set:
+            recipe.difficulty = data.difficulty
+        if "image_url" in data.model_fields_set:
+            recipe.image_url = data.image_url
         if data.steps is not None:
             recipe.steps = data.steps
 
@@ -567,6 +592,10 @@ async def batch_get_recipes(data: rs.BatchRecipeRequest, db: Session) -> rs.Batc
                 normalized_title=recipe.normalized_title,
                 description=recipe.description,
                 servings=recipe.servings,
+                prep_time=recipe.prep_time,
+                calories=recipe.calories,
+                difficulty=recipe.difficulty,
+                image_url=recipe.image_url,
                 category=recipe.category,
                 ingredients=ingredients_out,
                 steps=recipe.steps,

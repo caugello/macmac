@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { recipesApi } from './recipes'
 import { apiClient } from './client'
+import { RecipeDifficultyEnum } from '../lib/types'
 
 vi.mock('./client', () => ({
   apiClient: {
@@ -123,6 +124,33 @@ describe('recipesApi', () => {
       const mockResponse = {
         data: {
           id: 'new-recipe-id',
+          ...newRecipe,
+          created_at: '2024-01-01',
+          updated_at: '2024-01-01',
+        },
+      }
+
+      vi.mocked(apiClient.post).mockResolvedValue(mockResponse)
+
+      const result = await recipesApi.create(newRecipe)
+
+      expect(apiClient.post).toHaveBeenCalledWith('/recipes', newRecipe)
+      expect(result).toEqual(mockResponse.data)
+    })
+
+    it('should pass prep_time, calories, difficulty and image_url through', async () => {
+      const newRecipe = {
+        title: 'Detailed Recipe',
+        prep_time: 25,
+        calories: 480,
+        difficulty: RecipeDifficultyEnum.MEDIUM,
+        image_url: 'https://example.com/cake.jpg',
+        ingredients: [],
+      }
+
+      const mockResponse = {
+        data: {
+          id: 'detailed-id',
           ...newRecipe,
           created_at: '2024-01-01',
           updated_at: '2024-01-01',

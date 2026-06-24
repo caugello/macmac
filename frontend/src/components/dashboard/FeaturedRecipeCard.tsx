@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Icon } from '@/components/ui/icon'
 import { CategoryBadge } from '@/components/recipes/CategoryBadge'
+import { getDifficultyLabel, formatPrepTime } from '@/lib/recipeDifficulty'
 import type { RecipeOut } from '@/lib/types'
 
 const cardHues = [15, 25, 35, 140, 30, 45, 10, 200, 50, 20]
@@ -44,14 +45,22 @@ export const FeaturedRecipeCard = ({ recipe }: { recipe: RecipeOut }) => {
       <Link to={`/recipes/${recipe.id}`} className="group block">
         <article className="bg-surface-container-lowest rounded-xl ambient-shadow card-hover-shadow overflow-hidden md:flex">
           <div className="relative aspect-[16/9] md:aspect-auto md:w-2/5 overflow-hidden">
-            <div
-              className="w-full h-full min-h-[180px] flex items-center justify-center group-hover:scale-105 transition-transform duration-500"
-              style={{
-                background: `linear-gradient(135deg, hsl(${hue} 40% 92%) 0%, hsl(${hue} 30% 85%) 100%)`,
-              }}
-            >
-              <Icon name="restaurant_menu" size={56} className="text-outline-variant/40" />
-            </div>
+            {recipe.image_url ? (
+              <img
+                src={recipe.image_url}
+                alt={recipe.title}
+                className="w-full h-full min-h-[180px] object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+            ) : (
+              <div
+                className="w-full h-full min-h-[180px] flex items-center justify-center group-hover:scale-105 transition-transform duration-500"
+                style={{
+                  background: `linear-gradient(135deg, hsl(${hue} 40% 92%) 0%, hsl(${hue} 30% 85%) 100%)`,
+                }}
+              >
+                <Icon name="restaurant_menu" size={56} className="text-outline-variant/40" />
+              </div>
+            )}
             <CategoryBadge
               category={recipe.category}
               className="absolute top-3 left-3 backdrop-blur-sm"
@@ -68,6 +77,15 @@ export const FeaturedRecipeCard = ({ recipe }: { recipe: RecipeOut }) => {
               </p>
             )}
             <div className="flex flex-wrap gap-2 pt-1">
+              {recipe.prep_time != null && (
+                <MetaBadge icon="schedule" label={formatPrepTime(recipe.prep_time)} />
+              )}
+              {recipe.calories != null && (
+                <MetaBadge icon="local_fire_department" label={`${recipe.calories} kcal`} />
+              )}
+              {recipe.difficulty != null && (
+                <MetaBadge icon="bar_chart" label={getDifficultyLabel(recipe.difficulty)} />
+              )}
               {recipe.servings != null && (
                 <MetaBadge
                   icon="group"

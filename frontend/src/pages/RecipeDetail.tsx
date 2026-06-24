@@ -3,6 +3,7 @@ import { useRecipe, useDeleteRecipe } from '@/hooks/useRecipes'
 import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/ui/icon'
 import { useToast } from '@/components/ui/use-toast'
+import { getDifficultyLabel, formatPrepTime } from '@/lib/recipeDifficulty'
 
 export const RecipeDetail = () => {
   const { id } = useParams<{ id: string }>()
@@ -60,11 +61,15 @@ export const RecipeDetail = () => {
 
   return (
     <div className="max-w-5xl mx-auto px-4 md:px-12 pt-6 pb-12 space-y-8">
-      {/* Hero image placeholder */}
+      {/* Hero image (falls back to placeholder when no image) */}
       <div className="aspect-video w-full rounded-lg overflow-hidden wireframe-border relative max-w-3xl">
-        <div className="w-full h-full bg-gradient-to-br from-surface-container-low to-surface-container flex items-center justify-center">
-          <Icon name="restaurant_menu" size={64} className="text-outline-variant/20" />
-        </div>
+        {recipe.image_url ? (
+          <img src={recipe.image_url} alt={recipe.title} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-surface-container-low to-surface-container flex items-center justify-center">
+            <Icon name="restaurant_menu" size={64} className="text-outline-variant/20" />
+          </div>
+        )}
       </div>
 
       {/* Action bar */}
@@ -105,7 +110,25 @@ export const RecipeDetail = () => {
             {recipe.description}
           </p>
         )}
-        <div className="flex items-center gap-4 mt-4 text-caption text-on-surface-variant">
+        <div className="flex flex-wrap items-center gap-4 mt-4 text-caption text-on-surface-variant">
+          {recipe.prep_time != null && (
+            <span className="flex items-center gap-1">
+              <Icon name="schedule" size={16} />
+              {formatPrepTime(recipe.prep_time)}
+            </span>
+          )}
+          {recipe.calories != null && (
+            <span className="flex items-center gap-1">
+              <Icon name="local_fire_department" size={16} />
+              {recipe.calories} kcal
+            </span>
+          )}
+          {recipe.difficulty != null && (
+            <span className="flex items-center gap-1">
+              <Icon name="bar_chart" size={16} />
+              {getDifficultyLabel(recipe.difficulty)}
+            </span>
+          )}
           {recipe.servings != null && (
             <span className="flex items-center gap-1">
               <Icon name="group" size={16} />

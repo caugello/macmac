@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Icon } from '@/components/ui/icon'
 import { CategoryBadge } from '@/components/recipes/CategoryBadge'
+import { getDifficultyLabel, formatPrepTime } from '@/lib/recipeDifficulty'
 import type { RecipeOut } from '@/lib/types'
 
 const cardHues = [15, 25, 35, 140, 30, 45, 10, 200, 50, 20]
@@ -16,12 +17,12 @@ interface FeaturedRecipeCardProps {
 
 /**
  * Large hero card for the most recent recipe, modeled on the Stitch "Ivory Flux"
- * featured card: full-bleed image area, title, description, real metadata badges
- * (servings / ingredient count) and a bookmark affordance.
+ * featured card: full-bleed image (with hue placeholder fallback), title,
+ * description, metadata badges (prep time / calories / difficulty / servings /
+ * ingredient count) and a bookmark affordance.
  *
- * Only metadata that the recipe actually provides is rendered — there is no
- * duration or difficulty field on RecipeOut, so those badges are intentionally
- * omitted rather than fabricated.
+ * Only metadata that the recipe actually provides is rendered; missing fields
+ * are omitted rather than fabricated.
  */
 export const FeaturedRecipeCard = ({ recipe }: FeaturedRecipeCardProps) => {
   const hue = getCardHue(recipe.title)
@@ -36,14 +37,22 @@ export const FeaturedRecipeCard = ({ recipe }: FeaturedRecipeCardProps) => {
       <div className="grid md:grid-cols-2">
         {/* Image area */}
         <div className="relative aspect-[16/10] md:aspect-auto md:min-h-[20rem] overflow-hidden">
-          <div
-            className="w-full h-full flex items-center justify-center group-hover:scale-105 transition-transform duration-500"
-            style={{
-              background: `linear-gradient(135deg, hsl(${hue} 45% 90%) 0%, hsl(${hue} 35% 82%) 100%)`,
-            }}
-          >
-            <Icon name="restaurant_menu" size={72} className="text-outline-variant/30" />
-          </div>
+          {recipe.image_url ? (
+            <img
+              src={recipe.image_url}
+              alt={recipe.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+          ) : (
+            <div
+              className="w-full h-full flex items-center justify-center group-hover:scale-105 transition-transform duration-500"
+              style={{
+                background: `linear-gradient(135deg, hsl(${hue} 45% 90%) 0%, hsl(${hue} 35% 82%) 100%)`,
+              }}
+            >
+              <Icon name="restaurant_menu" size={72} className="text-outline-variant/30" />
+            </div>
+          )}
           <span className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-surface-container-lowest/90 backdrop-blur-sm px-3 py-1 text-label-md font-semibold text-primary">
             <Icon name="star" size={16} filled />
             Featured
@@ -73,6 +82,24 @@ export const FeaturedRecipeCard = ({ recipe }: FeaturedRecipeCardProps) => {
           )}
 
           <div className="mt-auto pt-5 flex flex-wrap items-center gap-2">
+            {recipe.prep_time != null && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-3 py-1.5 text-label-md font-medium text-on-surface-variant">
+                <Icon name="schedule" size={16} />
+                {formatPrepTime(recipe.prep_time)}
+              </span>
+            )}
+            {recipe.calories != null && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-3 py-1.5 text-label-md font-medium text-on-surface-variant">
+                <Icon name="local_fire_department" size={16} />
+                {recipe.calories} kcal
+              </span>
+            )}
+            {recipe.difficulty != null && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-3 py-1.5 text-label-md font-medium text-on-surface-variant">
+                <Icon name="bar_chart" size={16} />
+                {getDifficultyLabel(recipe.difficulty)}
+              </span>
+            )}
             {recipe.servings != null && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-3 py-1.5 text-label-md font-medium text-on-surface-variant">
                 <Icon name="group" size={16} />
