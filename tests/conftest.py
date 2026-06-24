@@ -173,6 +173,7 @@ def mock_all_caches():
         patch("services.catalog.crud.cache", noop_cache),
         patch("services.recipes.crud.cache", noop_cache),
         patch("services.meal_plans.crud.cache", noop_cache),
+        patch("services.meal_plans.my_list_crud.cache", noop_cache),
     ):
         yield
 

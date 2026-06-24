@@ -251,3 +251,31 @@ export interface ShoppingListResponse {
   total_items: number
   estimated_total: number | null
 }
+
+// ===== MY LIST =====
+
+export interface MyListItemCreate {
+  catalog_item_id: string
+  name: string
+  brand?: string | null
+  price?: number | null
+  image_url?: string | null
+  nutriscore?: string | null
+}
+
+export interface MyListItemOut {
+  id: string
+  catalog_item_id: string
+  name: string
+  brand: string | null
+  price: number | null
+  image_url: string | null
+  nutriscore: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface MyListResponse {
+  total: number
+  data: MyListItemOut[]
+}

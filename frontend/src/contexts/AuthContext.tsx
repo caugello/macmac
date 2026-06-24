@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
 import { auth as firebaseAuth, googleProvider } from '@/lib/firebase'
 import { authApi } from '@/api/auth'
+import { mergeLocalMyListIntoServer } from '@/hooks/useMyList'
 
 interface User {
   id: string
@@ -58,6 +59,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUser(response.user)
     localStorage.setItem('auth_token', response.access_token)
     localStorage.setItem('auth_user', JSON.stringify(response.user))
+    // Sync any locally-saved "My List" items to the server, then clear local.
+    // The token is already in localStorage, so the API client will authorize.
+    await mergeLocalMyListIntoServer()
     navigate('/recipes')
   }
 
