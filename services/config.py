@@ -108,6 +108,7 @@ class CacheTTL:
     catalog_detail: int
     meal_plans_list: int
     meal_plans_detail: int
+    my_list: int
 
 
 @dataclass
@@ -371,6 +372,7 @@ def parse_cache_config(cache_data: dict) -> CacheConfig:
             catalog_detail=cache_data["ttl"]["catalog_detail"],
             meal_plans_list=cache_data["ttl"]["meal_plans_list"],
             meal_plans_detail=cache_data["ttl"]["meal_plans_detail"],
+            my_list=cache_data["ttl"]["my_list"],
         ),
     )
 

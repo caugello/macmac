@@ -29,6 +29,8 @@ cache:
     # Meal plans cache TTLs
     meal_plans_list: 60
     meal_plans_detail: 120
+    # My List cache TTL
+    my_list: 60
 
 # Rate Limiting Configuration
 rate_limiting:
@@ -517,3 +519,45 @@ services:
         description: Generate shopping list for date range
         tags:
           - meal_plans
+      - name: list_my_list
+        method: get
+        path: /my-list
+        response_model: services.shared.schemas.my_list.MyListResponse
+        handler: services.meal_plans.my_list_crud.list_my_list
+        description: List the current user's saved products
+        tags:
+          - my_list
+      - name: add_my_list_item
+        method: post
+        path: /my-list
+        request_model: services.shared.schemas.my_list.MyListItemCreate
+        response_model: services.shared.schemas.my_list.MyListItemOut
+        handler: services.meal_plans.my_list_crud.add_my_list_item
+        description: Add a product to the current user's list
+        tags:
+          - my_list
+      - name: merge_my_list
+        method: post
+        path: /my-list/merge
+        request_model: services.shared.schemas.my_list.MyListMergeRequest
+        response_model: services.shared.schemas.my_list.MyListResponse
+        handler: services.meal_plans.my_list_crud.merge_my_list
+        description: Merge locally-stored items into the server list (login sync)
+        tags:
+          - my_list
+      - name: clear_my_list
+        method: delete
+        path: /my-list
+        response_model: services.shared.schemas.generic.DeleteResponse
+        handler: services.meal_plans.my_list_crud.clear_my_list
+        description: Clear all products from the current user's list
+        tags:
+          - my_list
+      - name: remove_my_list_item
+        method: delete
+        path: /my-list/{catalog_item_id}
+        response_model: services.shared.schemas.generic.DeleteResponse
+        handler: services.meal_plans.my_list_crud.remove_my_list_item
+        description: Remove a product from the current user's list
+        tags:
+          - my_list

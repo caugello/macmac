@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import Column, Date, Index, Text, UniqueConstraint
+from sqlalchemy import Column, Date, Float, Index, String, Text, UniqueConstraint
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -50,4 +50,33 @@ class MealPlan(BaseModel, UserOwnershipMixin, Base):
         Index("ix_meal_plan_group_id", "group_id"),
         # Composite index for efficient user+group queries
         Index("ix_meal_plan_user_group", "user_id", "group_id"),
+    )
+
+
+class MyListItem(BaseModel, UserOwnershipMixin, Base):
+    """
+    A catalog product saved to a user's personal "My List".
+
+    Owner-only (no group sharing): each user has their own private list.
+    Display fields are denormalized so the list can be rendered without
+    fanning out to the catalog service on every read.
+    """
+
+    __tablename__ = "my_list_items"
+
+    # Catalog product reference (validated against catalog service via httpx)
+    catalog_item_id = Column(UUID(as_uuid=True), nullable=False)
+
+    # Denormalized display fields (snapshot at save time)
+    name = Column(String, nullable=False)
+    brand = Column(String, nullable=True)
+    price = Column(Float, nullable=True)
+    image_url = Column(String, nullable=True)
+    nutriscore = Column(String, nullable=True)
+
+    # user_id / group_id are indexed via UserOwnershipMixin (index=True), which
+    # produces ix_my_list_items_user_id / ix_my_list_items_group_id.
+    __table_args__ = (
+        # A product can only appear once per user's list
+        UniqueConstraint("user_id", "catalog_item_id", name="uq_my_list_user_catalog_item"),
     )
