@@ -1,5 +1,6 @@
 """Tests for catalog enricher functionality."""
 
+import socket
 import sys
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -727,3 +728,92 @@ def test_proxy_fallback_expires_after_hold():
     # Simulate time passing
     fallback._blocked_until = time.time() - 1
     assert fallback.use_proxy() is False
+
+
+# ===== UNIT TESTS - crawl_nutrition_page SSRF protection (SECURITY_AUDIT C-2) =====
+
+
+def _getaddrinfo_returning(ip: str):
+    """Build a fake socket.getaddrinfo result resolving to the given IP."""
+
+    def _fake(host, port, family=0, type=0, proto=0, flags=0):
+        return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", (ip, 0))]
+
+    return _fake
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_crawl_nutrition_page_rejects_cloud_metadata_ssrf():
+    """An attacker-controlled product page can redirect the crawler at its own
+    nutrition/info link to a cloud metadata endpoint. crawl_nutrition_page must
+    reject the URL via validate_url() before any browser fetch is attempted.
+    """
+    from services.catalog.enricher import main as enricher
+
+    # 169.254.169.254 is the cloud metadata endpoint (link-local, blocked).
+    with patch(
+        "services.shared.lib.url_validator.socket.getaddrinfo",
+        _getaddrinfo_returning("169.254.169.254"),
+    ):
+        with patch.object(
+            enricher.browser_pool, "get_context", new=AsyncMock()
+        ) as mock_get_context:
+            with pytest.raises(ValueError, match="blocked network"):
+                await enricher.crawl_nutrition_page(
+                    "http://metadata.attacker.example/latest/meta-data/",
+                    main_page_url="https://shop.example.com/product",
+                )
+
+    # The guard must fire before any network/browser work happens.
+    mock_get_context.assert_not_awaited()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_crawl_nutrition_page_rejects_internal_ip_ssrf():
+    """A nutrition URL resolving to a private RFC1918 host (e.g. an internal
+    Redis/DB) must be rejected before fetch.
+    """
+    from services.catalog.enricher import main as enricher
+
+    with patch(
+        "services.shared.lib.url_validator.socket.getaddrinfo",
+        _getaddrinfo_returning("10.0.0.5"),
+    ):
+        with patch.object(
+            enricher.browser_pool, "get_context", new=AsyncMock()
+        ) as mock_get_context:
+            with pytest.raises(ValueError, match="blocked network"):
+                await enricher.crawl_nutrition_page(
+                    "http://internal.attacker.example/info",
+                    main_page_url="https://shop.example.com/product",
+                )
+
+    mock_get_context.assert_not_awaited()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_crawl_nutrition_page_allows_external_host():
+    """A legitimate external nutrition URL passes validation and reaches the
+    fetch path (guards against over-blocking).
+    """
+    from services.catalog.enricher import main as enricher
+
+    with patch(
+        "services.shared.lib.url_validator.socket.getaddrinfo",
+        _getaddrinfo_returning("93.184.216.34"),
+    ):
+        with patch.object(
+            enricher,
+            "_crawl_nutrition_page_once",
+            new=AsyncMock(return_value=("<html></html>", "nutrition table")),
+        ) as mock_once:
+            result = await enricher.crawl_nutrition_page(
+                "https://shop.example.com/product/info",
+                main_page_url="https://shop.example.com/product",
+            )
+
+    assert result == ("<html></html>", "nutrition table")
+    mock_once.assert_awaited_once()
