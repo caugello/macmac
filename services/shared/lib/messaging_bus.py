@@ -1,16 +1,51 @@
 import json
 import logging
+import os
+import ssl
 from collections.abc import Callable
 from typing import Any
+from urllib.parse import urlparse
 
 import pika
 
 logger = logging.getLogger(__name__)
 
 
+def _build_ssl_options(host: str, ca_cert_path: str) -> pika.SSLOptions:
+    """Build CA-verified ``SSLOptions`` for an ``amqps://`` connection.
+
+    Remote enricher workers reach RabbitMQ over the internet via an OpenShift
+    Route with TLS passthrough (port 443, SNI = route hostname). Plain pika
+    negotiates TLS for ``amqps://`` URLs but does NOT verify the server cert,
+    leaving those connections open to MITM. This loads a CA bundle and enables
+    full server cert + hostname verification.
+    """
+    if not os.path.isfile(ca_cert_path):
+        raise FileNotFoundError(f"RABBITMQ_CA_CERT_PATH does not point to a file: {ca_cert_path}")
+
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.load_verify_locations(cafile=ca_cert_path)
+    context.check_hostname = True
+    context.verify_mode = ssl.CERT_REQUIRED
+    # SNI / hostname verification must target the route hostname the server
+    # cert is issued for; an explicit override wins over the URL host.
+    server_hostname = os.environ.get("RABBITMQ_TLS_SERVER_NAME") or host
+    return pika.SSLOptions(context, server_hostname=server_hostname)
+
+
 class MessagingBus:
     def __init__(self, url: str):
-        self.connection = pika.BlockingConnection(pika.URLParameters(url))
+        params = pika.URLParameters(url)
+        ca_cert_path = os.environ.get("RABBITMQ_CA_CERT_PATH")
+        parsed = urlparse(url)
+        if parsed.scheme == "amqps":
+            if not ca_cert_path:
+                raise ValueError(
+                    "amqps:// URL requires a CA certificate for verification; "
+                    "set RABBITMQ_CA_CERT_PATH to the CA bundle path"
+                )
+            params.ssl_options = _build_ssl_options(parsed.hostname or "", ca_cert_path)
+        self.connection = pika.BlockingConnection(params)
         self.channel = self.connection.channel()
 
     def declare_queue(self, name: str, durable: bool = True):
