@@ -21,7 +21,7 @@ export const MyListLauncher = () => {
           rounded-full bg-primary text-on-primary ambient-shadow
           transition-all hover:-translate-y-px active:scale-90"
       >
-        <Icon name="favorite" size={26} filled={count > 0} />
+        <Icon name="shopping_cart" size={26} filled={count > 0} />
         {count > 0 && (
           <span
             aria-hidden="true"

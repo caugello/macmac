@@ -38,7 +38,7 @@ const renderCard = () =>
     </BrowserRouter>
   )
 
-describe('CatalogProductCard favorite toggle', () => {
+describe('CatalogProductCard cart toggle', () => {
   beforeEach(() => {
     localStorage.clear()
   })
@@ -54,7 +54,7 @@ describe('CatalogProductCard favorite toggle', () => {
     expect(button).toHaveAttribute('aria-pressed', 'false')
   })
 
-  it('adds to My List when the heart is clicked', () => {
+  it('adds to My List when the cart is clicked', () => {
     renderCard()
     fireEvent.click(screen.getByRole('button', { name: /add to my list/i }))
     const button = screen.getByRole('button', { name: /remove from my list/i })

@@ -12,7 +12,7 @@ interface CatalogProductCardProps {
 
 /**
  * Catalog product card matching the Stitch "Catalog - Ivory Flux" design:
- * rounded image with an overlaid favorite (heart) action, an eyebrow brand line,
+ * rounded image with an overlaid add-to-list (cart) action, an eyebrow brand line,
  * a confident editorial title, a muted material/description line and a prominent
  * price. Bespoke to the Catalog list — not shared with Product Detail.
  */
@@ -61,7 +61,7 @@ export const CatalogProductCard = ({ item }: CatalogProductCardProps) => {
             </span>
           )}
 
-          {/* Favorite action — matches the Stitch heart, top-right floating glass. Toggles My List. */}
+          {/* Add-to-list action — cart toggle, top-right floating glass. Toggles My List. */}
           <button
             type="button"
             onClick={handleToggle}
@@ -72,7 +72,7 @@ export const CatalogProductCard = ({ item }: CatalogProductCardProps) => {
               inList ? 'text-primary' : 'text-on-surface-variant'
             )}
           >
-            <Icon name="favorite" size={20} filled={inList} />
+            <Icon name="shopping_cart" size={20} filled={inList} />
           </button>
         </div>
 

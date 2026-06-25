@@ -176,11 +176,11 @@ const MyListRow = ({ item, onRemove }: { item: MyListItem; onRemove: () => void 
 const EmptyState = ({ onClose }: { onClose: () => void }) => (
   <div className="flex-1 flex flex-col items-center justify-center text-center px-8 py-16 gap-3">
     <div className="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center">
-      <Icon name="favorite" size={32} className="text-outline-variant" />
+      <Icon name="shopping_cart" size={32} className="text-outline-variant" />
     </div>
     <h3 className="text-title-lg font-heading font-semibold">Your list is empty</h3>
     <p className="text-body-md text-on-surface-variant max-w-[28ch]">
-      Tap the heart on any product to save it here for later.
+      Tap the cart on any product to save it here for later.
     </p>
     <Link
       to="/catalog"

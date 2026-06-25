@@ -166,7 +166,7 @@ export const CatalogDetail = () => {
                   : 'border-outline-variant text-on-surface hover:border-primary hover:text-primary'
               )}
             >
-              <Icon name="favorite" size={18} filled={inList} />
+              <Icon name="shopping_cart" size={18} filled={inList} />
               {inList ? 'In My List' : 'Add to My List'}
             </button>
           </div>
