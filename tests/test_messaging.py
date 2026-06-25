@@ -192,3 +192,98 @@ def test_consume_callback_error(mock_logger, mock_pika):
 
     # Verify error was logged
     mock_logger.exception.assert_called_once()
+
+
+@pytest.mark.unit
+@patch("services.shared.lib.messaging_bus.pika.BlockingConnection")
+def test_plaintext_amqp_no_ssl_options(mock_blocking_connection, monkeypatch):
+    """amqp:// in-cluster URL must connect without ssl_options (unchanged path)."""
+    monkeypatch.delenv("RABBITMQ_CA_CERT_PATH", raising=False)
+    mock_blocking_connection.return_value.channel.return_value = MagicMock()
+
+    MessagingBus("amqp://guest:guest@rabbitmq:5672/%2F")
+
+    params = mock_blocking_connection.call_args.args[0]
+    # pika leaves ssl_options as None for plaintext connections.
+    assert params.ssl_options is None
+
+
+@pytest.mark.unit
+@patch("services.shared.lib.messaging_bus.os.path.isfile", return_value=True)
+@patch("services.shared.lib.messaging_bus.ssl.SSLContext.load_verify_locations")
+@patch("services.shared.lib.messaging_bus.pika.BlockingConnection")
+def test_amqps_sets_verified_ssl_options(
+    mock_blocking_connection, mock_load_verify, _mock_isfile, monkeypatch
+):
+    """amqps:// URL builds CA-verified SSLOptions with SNI = URL host.
+
+    ``load_verify_locations`` is mocked so the test needs no real cert material
+    (CI's unit-test env lacks ``cryptography``); a real stdlib ``ssl.SSLContext``
+    is still built, so we can assert it is configured for full verification and
+    that pika.SSLOptions carries the URL host as SNI.
+    """
+    import ssl as ssl_module
+
+    import pika
+
+    ca_path = "/etc/rabbitmq/ca.pem"
+    monkeypatch.setenv("RABBITMQ_CA_CERT_PATH", ca_path)
+    monkeypatch.delenv("RABBITMQ_TLS_SERVER_NAME", raising=False)
+    mock_blocking_connection.return_value.channel.return_value = MagicMock()
+
+    host = "rabbitmq-amqps-macmac.apps.example.com"
+    MessagingBus(f"amqps://user:pass@{host}:443/%2F")
+
+    # CA bundle loaded from the configured path.
+    mock_load_verify.assert_called_once_with(cafile=ca_path)
+
+    params = mock_blocking_connection.call_args.args[0]
+    assert isinstance(params.ssl_options, pika.SSLOptions)
+    assert params.ssl_options.server_hostname == host
+
+    # Context configured for full server cert + hostname verification.
+    ctx = params.ssl_options.context
+    assert ctx.check_hostname is True
+    assert ctx.verify_mode == ssl_module.CERT_REQUIRED
+
+
+@pytest.mark.unit
+@patch("services.shared.lib.messaging_bus.os.path.isfile", return_value=True)
+@patch("services.shared.lib.messaging_bus.ssl.SSLContext.load_verify_locations")
+@patch("services.shared.lib.messaging_bus.pika.BlockingConnection")
+def test_amqps_server_name_override(
+    mock_blocking_connection, mock_load_verify, _mock_isfile, monkeypatch
+):
+    """RABBITMQ_TLS_SERVER_NAME overrides the URL host for SNI."""
+    ca_path = "/etc/rabbitmq/ca.pem"
+    monkeypatch.setenv("RABBITMQ_CA_CERT_PATH", ca_path)
+    monkeypatch.setenv("RABBITMQ_TLS_SERVER_NAME", "override.example.com")
+    mock_blocking_connection.return_value.channel.return_value = MagicMock()
+
+    MessagingBus("amqps://user:pass@10.0.0.5:443/%2F")
+
+    mock_load_verify.assert_called_once_with(cafile=ca_path)
+    params = mock_blocking_connection.call_args.args[0]
+    assert params.ssl_options.server_hostname == "override.example.com"
+
+
+@pytest.mark.unit
+@patch("services.shared.lib.messaging_bus.pika.BlockingConnection")
+def test_amqps_missing_ca_raises(mock_blocking_connection, monkeypatch):
+    """amqps:// without a configured CA path raises a clear error."""
+    monkeypatch.delenv("RABBITMQ_CA_CERT_PATH", raising=False)
+
+    with pytest.raises(ValueError, match="RABBITMQ_CA_CERT_PATH"):
+        MessagingBus("amqps://user:pass@host.example.com:443/%2F")
+    mock_blocking_connection.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("services.shared.lib.messaging_bus.pika.BlockingConnection")
+def test_amqps_ca_path_not_found_raises(mock_blocking_connection, monkeypatch, tmp_path):
+    """A CA path pointing at a nonexistent file raises FileNotFoundError."""
+    monkeypatch.setenv("RABBITMQ_CA_CERT_PATH", str(tmp_path / "missing.pem"))
+
+    with pytest.raises(FileNotFoundError, match="RABBITMQ_CA_CERT_PATH"):
+        MessagingBus("amqps://user:pass@host.example.com:443/%2F")
+    mock_blocking_connection.assert_not_called()
