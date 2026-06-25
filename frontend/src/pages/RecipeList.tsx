@@ -175,7 +175,7 @@ export const RecipeList = () => {
       {/* FAB */}
       <Link
         to="/recipes/new"
-        className="fixed bottom-32 right-6 md:bottom-12 md:right-12 z-40 px-6 py-4 bg-primary text-on-primary rounded-xl shadow-lg flex items-center gap-2 hover:shadow-xl active:scale-95 transition-all"
+        className="fixed bottom-36 right-4 md:bottom-24 md:right-4 z-40 px-6 py-4 bg-primary text-on-primary rounded-xl shadow-lg flex items-center gap-2 hover:shadow-xl active:scale-95 transition-all"
       >
         <Icon name="add" size={20} />
         <span className="font-label-md">Create Recipe</span>
