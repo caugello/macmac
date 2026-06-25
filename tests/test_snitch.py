@@ -90,6 +90,36 @@ def test_persist_result_writes_when_not_fresh():
     assert created_arg.nutrition == {"energy_kcal": 350}
 
 
+@pytest.mark.unit
+def test_persist_result_tolerates_worker_location_field():
+    """A result message carrying the extra worker_location tag still consumes cleanly."""
+    mock_db = MagicMock()
+    ch = MagicMock()
+
+    stored = MagicMock()
+    stored.canonical_name = "Pasta"
+    stored.raw_name = "Pasta 500g"
+    stored.net_quantity_value = 500.0
+    stored.net_quantity_unit = "g"
+    stored.price = 1.89
+    stored.category = "Pasta"
+    stored.nutrition = {"energy_kcal": 350}
+
+    with (
+        patch("services.catalog.snitch.main.get_db", new=_fake_get_db(mock_db)),
+        patch("services.catalog.snitch.main.is_item_fresh", return_value=False),
+        patch(
+            "services.catalog.snitch.main.create_catalog_item", return_value=stored
+        ) as mock_create,
+    ):
+        persist_result(_message(worker_location="vps-a"), ch)
+
+    mock_create.assert_called_once()
+    created_arg = mock_create.call_args.args[0]
+    assert isinstance(created_arg, CatalogItemCreate)
+    assert created_arg.vendor_name == "colruyt"
+
+
 # ===== UNIT TESTS - freshness skip =====
 
 
