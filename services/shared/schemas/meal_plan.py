@@ -118,5 +118,13 @@ class ShoppingListResponse(BaseModel):
 
     date_range: dict[str, DateType] = Field(..., description="{start_date, end_date}")
     items_by_category: dict[str, list[ShoppingListItem]]
+    # Top-level (not in items_by_category, which is keyed by real catalog
+    # categories): the user's persisted My List products, surfaced as manual
+    # "Extras" alongside the recipe-derived ingredients. Deduplicated against
+    # the recipe ingredients by catalog_item_id.
+    extras: list[ShoppingListItem] = Field(
+        default_factory=list,
+        description="User's My List items, deduped against recipe ingredients by catalog_item_id",
+    )
     total_items: int
     estimated_total: float | None = Field(None, description="Sum of all prices if available")
