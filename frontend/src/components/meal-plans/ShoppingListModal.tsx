@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { useGenerateShoppingList } from '@/hooks/useMealPlans'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
@@ -80,13 +81,26 @@ export const ShoppingListModal = ({
         <div className="flex items-center justify-between gap-4 print:hidden">
           <DialogTitle className="text-headline-md font-heading">Shopping List</DialogTitle>
           {data && (
-            <button
-              onClick={handlePrint}
-              className="bg-primary text-on-primary px-4 py-2 rounded-lg text-label-md flex items-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all"
-            >
-              <Icon name="print" size={18} />
-              Print
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Add an extra to My List without leaving the flow: deep-link to
+                  catalog browse. The list regenerates on reopen, so newly added
+                  items appear in Extras. */}
+              <Link
+                to="/catalog"
+                onClick={() => onOpenChange(false)}
+                className="border border-outline-variant text-on-surface px-4 py-2 rounded-lg text-label-md flex items-center gap-2 hover:border-primary hover:text-primary active:scale-[0.98] transition-all"
+              >
+                <Icon name="add_shopping_cart" size={18} />
+                Add items
+              </Link>
+              <button
+                onClick={handlePrint}
+                className="bg-primary text-on-primary px-4 py-2 rounded-lg text-label-md flex items-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all"
+              >
+                <Icon name="print" size={18} />
+                Print
+              </button>
+            </div>
           )}
         </div>
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { ShoppingListModal } from './ShoppingListModal'
 import type { ShoppingListItem } from '@/lib/types'
 
@@ -102,9 +103,16 @@ vi.mock('@/hooks/useMealPlans', () => ({
 const weekStart = new Date('2024-01-01')
 const weekEnd = new Date('2024-01-07')
 
-const renderModal = (open = true) =>
+const renderModal = (open = true, onOpenChange: (open: boolean) => void = vi.fn()) =>
   render(
-    <ShoppingListModal open={open} onOpenChange={vi.fn()} weekStart={weekStart} weekEnd={weekEnd} />
+    <MemoryRouter>
+      <ShoppingListModal
+        open={open}
+        onOpenChange={onOpenChange}
+        weekStart={weekStart}
+        weekEnd={weekEnd}
+      />
+    </MemoryRouter>
   )
 
 describe('ShoppingListModal', () => {
@@ -238,6 +246,25 @@ describe('ShoppingListModal', () => {
 
       expect(printSpy).toHaveBeenCalledOnce()
       vi.unstubAllGlobals()
+    })
+  })
+
+  describe('add items', () => {
+    it('should render an Add items link to the catalog when data is present', () => {
+      mockData = createMockData()
+      renderModal(true)
+      expect(screen.getByRole('link', { name: /add items/i })).toHaveAttribute('href', '/catalog')
+    })
+
+    it('should close the modal when Add items is clicked', async () => {
+      const user = userEvent.setup()
+      const onOpenChange = vi.fn()
+      mockData = createMockData()
+
+      renderModal(true, onOpenChange)
+      await user.click(screen.getByRole('link', { name: /add items/i }))
+
+      expect(onOpenChange).toHaveBeenCalledWith(false)
     })
   })
 
