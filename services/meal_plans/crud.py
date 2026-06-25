@@ -25,7 +25,7 @@ from services.shared.lib.units import to_base_unit, to_display_unit
 from services.shared.schemas import meal_plan as mp
 from services.shared.schemas.generic import DeleteResponse
 
-from .models import MealPlan, MealTypeEnum
+from .models import MealPlan, MealTypeEnum, MyListItem
 
 logger = logging.getLogger(__name__)
 
@@ -462,7 +462,14 @@ async def generate_shopping_list(
             .all()
         )
 
-        if not meal_plans:
+        # Load the user's persisted My List items (owner-only, no group sharing).
+        # These are surfaced as "Extras" alongside the recipe ingredients.
+        my_list_items = db.query(MyListItem).filter(MyListItem.user_id == user_ctx.user_id).all()
+
+        # Only 404 when there is nothing to return at all: no planned meals AND
+        # no My List extras. If the user has extras but an empty plan, fall
+        # through and return a normal response with empty items_by_category.
+        if not meal_plans and not my_list_items:
             raise HTTPException(
                 404, f"No meals found between {data.start_date} and {data.end_date}"
             )
@@ -512,8 +519,20 @@ async def generate_shopping_list(
             totals["qty"] = round(display_qty, 1)
             totals["unit"] = display_unit
 
-        # Step 3: Batch fetch catalog item details (price, name, category)
-        all_catalog_ids = list({cid for cid, _ in ingredient_totals.keys()})
+        # Dedup My List extras against recipe ingredients: if an extra's
+        # catalog_item_id already appears in the aggregated ingredients, skip it
+        # (the recipe line already covers it — avoid double-buying).
+        ingredient_catalog_ids = {cid for cid, _ in ingredient_totals.keys()}
+        extra_items = [
+            item for item in my_list_items if item.catalog_item_id not in ingredient_catalog_ids
+        ]
+
+        # Step 3: Batch fetch catalog item details (price, name, category).
+        # Include the (deduped) extras so their category can be enriched cheaply
+        # in the same call we already make for ingredients.
+        all_catalog_ids = list(
+            ingredient_catalog_ids | {item.catalog_item_id for item in extra_items}
+        )
         catalog_items = {}
         try:
             response = await service_request(
@@ -609,9 +628,31 @@ async def generate_shopping_list(
             category = item.category or "Uncategorized"
             items_by_category[category].append(item)
 
+        # Step 5: Build the "Extras" list from the user's My List items.
+        # Reuse the denormalized name/price from the MyListItem row; enrich the
+        # category from the catalog batch if it came back (otherwise null). No
+        # package math — My List items are single products, not recipe quantities.
+        extras = []
+        for item in extra_items:
+            catalog_item = catalog_items.get(str(item.catalog_item_id))
+            if item.price is not None:
+                total_price += item.price
+            extras.append(
+                mp.ShoppingListItem(
+                    catalog_item_id=item.catalog_item_id,
+                    catalog_item_name=item.name,
+                    total_qty=1.0,
+                    unit="unit",
+                    price=item.price,
+                    line_total=item.price,
+                    category=catalog_item.get("category") if catalog_item else None,
+                )
+            )
+
         return mp.ShoppingListResponse(
             date_range={"start_date": data.start_date, "end_date": data.end_date},
             items_by_category=dict(items_by_category),
-            total_items=len(shopping_items),
+            extras=extras,
+            total_items=len(shopping_items) + len(extras),
             estimated_total=total_price if total_price > 0 else None,
         )

@@ -1088,3 +1088,209 @@ async def test_update_meal_plan_unauthorized(mock_meal_plans_db):
         )
 
     assert exc_info.value.status_code == 403
+
+
+# ===== SHOPPING LIST: MY LIST EXTRAS =====
+
+EXTRA_CATALOG_ID = uuid.UUID("22222222-2222-4222-b222-222222222222")
+INGREDIENT_CATALOG_ID = uuid.UUID("11111111-1111-4111-b111-111111111111")
+
+
+def _my_list_item(catalog_item_id, name="Toilet Paper", price=4.99):
+    from services.shared.schemas.my_list import MyListItemCreate
+
+    return MyListItemCreate(catalog_item_id=catalog_item_id, name=name, price=price)
+
+
+def _shopping_mocks(recipe_ingredients=None, catalog_items=None):
+    """Build a mock service_request covering recipes + catalog batch calls."""
+    mock_recipes = MagicMock()
+    mock_recipes.json.return_value = {
+        "items": (
+            {str(TEST_RECIPE_A): {"title": "Recipe A", "ingredients": recipe_ingredients}}
+            if recipe_ingredients
+            else {}
+        )
+    }
+    mock_catalog = MagicMock()
+    mock_catalog.json.return_value = {"items": catalog_items or {}}
+
+    async def mock_service_req(method, url, **kwargs):
+        if "/recipes/batch" in url:
+            return mock_recipes
+        if "/catalog/batch" in url:
+            return mock_catalog
+        raise ValueError(f"Unexpected URL: {url}")
+
+    return mock_service_req
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_shopping_list_includes_my_list_extras(mock_meal_plans_db):
+    """My List items appear as top-level extras alongside recipe ingredients."""
+    from services.meal_plans.my_list_crud import add_my_list_item
+
+    await create_meal_plan(
+        MealPlanCreate(date=MONDAY, meal_type=MealTypeEnum.BREAKFAST, recipe_id=TEST_RECIPE_A),
+        mock_meal_plans_db,
+    )
+    await add_my_list_item(
+        _my_list_item(EXTRA_CATALOG_ID, "Toilet Paper", price=4.99), mock_meal_plans_db
+    )
+
+    mock_req = _shopping_mocks(
+        recipe_ingredients=[
+            {"catalog_item_id": str(INGREDIENT_CATALOG_ID), "qty": 500.0, "unit": "g"}
+        ],
+        catalog_items={
+            str(INGREDIENT_CATALOG_ID): {
+                "canonical_name": "Flour",
+                "raw_name": "flour",
+                "price": 2.50,
+                "category": "Baking",
+            },
+            str(EXTRA_CATALOG_ID): {"canonical_name": "Toilet Paper", "category": "Household"},
+        },
+    )
+
+    with patch("services.meal_plans.crud.service_request", new=mock_req):
+        result = await generate_shopping_list(
+            ShoppingListRequest(start_date=MONDAY, end_date=MONDAY + timedelta(days=6)),
+            mock_meal_plans_db,
+        )
+
+    # Recipe ingredient stays in items_by_category; extra is top-level only.
+    assert "Baking" in result.items_by_category
+    assert len(result.extras) == 1
+    extra = result.extras[0]
+    assert extra.catalog_item_id == EXTRA_CATALOG_ID
+    assert extra.catalog_item_name == "Toilet Paper"
+    assert extra.price == 4.99
+    assert extra.line_total == 4.99
+    # Category enriched from the catalog batch.
+    assert extra.category == "Household"
+    # total_items and estimated_total include the extra.
+    assert result.total_items == 2
+    assert result.estimated_total == pytest.approx(2.50 + 4.99)
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_shopping_list_dedups_extras_against_recipe_ingredients(mock_meal_plans_db):
+    """An extra whose catalog_item_id is already a recipe ingredient is skipped."""
+    from services.meal_plans.my_list_crud import add_my_list_item
+
+    await create_meal_plan(
+        MealPlanCreate(date=MONDAY, meal_type=MealTypeEnum.BREAKFAST, recipe_id=TEST_RECIPE_A),
+        mock_meal_plans_db,
+    )
+    # Save the SAME catalog item that the recipe uses.
+    await add_my_list_item(
+        _my_list_item(INGREDIENT_CATALOG_ID, "Flour", price=9.99), mock_meal_plans_db
+    )
+
+    mock_req = _shopping_mocks(
+        recipe_ingredients=[
+            {"catalog_item_id": str(INGREDIENT_CATALOG_ID), "qty": 500.0, "unit": "g"}
+        ],
+        catalog_items={
+            str(INGREDIENT_CATALOG_ID): {
+                "canonical_name": "Flour",
+                "raw_name": "flour",
+                "price": 2.50,
+                "category": "Baking",
+            }
+        },
+    )
+
+    with patch("services.meal_plans.crud.service_request", new=mock_req):
+        result = await generate_shopping_list(
+            ShoppingListRequest(start_date=MONDAY, end_date=MONDAY + timedelta(days=6)),
+            mock_meal_plans_db,
+        )
+
+    # Deduped: no extra, recipe price wins (My List 9.99 ignored).
+    assert result.extras == []
+    assert result.total_items == 1
+    assert result.estimated_total == pytest.approx(2.50)
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_shopping_list_extras_only_returns_200(mock_meal_plans_db):
+    """Extras but no planned meals returns a normal response (no 404)."""
+    from services.meal_plans.my_list_crud import add_my_list_item
+
+    await add_my_list_item(
+        _my_list_item(EXTRA_CATALOG_ID, "Toilet Paper", price=4.99), mock_meal_plans_db
+    )
+
+    mock_req = _shopping_mocks(
+        catalog_items={
+            str(EXTRA_CATALOG_ID): {"canonical_name": "Toilet Paper", "category": "Household"}
+        }
+    )
+
+    with patch("services.meal_plans.crud.service_request", new=mock_req):
+        result = await generate_shopping_list(
+            ShoppingListRequest(start_date=MONDAY, end_date=MONDAY + timedelta(days=6)),
+            mock_meal_plans_db,
+        )
+
+    assert result.items_by_category == {}
+    assert len(result.extras) == 1
+    assert result.extras[0].catalog_item_id == EXTRA_CATALOG_ID
+    assert result.total_items == 1
+    assert result.estimated_total == pytest.approx(4.99)
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_shopping_list_no_meals_no_extras_still_404(mock_meal_plans_db):
+    """No planned meals AND no extras still 404s."""
+    with pytest.raises(HTTPException) as exc_info:
+        await generate_shopping_list(
+            ShoppingListRequest(start_date=MONDAY, end_date=MONDAY + timedelta(days=6)),
+            mock_meal_plans_db,
+        )
+    assert exc_info.value.status_code == 404
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_shopping_list_extras_are_owner_isolated(mock_meal_plans_db):
+    """User A's My List extras never appear in user B's shopping list."""
+    from services.framework.user_context import set_user_context
+    from services.meal_plans.my_list_crud import add_my_list_item
+
+    # User A saves a My List item.
+    user_a = uuid.uuid4()
+    set_user_context(user_id=user_a, username="user-a", group_ids=[])
+    await add_my_list_item(
+        _my_list_item(EXTRA_CATALOG_ID, "Toilet Paper", price=4.99), mock_meal_plans_db
+    )
+
+    # User B has no meals and no extras -> 404 (A's extra is not visible).
+    set_user_context(user_id=uuid.uuid4(), username="user-b", group_ids=[])
+    mock_req = _shopping_mocks()
+    with patch("services.meal_plans.crud.service_request", new=mock_req):
+        with pytest.raises(HTTPException) as exc_info:
+            await generate_shopping_list(
+                ShoppingListRequest(start_date=MONDAY, end_date=MONDAY + timedelta(days=6)),
+                mock_meal_plans_db,
+            )
+    assert exc_info.value.status_code == 404
+
+    # User A still sees their extra.
+    set_user_context(user_id=user_a, username="user-a", group_ids=[])
+    mock_req_a = _shopping_mocks(
+        catalog_items={str(EXTRA_CATALOG_ID): {"canonical_name": "Toilet Paper"}}
+    )
+    with patch("services.meal_plans.crud.service_request", new=mock_req_a):
+        result_a = await generate_shopping_list(
+            ShoppingListRequest(start_date=MONDAY, end_date=MONDAY + timedelta(days=6)),
+            mock_meal_plans_db,
+        )
+    assert len(result_a.extras) == 1
+    assert result_a.extras[0].catalog_item_id == EXTRA_CATALOG_ID
