@@ -60,14 +60,6 @@ dev = [
 [tool.uv]
 index-strategy = "first-index"
 
-# SECURITY EXCEPTION (time-bounded): msgpack 1.2.0 on the trusted index has
-# GHSA-6v7p-g79w-8964 (High); fixed 1.2.1 was on RHTL but is currently de-listed.
-# Pull msgpack 1.2.1 from PyPI until RHTL re-lists it, then revert this override.
-constraint-dependencies = ["msgpack>=1.2.1"]
-
-[tool.uv.sources]
-msgpack = { index = "pypi" }
-
 [[tool.uv.index]]
 name = "rhtl"
 url = "https://packages.redhat.com/trusted-libraries/python"
