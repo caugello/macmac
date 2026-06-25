@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ShoppingListModal } from './ShoppingListModal'
+import type { ShoppingListItem } from '@/lib/types'
 
 const mockMutate = vi.fn()
 const mockReset = vi.fn()
@@ -11,58 +12,77 @@ let mockIsError = false
 let mockError: unknown = null
 
 function createMockData() {
-  return {
-    items_by_category: {
-      Dairy: [
-        {
-          catalog_item_id: 'c1',
-          catalog_item_name: 'Milk',
-          total_qty: 2,
-          unit: 'l',
-          price: 1.5,
-          line_total: 3.0,
-          category: 'Dairy',
-          is_on_promotion: true,
-          promotion_until_date: '2099-12-31',
-          package_size: 1,
-          package_unit: 'l',
-          packages_needed: 2,
-          last_enriched_at: new Date().toISOString(),
-        },
-        {
-          catalog_item_id: 'c2',
-          catalog_item_name: 'Butter',
-          total_qty: 1,
-          unit: 'pc',
-          price: 2.0,
-          line_total: 2.0,
-          category: 'Dairy',
-          is_on_promotion: false,
-          promotion_until_date: null,
-          package_size: null,
-          package_unit: null,
-          packages_needed: null,
-          last_enriched_at: null,
-        },
-      ],
-      Produce: [
-        {
-          catalog_item_id: 'c3',
-          catalog_item_name: 'Tomatoes',
-          total_qty: 500,
-          unit: 'g',
-          price: null,
-          line_total: null,
-          category: 'Produce',
-          is_on_promotion: false,
-          promotion_until_date: null,
-          package_size: null,
-          package_unit: null,
-          packages_needed: null,
-          last_enriched_at: new Date(Date.now() - 10 * 86_400_000).toISOString(),
-        },
-      ],
+  const items_by_category: Record<string, ShoppingListItem[]> = {
+    Dairy: [
+      {
+        catalog_item_id: 'c1',
+        catalog_item_name: 'Milk',
+        total_qty: 2,
+        unit: 'l',
+        price: 1.5,
+        line_total: 3.0,
+        category: 'Dairy',
+        is_on_promotion: true,
+        promotion_until_date: '2099-12-31',
+        package_size: 1,
+        package_unit: 'l',
+        packages_needed: 2,
+        last_enriched_at: new Date().toISOString(),
+      },
+      {
+        catalog_item_id: 'c2',
+        catalog_item_name: 'Butter',
+        total_qty: 1,
+        unit: 'pc',
+        price: 2.0,
+        line_total: 2.0,
+        category: 'Dairy',
+        is_on_promotion: false,
+        promotion_until_date: null,
+        package_size: null,
+        package_unit: null,
+        packages_needed: null,
+        last_enriched_at: null,
+      },
+    ],
+    Produce: [
+      {
+        catalog_item_id: 'c3',
+        catalog_item_name: 'Tomatoes',
+        total_qty: 500,
+        unit: 'g',
+        price: null,
+        line_total: null,
+        category: 'Produce',
+        is_on_promotion: false,
+        promotion_until_date: null,
+        package_size: null,
+        package_unit: null,
+        packages_needed: null,
+        last_enriched_at: new Date(Date.now() - 10 * 86_400_000).toISOString(),
+      },
+    ],
+  }
+  const extras: ShoppingListItem[] = [
+    {
+      catalog_item_id: 'e1',
+      catalog_item_name: 'Toilet Paper',
+      total_qty: 1,
+      unit: 'pc',
+      price: 4.5,
+      line_total: 4.5,
+      category: null,
+      is_on_promotion: false,
+      promotion_until_date: null,
+      package_size: null,
+      package_unit: null,
+      packages_needed: null,
+      last_enriched_at: null,
     },
+  ]
+  return {
+    items_by_category,
+    extras,
     total_items: 3,
     estimated_total: 5.0 as number | null,
   }
@@ -167,11 +187,44 @@ describe('ShoppingListModal', () => {
     })
   })
 
+  describe('extras', () => {
+    it('should render an Extras section with My List items', () => {
+      mockData = createMockData()
+      renderModal(true)
+      expect(screen.getByText('Extras')).toBeInTheDocument()
+      expect(screen.getByText('Toilet Paper')).toBeInTheDocument()
+    })
+
+    it('should not render an Extras section when there are no extras', () => {
+      mockData = { ...createMockData(), extras: [] }
+      renderModal(true)
+      expect(screen.queryByText('Extras')).not.toBeInTheDocument()
+    })
+
+    it('should render extras-only when there are no planned recipes', () => {
+      mockData = { ...createMockData(), items_by_category: {} }
+      renderModal(true)
+      expect(screen.getByText('Extras')).toBeInTheDocument()
+      expect(screen.getByText('Toilet Paper')).toBeInTheDocument()
+      expect(screen.queryByText('Dairy')).not.toBeInTheDocument()
+      expect(screen.queryByText(/Add some recipes first/)).not.toBeInTheDocument()
+    })
+  })
+
   describe('print', () => {
     it('should render a Print button when data is present', () => {
       mockData = createMockData()
       renderModal(true)
       expect(screen.getByRole('button', { name: /Print/ })).toBeInTheDocument()
+    })
+
+    it('should include extras inside the printable region', () => {
+      mockData = createMockData()
+      const { container } = renderModal(true)
+      const printRegion = container.ownerDocument.querySelector('[data-print-region]')
+      expect(printRegion).not.toBeNull()
+      expect(printRegion).toHaveTextContent('Extras')
+      expect(printRegion).toHaveTextContent('Toilet Paper')
     })
 
     it('should call window.print when the Print button is clicked', async () => {

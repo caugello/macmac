@@ -179,6 +179,70 @@ export const ShoppingListModal = ({
               </div>
             ))}
 
+            {data.extras.length > 0 && (
+              <div className="bg-surface-container-lowest rounded-lg wireframe-border overflow-hidden print:border-0 print:bg-transparent">
+                <div className="flex items-center justify-between px-4 md:px-6 py-3 bg-tertiary/5 border-b border-outline-variant/50 print:bg-transparent print:px-0">
+                  <div className="flex items-center gap-2">
+                    <Icon
+                      name="add_shopping_cart"
+                      size={20}
+                      className="text-primary print:hidden"
+                    />
+                    <h3 className="text-label-md text-primary uppercase tracking-wider font-semibold print:text-black">
+                      Extras
+                    </h3>
+                  </div>
+                  <span className="text-caption bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full print:hidden">
+                    {data.extras.length}
+                  </span>
+                </div>
+                <div className="p-4 md:p-6 space-y-2 print:p-0 print:space-y-0">
+                  {data.extras.map((item) => (
+                    <div
+                      key={item.catalog_item_id}
+                      className="flex items-center justify-between p-3 bg-surface rounded-lg wireframe-border print:border-0 print:p-1 print:bg-transparent"
+                    >
+                      <div className="flex items-center flex-wrap gap-y-1">
+                        <span className="text-label-md text-on-surface print:text-black">
+                          {item.catalog_item_name}
+                        </span>
+                        {item.total_qty != null && item.unit && (
+                          <span className="text-caption text-on-surface-variant ml-2 print:text-black">
+                            {item.total_qty} {item.unit}
+                          </span>
+                        )}
+                        {item.packages_needed != null && (
+                          <span className="text-caption text-outline ml-1 print:text-black">
+                            &mdash; buy {item.packages_needed} x {item.package_size}
+                            {item.package_unit}
+                          </span>
+                        )}
+                        {item.is_on_promotion && (
+                          <span className="ml-2 inline-flex items-center gap-1 bg-tertiary-container text-on-tertiary-container text-xs px-2 py-0.5 rounded-full font-semibold print:hidden">
+                            <Icon name="local_offer" size={12} />
+                            Promo
+                          </span>
+                        )}
+                        {isPriceStale(item.last_enriched_at) && (
+                          <span
+                            className="ml-2 inline-flex items-center gap-1 text-error text-xs print:hidden"
+                            title="Price may be outdated"
+                          >
+                            <Icon name="warning" size={14} />
+                          </span>
+                        )}
+                      </div>
+                      {item.line_total != null && (
+                        <span className="text-label-md font-semibold text-primary print:text-black">
+                          &euro;{item.line_total.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="bg-primary/5 border border-outline-variant p-4 rounded-lg flex flex-col sm:flex-row gap-4 sm:gap-6 print:border-0 print:bg-transparent print:px-0">
               <div>
                 <span className="text-caption text-on-surface-variant uppercase tracking-wider block print:text-black">

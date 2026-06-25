@@ -248,6 +248,7 @@ export interface ShoppingListItem {
 export interface ShoppingListResponse {
   date_range: { start_date: string; end_date: string }
   items_by_category: Record<string, ShoppingListItem[]>
+  extras: ShoppingListItem[]
   total_items: number
   estimated_total: number | null
 }
