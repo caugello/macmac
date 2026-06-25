@@ -1,0 +1,3 @@
+# Real inventory and secret vars — never commit. Only *.example.* are tracked.
+inventory.ini
+group_vars/all.yml

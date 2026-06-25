@@ -1,0 +1,48 @@
+---
+# Copy to group_vars/all.yml and fill in real values. The real all.yml holds
+# secrets and is git-ignored — encrypt it with `ansible-vault encrypt`.
+# This *.example.yml carries placeholders ONLY; never put real secrets here.
+
+# --- Image -------------------------------------------------------------------
+# Single source of truth for the deployed version. Bump this and re-run the
+# playbook to upgrade every host in the inventory (pull + restart).
+# Default tracks the current release (config.yaml / pyproject.toml: 0.2.6).
+enricher_image_tag: "0.2.6"
+enricher_registry: "quay.io"
+enricher_image: "caugello/macmac-enricher"
+
+# --- Secrets (vault-encrypt in the real all.yml) -----------------------------
+openai_api_key: "sk-REPLACE_ME"
+
+# Central RabbitMQ over TLS. Use per-location, least-privilege credentials.
+# Format: amqps://USER:PASS@HOST:5671/VHOST
+rabbitmq_url: "amqps://USER:PASS@rabbitmq.example.com:5671/VHOST"
+
+# CA certificate (PEM) that signed the RabbitMQ server cert. Paste the full
+# PEM block; the playbook writes it to the host and mounts it read-only.
+rabbitmq_ca_cert: |
+  -----BEGIN CERTIFICATE-----
+  REPLACE_WITH_RABBITMQ_CA_CERT_PEM
+  -----END CERTIFICATE-----
+
+# Path the CA cert is mounted to inside the container (must match
+# RABBITMQ_CA_CERT_PATH; the .env template uses this same var).
+rabbitmq_ca_cert_container_path: "/etc/macmac-enricher/rabbitmq-ca.crt"
+
+# Optional: override the TLS SNI / cert hostname when it differs from the URL
+# host (e.g. via an OpenShift Route with TLS passthrough). Leave empty to use
+# the host from rabbitmq_url.
+rabbitmq_tls_server_name: ""
+
+# Identifies this location in logs/results.
+worker_location: "vps-eu-1"
+
+# --- Optional: Brightdata proxy (WAF fallback) -------------------------------
+# Leave empty to disable. Format: http://USER:PASS@brd.superproxy.io:22225
+brightdata_proxy_url: ""
+
+# --- Optional: private registry credentials ----------------------------------
+# Set both to `podman login` before pulling a private image. Leave empty if the
+# image is public or the host is already logged in.
+registry_username: ""
+registry_password: ""

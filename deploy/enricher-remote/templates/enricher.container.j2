@@ -1,0 +1,32 @@
+# {{ ansible_managed }}
+# Podman Quadlet unit for the MacMac remote enricher worker.
+# Rendered by deploy/enricher-remote/playbook.yml — do not edit on the host.
+# systemd generates enricher.service from this file at daemon-reload.
+[Unit]
+Description=MacMac remote enricher worker
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image={{ enricher_registry }}/{{ enricher_image }}:{{ enricher_image_tag }}
+# Pull a newer image when the tag's digest changes (covers version bumps and
+# mutable tags). Combined with the templated tag, re-running the playbook with a
+# bumped `enricher_image_tag` pulls + restarts on the new image.
+Pull=newer
+Exec=python -m services.catalog.enricher.main
+WorkingDir=/opt/app-root/src
+Environment=PYTHONPATH=/opt/app-root/src
+EnvironmentFile={{ enricher_env_path }}
+# config.yaml mounted read-only at the path the enricher loads it from.
+Volume={{ enricher_config_path }}:/opt/app-root/src/config.yaml:ro,Z
+# RabbitMQ TLS CA cert mounted read-only; RABBITMQ_CA_CERT_PATH points here.
+Volume={{ enricher_ca_cert_path }}:{{ rabbitmq_ca_cert_container_path }}:ro,Z
+# Playwright/Chromium needs a large /dev/shm to avoid renderer crashes.
+PodmanArgs=--shm-size=2g
+
+[Service]
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
