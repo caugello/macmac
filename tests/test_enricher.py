@@ -817,3 +817,65 @@ async def test_crawl_nutrition_page_allows_external_host():
 
     assert result == ("<html></html>", "nutrition table")
     mock_once.assert_awaited_once()
+
+
+# ===== UNIT TESTS - WORKER_LOCATION tagging =====
+
+
+def _enriched_item_for(raw_name: str, product_url: str) -> CatalogItemCreate:
+    """Minimal valid enriched item for process_item publish tests."""
+    return CatalogItemCreate(
+        vendor_name="colruyt",
+        vendor_product_id="loc-500g",
+        raw_name=raw_name,
+        product_url=product_url,
+        is_food=True,
+    )
+
+
+@pytest.mark.unit
+def test_process_item_stamps_worker_location_in_result(caplog):
+    """process_item must include the WORKER_LOCATION tag in the published result and logs."""
+    from services.catalog.enricher import main as enricher
+
+    payload = {
+        "raw_name": "Tagged Product",
+        "vendor_name": "colruyt",
+        "vendor_product_id": "loc-500g",
+        "product_url": "https://www.collectandgo.be/fr/assortiment/loc-500g",
+    }
+    ch = MagicMock()
+    bus = MagicMock()
+
+    enriched = _enriched_item_for(payload["raw_name"], payload["product_url"])
+    mock_loop = MagicMock()
+    mock_loop.run_until_complete.return_value = enriched
+
+    with (
+        patch.object(enricher, "WORKER_LOCATION", "vps-a"),
+        patch.object(enricher, "enrich_catalog_item", new=MagicMock()),
+        patch.object(enricher, "get_event_loop", return_value=mock_loop),
+    ):
+        with caplog.at_level("INFO", logger="MacMac"):
+            enricher.process_item(payload, ch, bus=bus)
+
+    bus.publish.assert_called_once()
+    _, published_result = bus.publish.call_args.args
+    assert published_result["worker_location"] == "vps-a"
+    assert "worker_location=vps-a" in caplog.text
+
+
+@pytest.mark.unit
+def test_worker_location_defaults_to_central(monkeypatch):
+    """When WORKER_LOCATION is unset, the module default must be 'central'."""
+    import importlib
+
+    monkeypatch.delenv("WORKER_LOCATION", raising=False)
+    from services.catalog.enricher import main as enricher
+
+    reloaded = importlib.reload(enricher)
+    try:
+        assert reloaded.WORKER_LOCATION == "central"
+    finally:
+        # Restore the module to its env-driven state for other tests.
+        importlib.reload(reloaded)

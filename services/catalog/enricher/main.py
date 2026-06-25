@@ -45,6 +45,10 @@ catalog_config = get_config_for_service("catalog")
 # API key from environment (SECURITY REQUIREMENT)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+# Location tag for this enricher worker. Stamped into logs and result messages
+# so jobs can be correlated to the site (central / remote VPS) that processed them.
+WORKER_LOCATION = os.getenv("WORKER_LOCATION", "central")
+
 # Enricher configuration from config.yaml
 OPENAI_MODEL = catalog_config.enricher.openai_model if catalog_config.enricher else "gpt-4o-mini"
 BATCH_SIZE = catalog_config.enricher.batch_size if catalog_config.enricher else 5
@@ -1176,7 +1180,7 @@ async def enrich_catalog_item(
         if items_processed > 1:
             await asyncio.sleep(DELAY_BETWEEN_REQUESTS)
 
-    logger.info(f"[{items_processed}] Enriching: {raw_name}")
+    logger.info(f"[{items_processed}] Enriching: {raw_name} worker_location={WORKER_LOCATION}")
 
     # Step 1: Extract quantity/unit from URL (fast, no API calls)
     url_qty, url_unit = extract_quantity_from_url(product_url)
@@ -1337,6 +1341,7 @@ def process_item(payload: dict, ch, bus: MessagingBus):
         "raw_name": payload["raw_name"],
         "product_url": product_url,
         "enriched": enriched_item.model_dump(mode="json"),
+        "worker_location": WORKER_LOCATION,
     }
 
     bus.publish(CATALOG_ENRICHMENT_RESULTS_QUEUE, result)
@@ -1367,7 +1372,7 @@ def process_item(payload: dict, ch, bus: MessagingBus):
 
     logger.info(
         f"Published: {enriched_item.canonical_name or enriched_item.raw_name}, "
-        f"is_food={enriched_item.is_food}"
+        f"is_food={enriched_item.is_food} worker_location={WORKER_LOCATION}"
     )
     logger.info(f"{qty_str} | {price_str} | {category_str} | Nutrition: {nutrition_str}")
 
@@ -1378,7 +1383,9 @@ if __name__ == "__main__":
         logger.error("Set it with: export OPENAI_API_KEY='sk-...'")
         exit(1)
 
-    logger.info(f"Starting enricher with OpenAI model: {OPENAI_MODEL}")
+    logger.info(
+        f"Starting enricher with OpenAI model: {OPENAI_MODEL} worker_location={WORKER_LOCATION}"
+    )
     logger.info(
         f"Rate limits: {BATCH_SIZE} items/batch, {DELAY_BETWEEN_REQUESTS}s delay, {BATCH_PAUSE}s pause"
     )
