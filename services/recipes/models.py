@@ -5,7 +5,7 @@ from sqlalchemy.orm import relationship
 
 from services.recipes.db import Base
 from services.shared.models import BaseModel, UserOwnershipMixin, UUIDPrimaryKeyMixin
-from services.shared.schemas.recipe import RecipeCategoryEnum
+from services.shared.schemas.recipe import RecipeCategoryEnum, RecipeDifficultyEnum
 
 
 class Recipe(BaseModel, UserOwnershipMixin, Base):
@@ -23,6 +23,13 @@ class Recipe(BaseModel, UserOwnershipMixin, Base):
 
     description = Column(String)
     servings = Column(Integer, nullable=True)
+    prep_time = Column(Integer, nullable=True)  # minutes
+    calories = Column(Integer, nullable=True)  # kcal
+    difficulty = Column(
+        SQLEnum(RecipeDifficultyEnum, values_callable=lambda x: [e.value for e in x]),
+        nullable=True,
+    )
+    image_url = Column(String, nullable=True)
     category = Column(
         SQLEnum(RecipeCategoryEnum, values_callable=lambda x: [e.value for e in x]),
         nullable=True,

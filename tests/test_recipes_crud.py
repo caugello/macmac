@@ -16,7 +16,12 @@ from services.recipes.crud import (
 )
 from services.shared.schemas.generic import UnitEnum
 from services.shared.schemas.ingredient import IngredientCreate
-from services.shared.schemas.recipe import RecipeCategoryEnum, RecipeCreate, RecipeUpdate
+from services.shared.schemas.recipe import (
+    RecipeCategoryEnum,
+    RecipeCreate,
+    RecipeDifficultyEnum,
+    RecipeUpdate,
+)
 
 # Test catalog item IDs (these will be mocked by the fixture)
 # Using valid UUID4 format (version 4 bit pattern)
@@ -561,6 +566,205 @@ async def test_list_recipes_includes_category(mock_db):
 
     assert result["total"] == 1
     assert result["data"][0].category == RecipeCategoryEnum.BEVERAGE
+
+
+# ---- prep_time / calories / difficulty / image_url tests (#316) ----
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_create_recipe_with_new_fields(mock_db):
+    """Creating a recipe persists prep_time, calories, difficulty and image_url."""
+    result = await create_recipe(
+        RecipeCreate(
+            title="Full Detail Recipe",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+            prep_time=25,
+            calories=480,
+            difficulty=RecipeDifficultyEnum.MEDIUM,
+            image_url="https://example.com/cake.jpg",
+        ),
+        mock_db,
+    )
+
+    assert result.prep_time == 25
+    assert result.calories == 480
+    assert result.difficulty == RecipeDifficultyEnum.MEDIUM
+    assert result.image_url == "https://example.com/cake.jpg"
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_create_recipe_without_new_fields_defaults_none(mock_db):
+    """Omitting the new fields leaves them None (existing rows have no values)."""
+    result = await create_recipe(
+        RecipeCreate(
+            title="Minimal Recipe",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+        ),
+        mock_db,
+    )
+
+    assert result.prep_time is None
+    assert result.calories is None
+    assert result.difficulty is None
+    assert result.image_url is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_get_recipe_persists_new_fields(mock_db):
+    """The new fields survive a round-trip through get_recipe."""
+    created = await create_recipe(
+        RecipeCreate(
+            title="Persisted Detail Recipe",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+            prep_time=10,
+            calories=200,
+            difficulty=RecipeDifficultyEnum.EASY,
+            image_url="https://example.com/snack.png",
+        ),
+        mock_db,
+    )
+
+    result = await get_recipe(created.id, mock_db)
+
+    assert result.prep_time == 10
+    assert result.calories == 200
+    assert result.difficulty == RecipeDifficultyEnum.EASY
+    assert result.image_url == "https://example.com/snack.png"
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_list_recipes_includes_new_fields(mock_db):
+    """Listed recipes expose the new fields."""
+    await create_recipe(
+        RecipeCreate(
+            title="Listed Detail Recipe",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+            prep_time=45,
+            calories=650,
+            difficulty=RecipeDifficultyEnum.HARD,
+            image_url="https://example.com/main.jpg",
+        ),
+        mock_db,
+    )
+
+    result = await list_recipes(mock_db)
+
+    assert result["total"] == 1
+    row = result["data"][0]
+    assert row.prep_time == 45
+    assert row.calories == 650
+    assert row.difficulty == RecipeDifficultyEnum.HARD
+    assert row.image_url == "https://example.com/main.jpg"
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_update_recipe_new_fields(mock_db):
+    """Updating prep_time, calories, difficulty and image_url applies new values."""
+    created = await create_recipe(
+        RecipeCreate(
+            title="Update Detail Recipe",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+            prep_time=15,
+            calories=300,
+            difficulty=RecipeDifficultyEnum.EASY,
+            image_url="https://example.com/old.jpg",
+        ),
+        mock_db,
+    )
+
+    result = await update_recipe(
+        created.id,
+        RecipeUpdate(
+            prep_time=30,
+            calories=500,
+            difficulty=RecipeDifficultyEnum.HARD,
+            image_url="https://example.com/new.jpg",
+        ),
+        mock_db,
+    )
+
+    assert result.prep_time == 30
+    assert result.calories == 500
+    assert result.difficulty == RecipeDifficultyEnum.HARD
+    assert result.image_url == "https://example.com/new.jpg"
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_update_recipe_clear_difficulty_and_image_to_null(mock_db):
+    """Explicit null clears difficulty and image_url back to unset."""
+    created = await create_recipe(
+        RecipeCreate(
+            title="Clear Detail Recipe",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+            difficulty=RecipeDifficultyEnum.MEDIUM,
+            image_url="https://example.com/clear.jpg",
+        ),
+        mock_db,
+    )
+
+    result = await update_recipe(created.id, RecipeUpdate(difficulty=None, image_url=None), mock_db)
+
+    assert result.difficulty is None
+    assert result.image_url is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_update_recipe_omitting_new_fields_preserves_them(mock_db):
+    """Omitting the new fields leaves the existing values unchanged."""
+    created = await create_recipe(
+        RecipeCreate(
+            title="Preserve Detail Recipe",
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+            prep_time=20,
+            calories=400,
+            difficulty=RecipeDifficultyEnum.MEDIUM,
+            image_url="https://example.com/keep.jpg",
+        ),
+        mock_db,
+    )
+
+    result = await update_recipe(created.id, RecipeUpdate(title="Renamed Detail"), mock_db)
+
+    assert result.title == "Renamed Detail"
+    assert result.prep_time == 20
+    assert result.calories == 400
+    assert result.difficulty == RecipeDifficultyEnum.MEDIUM
+    assert result.image_url == "https://example.com/keep.jpg"
 
 
 async def _seed_categorized_recipes(mock_db):

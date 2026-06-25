@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Icon } from '@/components/ui/icon'
 import { CategoryBadge } from '@/components/recipes/CategoryBadge'
+import { getDifficultyLabel, formatPrepTime } from '@/lib/recipeDifficulty'
 import type { RecipeOut } from '@/lib/types'
 
 const cardHues = [15, 25, 35, 140, 30, 45, 10, 200, 50, 20]
@@ -16,9 +17,9 @@ interface RecipeDiscoveryCardProps {
 
 /**
  * Grid card for the Stitch "Ivory Flux" recipe discovery layout: image header
- * with category badge, title, optional description, and a real-metadata footer
- * (servings / ingredient count). Duration and difficulty are not stored on
- * recipes, so they are omitted rather than invented.
+ * (with hue placeholder fallback) with category badge, title, optional
+ * description, and a metadata footer (prep time / calories / difficulty /
+ * servings / ingredient count). Missing fields are omitted rather than invented.
  */
 export const RecipeDiscoveryCard = ({ recipe }: RecipeDiscoveryCardProps) => {
   const hue = getCardHue(recipe.title)
@@ -28,14 +29,22 @@ export const RecipeDiscoveryCard = ({ recipe }: RecipeDiscoveryCardProps) => {
     <Link to={`/recipes/${recipe.id}`} className="group block">
       <article className="h-full flex flex-col bg-surface-container-lowest rounded-2xl overflow-hidden ambient-shadow card-hover-shadow">
         <div className="relative aspect-[4/3] overflow-hidden">
-          <div
-            className="w-full h-full flex items-center justify-center group-hover:scale-105 transition-transform duration-500"
-            style={{
-              background: `linear-gradient(135deg, hsl(${hue} 45% 90%) 0%, hsl(${hue} 35% 82%) 100%)`,
-            }}
-          >
-            <Icon name="restaurant_menu" size={44} className="text-outline-variant/30" />
-          </div>
+          {recipe.image_url ? (
+            <img
+              src={recipe.image_url}
+              alt={recipe.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+          ) : (
+            <div
+              className="w-full h-full flex items-center justify-center group-hover:scale-105 transition-transform duration-500"
+              style={{
+                background: `linear-gradient(135deg, hsl(${hue} 45% 90%) 0%, hsl(${hue} 35% 82%) 100%)`,
+              }}
+            >
+              <Icon name="restaurant_menu" size={44} className="text-outline-variant/30" />
+            </div>
+          )}
           <CategoryBadge
             category={recipe.category}
             className="absolute top-3 left-3 backdrop-blur-sm"
@@ -60,6 +69,24 @@ export const RecipeDiscoveryCard = ({ recipe }: RecipeDiscoveryCardProps) => {
           )}
 
           <div className="mt-auto pt-4 flex flex-wrap items-center gap-3 text-label-md text-on-surface-variant">
+            {recipe.prep_time != null && (
+              <span className="inline-flex items-center gap-1">
+                <Icon name="schedule" size={16} />
+                {formatPrepTime(recipe.prep_time)}
+              </span>
+            )}
+            {recipe.calories != null && (
+              <span className="inline-flex items-center gap-1">
+                <Icon name="local_fire_department" size={16} />
+                {recipe.calories} kcal
+              </span>
+            )}
+            {recipe.difficulty != null && (
+              <span className="inline-flex items-center gap-1">
+                <Icon name="bar_chart" size={16} />
+                {getDifficultyLabel(recipe.difficulty)}
+              </span>
+            )}
             {recipe.servings != null && (
               <span className="inline-flex items-center gap-1">
                 <Icon name="group" size={16} />
