@@ -26,7 +26,9 @@ deploy/enricher-remote/
 
 ## Requirements
 
-- **Control machine:** `ansible-core` and the `containers.podman` collection:
+- **Control machine:** `ansible-core` **≥ 2.18** (so the `package` module routes
+  to the dnf5 backend on Fedora 41+ targets) and the `containers.podman`
+  collection:
   ```bash
   ansible-galaxy collection install containers.podman
   ```
@@ -71,12 +73,14 @@ ansible-playbook -i inventory.ini playbook.yml --ask-vault-pass
 
 The playbook:
 
-1. Installs/ensures `podman` (apt or dnf depending on OS family).
+1. Installs/ensures `podman` (single generic `package` task, family-agnostic).
 2. (Optional) `podman login` if `registry_username`/`registry_password` are set.
 3. Writes the RabbitMQ CA cert, ships the repo `config.yaml`, and renders the
    `.env` into `/etc/macmac-enricher/`.
 4. Renders the quadlet unit to `/etc/containers/systemd/enricher.container`.
-5. `systemctl daemon-reload`, then enables + starts `enricher.service`.
+5. `systemctl daemon-reload`, then starts `enricher.service` — boot-enablement
+   is handled by the quadlet `[Install] WantedBy=multi-user.target` section, not
+   by `systemctl enable`.
 
 ## Version bump
 

@@ -25,18 +25,11 @@
     repo_config_yaml: "{{ playbook_dir }}/../../config.yaml"
 
   tasks:
-    - name: Ensure podman is installed (Debian/Ubuntu)
-      ansible.builtin.apt:
+    - name: Ensure podman is installed
+      ansible.builtin.package:
         name: podman
         state: present
         update_cache: true
-      when: ansible_facts['os_family'] == 'Debian'
-
-    - name: Ensure podman is installed (RHEL/Fedora/CentOS)
-      ansible.builtin.dnf:
-        name: podman
-        state: present
-      when: ansible_facts['os_family'] == 'RedHat'
 
     - name: Ensure config directory exists
       ansible.builtin.file:
@@ -95,10 +88,9 @@
         - Reload systemd
         - Restart enricher
 
-    - name: Enable and start the enricher service
+    - name: Start the enricher service (boot-enable via quadlet [Install])
       ansible.builtin.systemd_service:
         name: enricher.service
-        enabled: true
         state: started
         daemon_reload: true
 
