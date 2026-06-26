@@ -14,7 +14,7 @@ and re-run the playbook. The run is idempotent — a no-change re-run reports
 
 ```
 deploy/enricher-remote/
-├── playbook.yml                   # the play (install podman, render unit/env/config, enable+start)
+├── playbook.yml                   # the play (install podman, render unit/env/config, start)
 ├── inventory.example.ini          # copy -> inventory.ini, list your VPS hosts
 ├── group_vars/
 │   └── all.example.yml            # copy -> all.yml (vault-encrypted), fill secrets/tag
