@@ -123,7 +123,7 @@ restart.
 
 ## Environment (`.env`)
 
-Rendered from vault vars. Variable names match exactly what the enricher reads:
+Rendered from the Ansible vars (`group_vars/all/vars.yml`, with secrets sourced from the encrypted `vault.yml`). Variable names match exactly what the enricher reads:
 
 | Var | Required | Source in code |
 |-----|----------|----------------|
