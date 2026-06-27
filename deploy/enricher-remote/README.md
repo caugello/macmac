@@ -17,7 +17,9 @@ deploy/enricher-remote/
 ├── playbook.yml                   # the play (install podman, render unit/env/config, start)
 ├── inventory.example.ini          # copy -> inventory.ini, list your VPS hosts
 ├── group_vars/
-│   └── all.example.yml            # copy -> all.yml (vault-encrypted), fill secrets/tag
+│   └── all/
+│       ├── vars.yml.example     # copy -> vars.yml (non-secret config)
+│       └── vault.yml.example    # copy -> vault.yml, then ansible-vault encrypt (secrets)
 ├── templates/
 │   ├── enricher.container.j2      # quadlet .container unit
 │   └── enricher.env.j2            # the worker's .env
@@ -48,16 +50,20 @@ deploy/enricher-remote/
    $EDITOR inventory.ini
    ```
 
-2. **Vars** — copy, fill in, and encrypt the secrets file:
+2. **Vars** — copy both files, then fill in and encrypt the secrets:
    ```bash
-   cp group_vars/all.example.yml group_vars/all.yml
-   $EDITOR group_vars/all.yml
-   ansible-vault encrypt group_vars/all.yml
+   cp group_vars/all/vars.yml.example  group_vars/all/vars.yml
+   cp group_vars/all/vault.yml.example group_vars/all/vault.yml
+   $EDITOR group_vars/all/vault.yml          # real secrets
+   ansible-vault encrypt group_vars/all/vault.yml
+   $EDITOR group_vars/all/vars.yml           # non-secret config: image tag, worker_location, CA cert, TLS server name
    ```
-   Fill in `openai_api_key`, `rabbitmq_url` (per-location least-privilege creds),
-   `rabbitmq_ca_cert` (PEM), `worker_location`, and confirm `enricher_image_tag`.
-   `group_vars/all.yml` is **git-ignored** and must never be committed — only the
-   `*.example.*` files are tracked.
+   Secrets (`openai_api_key`, `rabbitmq_url`, optional proxy/registry creds) live
+   in the git-ignored, vault-encrypted `vault.yml` as `vault_*` keys; non-secret
+   config (image tag, `worker_location`, `rabbitmq_ca_cert` PEM, TLS server name)
+   lives in the git-ignored `vars.yml`, which references those `vault_*` values.
+   Both real files are **git-ignored** — only the `*.example` files are tracked.
+   Because `vault.yml` is encrypted, `--ask-vault-pass` is still required on deploy.
 
 ## Deploy
 
@@ -88,7 +94,7 @@ The playbook:
 
 The image tag is the single source of truth. To upgrade every host:
 
-1. Edit `group_vars/all.yml` → set `enricher_image_tag` to the new release
+1. Edit `group_vars/all/vars.yml` → set `enricher_image_tag` to the new release
    (e.g. `0.2.7`).
 2. Re-run the playbook.
 
