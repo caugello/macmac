@@ -596,16 +596,36 @@ def _make_stats_item(db, vendor_product_id, **overrides):
         "last_enriched_at": datetime.now(UTC),
     }
     fields.update(overrides)
-    # A JSON column persists Python None as JSON 'null' (none_as_null=False),
-    # not SQL NULL. The catalog represents "no nutrition" as SQL NULL — the same
-    # convention requeue_stale queries with .is_(None) — so drop the key to leave
-    # the column genuinely unset.
-    if fields.get("nutrition") is None:
-        fields.pop("nutrition", None)
+    # nutrition uses none_as_null=True, so an explicit None persists as SQL NULL
+    # (the convention requeue_stale and the stats counts query with .is_(None)).
     item = CatalogItem(**fields)
     db.add(item)
     db.commit()
     return item
+
+
+@pytest.mark.unit
+def test_nutrition_none_persists_as_sql_null(mock_catalog_db):
+    """Regression (#363): an explicit nutrition=None must persist as SQL NULL,
+    not JSON 'null'. Otherwise the requeue backfill and stats counts (which test
+    nutrition IS NULL) miss the row and a food item stays stuck without nutrition.
+    """
+    food = CatalogItem(
+        vendor_name="test_vendor",
+        vendor_product_id="explicit-none",
+        raw_name="Explicit None",
+        product_url="https://example.com/products/explicit-none",
+        is_food=True,
+        price=1.99,
+        image_url="https://example.com/img.jpg",
+        nutrition=None,
+        last_enriched_at=datetime.now(UTC),
+    )
+    mock_catalog_db.add(food)
+    mock_catalog_db.commit()
+
+    null_count = mock_catalog_db.query(CatalogItem).filter(CatalogItem.nutrition.is_(None)).count()
+    assert null_count == 1
 
 
 @pytest.mark.asyncio
