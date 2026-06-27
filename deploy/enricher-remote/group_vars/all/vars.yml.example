@@ -1,0 +1,29 @@
+---
+# Non-secret config for the remote enricher. Copy to vars.yml (git-ignored).
+# Secrets live in vault.yml (see vault.yml.example), referenced here as vault_*.
+
+# --- Image (single source of truth for the deployed version) -----------------
+enricher_image_tag: "0.2.6"
+enricher_registry: "quay.io"
+enricher_image: "caugello/macmac-enricher"
+
+# --- Secrets (real values go in vault.yml; never put them here) ---------------
+openai_api_key: "{{ vault_openai_api_key }}"
+rabbitmq_url: "{{ vault_rabbitmq_url }}"
+brightdata_proxy_url: "{{ vault_brightdata_proxy_url }}"
+registry_username: "{{ vault_registry_username }}"
+registry_password: "{{ vault_registry_password }}"
+
+# --- RabbitMQ TLS ------------------------------------------------------------
+# CA cert (PEM) that signed the RabbitMQ server cert. Public — not a secret.
+rabbitmq_ca_cert: |
+  -----BEGIN CERTIFICATE-----
+  REPLACE_WITH_RABBITMQ_CA_CERT_PEM
+  -----END CERTIFICATE-----
+# Path the CA cert is mounted to inside the container (matches RABBITMQ_CA_CERT_PATH).
+rabbitmq_ca_cert_container_path: "/etc/macmac-enricher/rabbitmq-ca.crt"
+# Optional SNI / cert hostname override (e.g. OpenShift Route TLS passthrough). Empty = use rabbitmq_url host.
+rabbitmq_tls_server_name: ""
+
+# --- This worker -------------------------------------------------------------
+worker_location: "vps-eu-1"

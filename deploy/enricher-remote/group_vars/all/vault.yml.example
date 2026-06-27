@@ -1,0 +1,19 @@
+---
+# Secrets for the remote enricher. Copy to vault.yml, fill in, then encrypt:
+#   cp group_vars/all/vault.yml.example group_vars/all/vault.yml
+#   ansible-vault encrypt group_vars/all/vault.yml
+# vault.yml is git-ignored and must NEVER be committed unencrypted.
+
+# OpenAI key for GPT-4o-mini enrichment.
+vault_openai_api_key: "sk-REPLACE_ME"
+
+# Central RabbitMQ over TLS — per-location least-privilege creds.
+# Format: amqps://USER:PASS@HOST:5671/VHOST
+vault_rabbitmq_url: "amqps://USER:PASS@rabbitmq.example.com:5671/VHOST"
+
+# Optional Brightdata proxy (WAF fallback). Leave empty to disable.
+vault_brightdata_proxy_url: ""
+
+# Optional private-registry credentials for `podman login`. Empty if image is public.
+vault_registry_username: ""
+vault_registry_password: ""
