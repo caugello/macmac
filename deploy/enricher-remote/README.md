@@ -36,7 +36,9 @@ deploy/enricher-remote/
   install, templating, and the systemd/quadlet wiring use builtin modules.)
 - **Target VPS:** SSH-reachable, a recent enough OS for **quadlet** support
   (podman ≥ 4.4 — installed by the playbook). systemd-based (Debian/Ubuntu or
-  RHEL/Fedora/CentOS).
+  RHEL/Fedora/CentOS). The host needs a login user with **passwordless sudo** —
+  the default `fedora` cloud-image user fits. The playbook connects as that
+  unprivileged user and escalates with sudo (not direct `root` login).
 
 ## One-time setup
 

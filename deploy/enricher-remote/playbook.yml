@@ -11,6 +11,7 @@
 - name: Deploy remote enricher worker (podman + systemd quadlet)
   hosts: enricher_workers
   become: true
+  become_method: ansible.builtin.sudo
 
   vars:
     # Quadlet system unit path. systemd-generator picks unit files up from here.
