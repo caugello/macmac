@@ -4,6 +4,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pika import exceptions as pika_exceptions
 
 from services.shared.lib.messaging_bus import MessagingBus
 
@@ -52,6 +53,45 @@ def test_declare_queue(mock_pika):
             "x-dead-letter-routing-key": "test_queue",
         },
     )
+
+
+@pytest.mark.unit
+@patch("services.shared.lib.messaging_bus.pika")
+def test_get_queue_depth_returns_message_count(mock_pika):
+    """get_queue_depth reports the passive declare's message_count, no consume."""
+    mock_connection = MagicMock()
+    mock_channel = MagicMock()
+    mock_connection.channel.return_value = mock_channel
+    mock_pika.BlockingConnection.return_value = mock_connection
+    mock_channel.queue_declare.return_value.method.message_count = 7
+
+    bus = MessagingBus("amqp://localhost")
+    depth = bus.get_queue_depth("test_queue.dlq")
+
+    assert depth == 7
+    mock_channel.queue_declare.assert_called_once_with(queue="test_queue.dlq", passive=True)
+
+
+@pytest.mark.unit
+@patch("services.shared.lib.messaging_bus.pika")
+def test_get_queue_depth_missing_queue_reopens_channel(mock_pika):
+    """A passive declare on a missing queue closes the channel; we reopen and report 0."""
+    mock_connection = MagicMock()
+    first_channel = MagicMock()
+    reopened_channel = MagicMock()
+    mock_connection.channel.side_effect = [first_channel, reopened_channel]
+    mock_pika.BlockingConnection.return_value = mock_connection
+    mock_pika.exceptions.ChannelClosedByBroker = pika_exceptions.ChannelClosedByBroker
+    first_channel.queue_declare.side_effect = pika_exceptions.ChannelClosedByBroker(
+        404, "NOT_FOUND"
+    )
+
+    bus = MessagingBus("amqp://localhost")
+    depth = bus.get_queue_depth("missing.dlq")
+
+    assert depth == 0
+    # Channel was reopened for subsequent operations.
+    assert bus.channel is reopened_channel
 
 
 @pytest.mark.unit

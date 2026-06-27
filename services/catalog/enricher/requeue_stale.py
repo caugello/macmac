@@ -14,6 +14,7 @@ zero-infra cost lever. See docs/REMOTE_ENRICHER.md ->
 "Egress IP Economics & Fleet Sizing".
 """
 
+import json
 import os
 from datetime import UTC, datetime, timedelta
 
@@ -23,11 +24,21 @@ from services.catalog.db import SessionLocal
 from services.catalog.models import CatalogItem
 from services.config import get_config_for_service_dependency
 from services.framework.logging import setup_logging
-from services.shared.constant import CATALOG_PROCESS_ENTITY_QUEUE
+from services.shared.constant import (
+    CATALOG_ENRICHMENT_RESULTS_QUEUE,
+    CATALOG_PROCESS_ENTITY_QUEUE,
+)
 from services.shared.lib.db import get_db
 from services.shared.lib.messaging_bus import MessagingBus
 
 logger = setup_logging()
+
+# Dead-letter queues for the enrichment pipeline. Messages nack'd by the
+# enricher or the results consumer land here and are otherwise silent.
+ENRICHMENT_DLQS = (
+    f"{CATALOG_PROCESS_ENTITY_QUEUE}.dlq",
+    f"{CATALOG_ENRICHMENT_RESULTS_QUEUE}.dlq",
+)
 
 # Days after which a fully-enriched item is considered stale and refreshed.
 # Overridable via REENRICH_STALE_DAYS; unset preserves the original behaviour.
@@ -135,6 +146,23 @@ def _count_matching(db) -> int:
     )
 
 
+def report_dlq_depth(bus: MessagingBus) -> None:
+    """Log the depth of the enrichment dead-letter queues.
+
+    Dead-lettered enrichments are otherwise invisible: the backlog just stops
+    draining with no signal. A non-zero depth is logged at WARNING so it stands
+    out; a zero depth is logged at INFO as a heartbeat. The line is structured
+    JSON so it can be parsed/alerted on later.
+    """
+    for dlq in ENRICHMENT_DLQS:
+        depth = bus.get_queue_depth(dlq)
+        line = json.dumps({"event": "dlq_depth", "queue": dlq, "depth": depth})
+        if depth > 0:
+            logger.warning(line)
+        else:
+            logger.info(line)
+
+
 def main():
     config = get_config_for_service_dependency("catalog", "crawler")
     rabbitmq_url = os.getenv("RABBITMQ_URL", config.url)
@@ -143,6 +171,11 @@ def main():
         total = _count_matching(db)
         items = find_items_to_requeue(db)
 
+    bus = MessagingBus(url=rabbitmq_url)
+
+    # Surface dead-letter backlog every run, even when nothing needs requeuing.
+    report_dlq_depth(bus)
+
     if not items:
         logger.info("No items need re-enrichment")
         return
@@ -150,7 +183,6 @@ def main():
     cap = _get_max_items()
     logger.info(f"Found {total} items needing re-enrichment, queued {len(items)} (cap={cap})")
 
-    bus = MessagingBus(url=rabbitmq_url)
     bus.declare_queue(CATALOG_PROCESS_ENTITY_QUEUE)
 
     for item in items:
