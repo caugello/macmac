@@ -23,7 +23,7 @@ export interface MyListItem {
 interface MyListContextType {
   items: MyListItem[]
   count: number
-  addItem: (item: MyListItem) => void
+  addItem: (item: MyListItem) => Promise<void>
   removeItem: (id: string) => void
   toggleItem: (item: MyListItem) => void
   clear: () => void
@@ -145,12 +145,17 @@ export const MyListProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [items, authed])
 
   const addItem = useCallback(
-    (item: MyListItem) => {
+    async (item: MyListItem): Promise<void> => {
       setItems((prev) => (prev.some((i) => i.id === item.id) ? prev : [...prev, item]))
+      // Resolve only once the server write lands so callers can sequence a
+      // dependent refresh (e.g. regenerating the shopping list, whose extras
+      // are sourced server-side from My List).
       if (authed) {
-        myListApi
-          .add(toCreatePayload(item))
-          .catch((error) => console.error('Failed to add item to My List:', error))
+        try {
+          await myListApi.add(toCreatePayload(item))
+        } catch (error) {
+          console.error('Failed to add item to My List:', error)
+        }
       }
     },
     [authed]
