@@ -397,6 +397,13 @@ services:
         response_model: services.shared.schemas.catalog.CatalogCategoriesResponse
         description: List distinct catalog categories
         tags: [catalog]
+      - name: get_catalog_stats
+        method: get
+        path: /catalog/stats
+        handler: services.catalog.crud.get_catalog_stats
+        response_model: services.shared.schemas.catalog.CatalogStatsResponse
+        description: Enrichment-coverage stats for the catalog
+        tags: [catalog]
       - name: get_catalog_item
         method: get
         path: /catalog/{item_id}

@@ -1,5 +1,5 @@
 .PHONY: help test test-unit test-integration lint format clean install install-test install-lint update-deps crawl enricher-stop \
-	catalog-backup catalog-restore openshift-catalog-backup openshift-catalog-local-restore \
+	catalog-backup catalog-restore openshift-catalog-backup openshift-catalog-local-restore rabbitmq-ui \
 	frontend-install frontend-test frontend-lint frontend-format frontend-build \
 	build-all build-gateway build-recipes build-catalog build-meal-plans build-auth build-crawler build-enricher \
 	sbom verify-image
@@ -48,6 +48,9 @@ help:
 	@echo "OpenShift:"
 	@echo "  make openshift-catalog-backup        Dump catalog DB from OpenShift to backups/"
 	@echo "  make openshift-catalog-local-restore  Restore OpenShift dump into local dev DB"
+	@echo "  make rabbitmq-ui                     Port-forward RabbitMQ management UI (15672)"
+	@echo "                                       Log in with a management admin (RABBITMQ_USER /"
+	@echo "                                       RABBITMQ_PASSWORD), NOT the enricher-<location> users"
 	@echo ""
 
 install:
@@ -148,6 +151,14 @@ openshift-catalog-local-restore:
 	podman exec $(CATALOG_DB_CONTAINER) rm -f /tmp/catalog.dump
 	podman exec $(REDIS_CONTAINER) redis-cli -a $${REDIS_PASSWORD:-devpassword} --no-auth-warning --scan --pattern "catalog:*" | xargs -r podman exec -i $(REDIS_CONTAINER) redis-cli -a $${REDIS_PASSWORD:-devpassword} --no-auth-warning DEL
 	@echo "OpenShift dump restored to local dev DB (cache cleared)"
+
+# RabbitMQ management UI (cluster-internal only; port-forward to view the
+# enrichment backlog, the *.dlq queues, and every connected worker).
+rabbitmq-ui:
+	@echo "Forwarding RabbitMQ management UI -> http://localhost:15672"
+	@echo "Log in with a management admin account (RABBITMQ_USER / RABBITMQ_PASSWORD"
+	@echo "from the macmac-app-secret); the enricher-<location> users cannot log in."
+	oc port-forward svc/rabbitmq 15672:15672 -n $(OC_NAMESPACE)
 
 REGISTRY := quay.io/caugello
 TAG := dev

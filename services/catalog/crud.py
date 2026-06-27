@@ -1,6 +1,8 @@
+from datetime import UTC, datetime, timedelta
+
 from fastapi import HTTPException
 from pydantic import UUID4
-from sqlalchemy import or_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
 from services.config import get_config
@@ -147,6 +149,52 @@ async def list_catalog_categories(db: Session) -> rs.CatalogCategoriesResponse:
         result = rs.CatalogCategoriesResponse(categories=[r[0] for r in rows])
         cache.set_json(cache_key, result, ttl=config.cache.ttl.catalog_list)
         return result
+
+
+@traced
+async def get_catalog_stats(db: Session) -> rs.CatalogStatsResponse:
+    """Enrichment-coverage counts the queues can't show.
+
+    All counts are COUNT queries — no rows are loaded into memory. Freshness
+    mirrors ``snitch.db.is_item_fresh``: enriched within the configured window
+    AND complete (image + price, plus nutrition for food). The threshold is
+    driven by ``enricher.freshness_threshold_days`` so it cannot drift from the
+    snitch/re-enqueue definition.
+    """
+    enricher = config.services["catalog"].enricher
+    freshness_days = enricher.freshness_threshold_days if enricher else 14
+    cutoff = datetime.now(UTC) - timedelta(days=freshness_days)
+
+    # "Complete" = has image + price, and (non-food, or food with nutrition).
+    complete = and_(
+        CatalogItem.image_url.isnot(None),
+        CatalogItem.price.isnot(None),
+        or_(CatalogItem.is_food.is_(False), CatalogItem.nutrition.isnot(None)),
+    )
+    fresh_filter = and_(
+        CatalogItem.last_enriched_at.isnot(None),
+        CatalogItem.last_enriched_at >= cutoff,
+        complete,
+    )
+
+    with Span("db_catalog_stats"):
+
+        def _count(*filters) -> int:
+            query = db.query(func.count(CatalogItem.id))
+            if filters:
+                query = query.filter(*filters)
+            return int(query.scalar() or 0)
+
+        total = _count()
+        fresh = _count(fresh_filter)
+        return rs.CatalogStatsResponse(
+            total=total,
+            fresh=fresh,
+            stale=total - fresh,
+            missing_image_url=_count(CatalogItem.image_url.is_(None)),
+            missing_nutrition=_count(CatalogItem.nutrition.is_(None)),
+            missing_nutriscore=_count(CatalogItem.nutriscore.is_(None)),
+        )
 
 
 @traced

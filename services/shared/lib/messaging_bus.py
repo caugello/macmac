@@ -60,6 +60,21 @@ class MessagingBus:
             arguments={"x-dead-letter-exchange": dlx_name, "x-dead-letter-routing-key": name},
         )
 
+    def get_queue_depth(self, queue: str) -> int:
+        """Return the number of messages waiting in ``queue`` without consuming them.
+
+        Uses a passive declare, which reports the queue's ``message_count`` and
+        never modifies it. A passive declare against a missing queue makes the
+        broker close the channel, so we reopen it and report 0 (nothing has been
+        dead-lettered there yet).
+        """
+        try:
+            result = self.channel.queue_declare(queue=queue, passive=True)
+            return int(result.method.message_count)
+        except pika.exceptions.ChannelClosedByBroker:
+            self.channel = self.connection.channel()
+            return 0
+
     def consume(self, queue: str, callback: Callable[[dict, Any], None]):
         """
         callback(payload_dict, ch) will be called for each message.

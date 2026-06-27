@@ -109,6 +109,24 @@ class CatalogCategoriesResponse(BaseModel):
     categories: list[str]
 
 
+class CatalogStatsResponse(BaseModel):
+    """Enrichment-coverage counts for the catalog.
+
+    Coverage the queues can't show: how much of the catalog is actually
+    enriched. ``fresh`` mirrors the snitch freshness definition (enriched
+    within the configured window AND has the fields that make an item complete);
+    ``stale`` is everything else. The ``missing_*`` counts map onto the
+    re-enqueue backfill priorities.
+    """
+
+    total: int
+    fresh: int
+    stale: int
+    missing_image_url: int
+    missing_nutrition: int
+    missing_nutriscore: int
+
+
 class BatchCatalogRequest(BaseModel):
     """Request for batch fetching catalog items by IDs."""
 

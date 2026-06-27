@@ -1,5 +1,6 @@
 """Tests for catalog re-enrichment cron job."""
 
+import json
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -141,6 +142,7 @@ def test_main_publishes_to_queue(mock_catalog_db):
     )
 
     mock_bus = MagicMock()
+    mock_bus.get_queue_depth.return_value = 0
     with (
         patch("services.catalog.enricher.requeue_stale.SessionLocal", return_value=mock_catalog_db),
         patch("services.catalog.enricher.requeue_stale.MessagingBus", return_value=mock_bus),
@@ -159,14 +161,14 @@ def test_main_publishes_to_queue(mock_catalog_db):
 
 @pytest.mark.unit
 def test_main_skips_when_no_items(mock_catalog_db):
+    """With nothing to requeue, main still reports DLQ depth but publishes nothing."""
     from services.catalog.enricher.requeue_stale import main
 
     mock_bus = MagicMock()
+    mock_bus.get_queue_depth.return_value = 0
     with (
         patch("services.catalog.enricher.requeue_stale.SessionLocal", return_value=mock_catalog_db),
-        patch(
-            "services.catalog.enricher.requeue_stale.MessagingBus", return_value=mock_bus
-        ) as bus_cls,
+        patch("services.catalog.enricher.requeue_stale.MessagingBus", return_value=mock_bus),
         patch(
             "services.catalog.enricher.requeue_stale.get_config_for_service_dependency"
         ) as mock_config,
@@ -174,7 +176,11 @@ def test_main_skips_when_no_items(mock_catalog_db):
         mock_config.return_value = MagicMock(url="amqp://localhost")
         main()
 
-    bus_cls.assert_not_called()
+    # DLQ depth is still surfaced for both enrichment DLQs.
+    assert mock_bus.get_queue_depth.call_count == 2
+    # But no requeue work happened.
+    mock_bus.declare_queue.assert_not_called()
+    mock_bus.publish.assert_not_called()
 
 
 # --- Per-run budget: cap, prioritisation, env overrides ---
@@ -306,6 +312,7 @@ def test_main_logs_total_vs_queued(mock_catalog_db, monkeypatch):
         _make_item(mock_catalog_db, raw_name=f"item-{i}", image_url=None)
 
     mock_bus = MagicMock()
+    mock_bus.get_queue_depth.return_value = 0
     with (
         patch("services.catalog.enricher.requeue_stale.SessionLocal", return_value=mock_catalog_db),
         patch("services.catalog.enricher.requeue_stale.MessagingBus", return_value=mock_bus),
@@ -324,3 +331,63 @@ def test_main_logs_total_vs_queued(mock_catalog_db, monkeypatch):
     assert any(
         "Found 5 items needing re-enrichment, queued 2 (cap=2)" == msg for msg in log_messages
     )
+
+
+# --- DLQ depth visibility (#360) ---
+
+
+@pytest.mark.unit
+def test_report_dlq_depth_warns_on_nonzero():
+    """A non-zero DLQ depth is logged at WARNING and names the queue + depth."""
+    from services.catalog.enricher import requeue_stale
+
+    bus = MagicMock()
+    # process.entity.dlq has dead letters, enrichment.results.dlq is empty.
+    bus.get_queue_depth.side_effect = [5, 0]
+
+    with (
+        patch.object(requeue_stale.logger, "warning") as mock_warning,
+        patch.object(requeue_stale.logger, "info") as mock_info,
+    ):
+        requeue_stale.report_dlq_depth(bus)
+
+    # Both enrichment DLQs are checked.
+    assert bus.get_queue_depth.call_count == 2
+    queried = [call.args[0] for call in bus.get_queue_depth.call_args_list]
+    assert queried == [
+        "macmac.catalog.process.entity.dlq",
+        "macmac.catalog.enrichment.results.dlq",
+    ]
+
+    # Non-zero -> WARNING with structured payload naming the queue and depth.
+    mock_warning.assert_called_once()
+    warned = json.loads(mock_warning.call_args[0][0])
+    assert warned == {
+        "event": "dlq_depth",
+        "queue": "macmac.catalog.process.entity.dlq",
+        "depth": 5,
+    }
+
+    # Zero-depth queue -> INFO heartbeat.
+    mock_info.assert_called_once()
+    infoed = json.loads(mock_info.call_args[0][0])
+    assert infoed["queue"] == "macmac.catalog.enrichment.results.dlq"
+    assert infoed["depth"] == 0
+
+
+@pytest.mark.unit
+def test_report_dlq_depth_info_when_all_empty():
+    """When every DLQ is empty, nothing is logged at WARNING."""
+    from services.catalog.enricher import requeue_stale
+
+    bus = MagicMock()
+    bus.get_queue_depth.return_value = 0
+
+    with (
+        patch.object(requeue_stale.logger, "warning") as mock_warning,
+        patch.object(requeue_stale.logger, "info") as mock_info,
+    ):
+        requeue_stale.report_dlq_depth(bus)
+
+    mock_warning.assert_not_called()
+    assert mock_info.call_count == 2
