@@ -28,7 +28,9 @@ class CatalogItem(BaseModel, Base):
     price = Column(Float)
     currency = Column(String, default="EUR")
     category = Column(String)
-    nutrition = Column(JSON)  # Nutritional values per 100g
+    # none_as_null: persist a missing value as SQL NULL, not JSON 'null', so the
+    # requeue backfill and stats counts (which test nutrition IS NULL) see it.
+    nutrition = Column(JSON(none_as_null=True))  # Nutritional values per 100g
     nutriscore = Column(String)
     nutriscore_svg = Column(Text)
     promotion_until_date = Column(Date)
