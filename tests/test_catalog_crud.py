@@ -1,6 +1,7 @@
 """Tests for catalog CRUD operations."""
 
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import HTTPException
@@ -8,8 +9,10 @@ from fastapi import HTTPException
 from services.catalog.crud import (
     create_catalog_item,
     get_catalog_item,
+    get_catalog_stats,
     list_catalog_items,
 )
+from services.catalog.models import CatalogItem
 from services.shared.schemas.catalog import CatalogItemCreate
 
 
@@ -572,3 +575,149 @@ async def test_list_catalog_items_food_filter_with_category(mock_catalog_db):
     await _seed_food_and_nonfood(mock_catalog_db)
     result = await list_catalog_items(mock_catalog_db, category="Dairy", is_food=True)
     assert result["total"] == 2
+
+
+# ===== UNIT TESTS - enrichment-coverage stats =====
+
+
+def _make_stats_item(db, vendor_product_id, **overrides):
+    """Insert a CatalogItem directly so last_enriched_at / field presence are
+    controlled precisely (the CRUD create path does not stamp enrichment time)."""
+    fields = {
+        "vendor_name": "test_vendor",
+        "vendor_product_id": vendor_product_id,
+        "raw_name": f"Product {vendor_product_id}",
+        "product_url": f"https://example.com/products/{vendor_product_id}",
+        "is_food": True,
+        "price": 1.99,
+        "image_url": "https://example.com/img.jpg",
+        "nutrition": {"energy_kcal": 100},
+        "nutriscore": "A",
+        "last_enriched_at": datetime.now(UTC),
+    }
+    fields.update(overrides)
+    # A JSON column persists Python None as JSON 'null' (none_as_null=False),
+    # not SQL NULL. The catalog represents "no nutrition" as SQL NULL — the same
+    # convention requeue_stale queries with .is_(None) — so drop the key to leave
+    # the column genuinely unset.
+    if fields.get("nutrition") is None:
+        fields.pop("nutrition", None)
+    item = CatalogItem(**fields)
+    db.add(item)
+    db.commit()
+    return item
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_catalog_stats_empty(mock_catalog_db):
+    """Empty catalog reports zero across every bucket."""
+    stats = await get_catalog_stats(mock_catalog_db)
+    assert stats.total == 0
+    assert stats.fresh == 0
+    assert stats.stale == 0
+    assert stats.missing_image_url == 0
+    assert stats.missing_nutrition == 0
+    assert stats.missing_nutriscore == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_catalog_stats_fresh_complete_food(mock_catalog_db):
+    """A recently-enriched, complete food item counts as fresh."""
+    _make_stats_item(mock_catalog_db, "fresh-food")
+    stats = await get_catalog_stats(mock_catalog_db)
+    assert stats.total == 1
+    assert stats.fresh == 1
+    assert stats.stale == 0
+    assert stats.missing_image_url == 0
+    assert stats.missing_nutrition == 0
+    assert stats.missing_nutriscore == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_catalog_stats_stale_when_old(mock_catalog_db):
+    """A complete item enriched outside the freshness window is stale, not fresh."""
+    _make_stats_item(
+        mock_catalog_db, "old", last_enriched_at=datetime.now(UTC) - timedelta(days=20)
+    )
+    stats = await get_catalog_stats(mock_catalog_db)
+    assert stats.total == 1
+    assert stats.fresh == 0
+    assert stats.stale == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_catalog_stats_never_enriched_is_stale(mock_catalog_db):
+    """An item with no last_enriched_at is never fresh."""
+    _make_stats_item(mock_catalog_db, "never", last_enriched_at=None)
+    stats = await get_catalog_stats(mock_catalog_db)
+    assert stats.fresh == 0
+    assert stats.stale == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_catalog_stats_missing_image_counts_and_not_fresh(mock_catalog_db):
+    """Missing image_url is counted and makes the item incomplete (not fresh)."""
+    _make_stats_item(mock_catalog_db, "no-image", image_url=None)
+    stats = await get_catalog_stats(mock_catalog_db)
+    assert stats.missing_image_url == 1
+    assert stats.fresh == 0
+    assert stats.stale == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_catalog_stats_missing_nutrition_food_not_fresh(mock_catalog_db):
+    """Food missing nutrition is counted and incomplete (not fresh)."""
+    _make_stats_item(mock_catalog_db, "no-nutrition", nutrition=None)
+    stats = await get_catalog_stats(mock_catalog_db)
+    assert stats.missing_nutrition == 1
+    assert stats.fresh == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_catalog_stats_non_food_fresh_without_nutrition(mock_catalog_db):
+    """Non-food items don't need nutrition to be complete/fresh."""
+    _make_stats_item(mock_catalog_db, "soap", is_food=False, nutrition=None, nutriscore=None)
+    stats = await get_catalog_stats(mock_catalog_db)
+    assert stats.fresh == 1
+    assert stats.stale == 0
+    # The null nutrition/nutriscore are still surfaced in the missing counts.
+    assert stats.missing_nutrition == 1
+    assert stats.missing_nutriscore == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_catalog_stats_missing_nutriscore_independent_of_freshness(mock_catalog_db):
+    """nutriscore is not part of completeness: a complete food item with no
+    nutriscore is still fresh, but is counted as missing_nutriscore."""
+    _make_stats_item(mock_catalog_db, "no-score", nutriscore=None)
+    stats = await get_catalog_stats(mock_catalog_db)
+    assert stats.fresh == 1
+    assert stats.missing_nutriscore == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_catalog_stats_mixed_totals(mock_catalog_db):
+    """Totals and buckets aggregate correctly over a mixed catalog."""
+    _make_stats_item(mock_catalog_db, "fresh-1")
+    _make_stats_item(mock_catalog_db, "fresh-2")
+    _make_stats_item(
+        mock_catalog_db, "stale-1", last_enriched_at=datetime.now(UTC) - timedelta(days=30)
+    )
+    _make_stats_item(mock_catalog_db, "no-image", image_url=None)
+    _make_stats_item(mock_catalog_db, "no-nutrition", nutrition=None)
+
+    stats = await get_catalog_stats(mock_catalog_db)
+    assert stats.total == 5
+    assert stats.fresh == 2
+    assert stats.stale == 3
+    assert stats.missing_image_url == 1
+    assert stats.missing_nutrition == 1

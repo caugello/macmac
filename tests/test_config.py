@@ -123,6 +123,15 @@ def test_get_config_for_service_dependency_enricher():
 
 
 @pytest.mark.unit
+def test_catalog_enricher_freshness_threshold_from_yaml():
+    """freshness_threshold_days is driven by config.yaml, not the dataclass default."""
+    catalog = get_config_for_service("catalog")
+
+    assert catalog.enricher is not None
+    assert catalog.enricher.freshness_threshold_days == 14
+
+
+@pytest.mark.unit
 def test_get_config_for_service_dependency_snitch():
     """Test retrieving the snitch catalog dependency configuration."""
     dep = get_config_for_service_dependency("catalog", "snitch")

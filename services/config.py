@@ -309,6 +309,7 @@ def parse_enricher(enricher_data: dict | None) -> EnricherConfig | None:
         circuit_breaker_base_pause=enricher_data.get("circuit_breaker_base_pause", 300),
         circuit_breaker_max_pause=enricher_data.get("circuit_breaker_max_pause", 3600),
         proxy_url=os.getenv("BRIGHTDATA_PROXY_URL"),
+        freshness_threshold_days=enricher_data.get("freshness_threshold_days", 14),
     )
 
 
