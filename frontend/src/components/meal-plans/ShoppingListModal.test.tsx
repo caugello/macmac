@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { ShoppingListModal } from './ShoppingListModal'
@@ -100,6 +100,51 @@ vi.mock('@/hooks/useMealPlans', () => ({
   }),
 }))
 
+// addItem is awaited before the list regenerates, so it must resolve.
+const { mockAddItem, sampleCatalogItem } = vi.hoisted(() => ({
+  mockAddItem: vi.fn(),
+  sampleCatalogItem: {
+    id: 'cat-99',
+    vendor_name: 'colruyt',
+    raw_name: 'Olive Oil',
+    product_url: 'https://example.com/oil',
+    canonical_name: 'Olive Oil',
+    normalized_name: 'olive_oil',
+    brand: 'BrandX',
+    net_quantity_value: 1,
+    net_quantity_unit: 'l',
+    is_food: true,
+    price: 6.5,
+    currency: 'EUR',
+    category: 'Pantry',
+    nutrition: null,
+    nutriscore: 'C',
+    nutriscore_svg: null,
+    promotion_until_date: null,
+    image_url: 'https://example.com/oil.jpg',
+    last_enriched_at: null,
+    created_at: '2024-01-01',
+    updated_at: '2024-01-01',
+  },
+}))
+
+vi.mock('@/hooks/useMyList', () => ({
+  useMyList: () => ({ addItem: mockAddItem }),
+}))
+
+// Stub the catalog search so selecting a product is a single click.
+vi.mock('@/components/recipes/IngredientAutocomplete', () => ({
+  IngredientAutocomplete: ({
+    onSelect,
+  }: {
+    onSelect: (item: typeof sampleCatalogItem) => void
+  }) => (
+    <button type="button" onClick={() => onSelect(sampleCatalogItem)}>
+      mock-select-extra
+    </button>
+  ),
+}))
+
 const weekStart = new Date('2024-01-01')
 const weekEnd = new Date('2024-01-07')
 
@@ -118,6 +163,7 @@ const renderModal = (open = true, onOpenChange: (open: boolean) => void = vi.fn(
 describe('ShoppingListModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockAddItem.mockResolvedValue(undefined)
     mockData = undefined
     mockIsPending = false
     mockIsError = false
@@ -203,10 +249,11 @@ describe('ShoppingListModal', () => {
       expect(screen.getByText('Toilet Paper')).toBeInTheDocument()
     })
 
-    it('should not render an Extras section when there are no extras', () => {
+    it('should still render the Extras section (with the search) when there are no extras', () => {
       mockData = { ...createMockData(), extras: [] }
       renderModal(true)
-      expect(screen.queryByText('Extras')).not.toBeInTheDocument()
+      expect(screen.getByText('Extras')).toBeInTheDocument()
+      expect(screen.getByText('mock-select-extra')).toBeInTheDocument()
     })
 
     it('should render extras-only when there are no planned recipes', () => {
@@ -249,22 +296,70 @@ describe('ShoppingListModal', () => {
     })
   })
 
-  describe('add items', () => {
-    it('should render an Add items link to the catalog when data is present', () => {
+  describe('inline add extra', () => {
+    it('should render the inline catalog search in the Extras section', () => {
       mockData = createMockData()
       renderModal(true)
-      expect(screen.getByRole('link', { name: /add items/i })).toHaveAttribute('href', '/catalog')
+      expect(screen.getByText('mock-select-extra')).toBeInTheDocument()
     })
 
-    it('should close the modal when Add items is clicked', async () => {
+    it('should add the selected product to My List with the mapped fields', async () => {
       const user = userEvent.setup()
-      const onOpenChange = vi.fn()
       mockData = createMockData()
+      renderModal(true)
 
-      renderModal(true, onOpenChange)
-      await user.click(screen.getByRole('link', { name: /add items/i }))
+      await user.click(screen.getByText('mock-select-extra'))
 
-      expect(onOpenChange).toHaveBeenCalledWith(false)
+      expect(mockAddItem).toHaveBeenCalledWith({
+        id: 'cat-99',
+        name: 'Olive Oil',
+        brand: 'BrandX',
+        price: 6.5,
+        imageUrl: 'https://example.com/oil.jpg',
+        nutriscore: 'C',
+      })
+    })
+
+    it('should refresh the shopping list after adding, so the extra appears', async () => {
+      const user = userEvent.setup()
+      mockData = createMockData()
+      // The regenerated list now carries the new extra (server-sourced).
+      mockMutate.mockImplementation(() => {
+        mockData = {
+          ...createMockData(),
+          extras: [
+            ...createMockData().extras,
+            {
+              catalog_item_id: 'cat-99',
+              catalog_item_name: 'Olive Oil',
+              total_qty: 1,
+              unit: 'pc',
+              price: 6.5,
+              line_total: 6.5,
+              category: null,
+              is_on_promotion: false,
+              promotion_until_date: null,
+              package_size: null,
+              package_unit: null,
+              packages_needed: null,
+              last_enriched_at: null,
+            },
+          ],
+        }
+      })
+      const { rerender } = renderModal(true)
+
+      await user.click(screen.getByText('mock-select-extra'))
+
+      // generate() is re-called only after the awaited add resolves.
+      await waitFor(() => expect(mockMutate).toHaveBeenCalledTimes(2))
+
+      rerender(
+        <MemoryRouter>
+          <ShoppingListModal open onOpenChange={vi.fn()} weekStart={weekStart} weekEnd={weekEnd} />
+        </MemoryRouter>
+      )
+      expect(screen.getByText('Olive Oil')).toBeInTheDocument()
     })
   })
 

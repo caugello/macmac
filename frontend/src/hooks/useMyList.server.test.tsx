@@ -55,14 +55,14 @@ describe('useMyList (server-backed, authenticated)', () => {
   it('does not write to localStorage when authenticated', async () => {
     const { result } = renderHook(() => useMyList(), { wrapper })
     await waitFor(() => expect(result.current.count).toBe(1))
-    act(() => result.current.addItem(itemA))
+    await act(() => result.current.addItem(itemA))
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull()
   })
 
   it('addItem pushes to the server and updates state optimistically', async () => {
     const { result } = renderHook(() => useMyList(), { wrapper })
     await waitFor(() => expect(result.current.count).toBe(1))
-    act(() => result.current.addItem(itemA))
+    await act(() => result.current.addItem(itemA))
     expect(result.current.has('a')).toBe(true)
     expect(myListApi.add).toHaveBeenCalledWith(
       expect.objectContaining({ catalog_item_id: 'a', name: 'Coca-Cola 1.5L' })

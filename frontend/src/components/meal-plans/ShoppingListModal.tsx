@@ -1,10 +1,12 @@
 import { useEffect } from 'react'
-import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { useGenerateShoppingList } from '@/hooks/useMealPlans'
+import { useMyList } from '@/hooks/useMyList'
+import { IngredientAutocomplete } from '@/components/recipes/IngredientAutocomplete'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Icon } from '@/components/ui/icon'
+import type { CatalogItemOut } from '@/lib/types'
 
 interface ShoppingListModalProps {
   open: boolean
@@ -53,12 +55,29 @@ export const ShoppingListModal = ({
 }: ShoppingListModalProps) => {
   const generateMutation = useGenerateShoppingList()
   const { mutate, reset, data, isPending, isError, error } = generateMutation
+  const { addItem } = useMyList()
 
   const generate = () => {
     mutate({
       start_date: format(weekStart, 'yyyy-MM-dd'),
       end_date: format(weekEnd, 'yyyy-MM-dd'),
     })
+  }
+
+  // Add a catalog product as an extra without leaving the modal. Extras are
+  // sourced server-side from My List, so wait for the add to persist before
+  // regenerating — otherwise the refreshed list would miss the new item.
+  // Re-adding the same product is a no-op (My List + backend extras dedup).
+  const handleAddExtra = async (item: CatalogItemOut) => {
+    await addItem({
+      id: item.id,
+      name: item.canonical_name || item.raw_name,
+      brand: item.brand,
+      price: item.price,
+      imageUrl: item.image_url,
+      nutriscore: item.nutriscore,
+    })
+    generate()
   }
 
   // Generate when the modal opens; reset when it closes.
@@ -81,26 +100,13 @@ export const ShoppingListModal = ({
         <div className="flex items-center justify-between gap-4 print:hidden">
           <DialogTitle className="text-headline-md font-heading">Shopping List</DialogTitle>
           {data && (
-            <div className="flex items-center gap-2">
-              {/* Add an extra to My List without leaving the flow: deep-link to
-                  catalog browse. The list regenerates on reopen, so newly added
-                  items appear in Extras. */}
-              <Link
-                to="/catalog"
-                onClick={() => onOpenChange(false)}
-                className="border border-outline-variant text-on-surface px-4 py-2 rounded-lg text-label-md flex items-center gap-2 hover:border-primary hover:text-primary active:scale-[0.98] transition-all"
-              >
-                <Icon name="add_shopping_cart" size={18} />
-                Add items
-              </Link>
-              <button
-                onClick={handlePrint}
-                className="bg-primary text-on-primary px-4 py-2 rounded-lg text-label-md flex items-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all"
-              >
-                <Icon name="print" size={18} />
-                Print
-              </button>
-            </div>
+            <button
+              onClick={handlePrint}
+              className="bg-primary text-on-primary px-4 py-2 rounded-lg text-label-md flex items-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all"
+            >
+              <Icon name="print" size={18} />
+              Print
+            </button>
           )}
         </div>
 
@@ -193,69 +199,74 @@ export const ShoppingListModal = ({
               </div>
             ))}
 
-            {data.extras.length > 0 && (
-              <div className="bg-surface-container-lowest rounded-lg wireframe-border overflow-hidden print:border-0 print:bg-transparent">
-                <div className="flex items-center justify-between px-4 md:px-6 py-3 bg-tertiary/5 border-b border-outline-variant/50 print:bg-transparent print:px-0">
-                  <div className="flex items-center gap-2">
-                    <Icon
-                      name="add_shopping_cart"
-                      size={20}
-                      className="text-primary print:hidden"
-                    />
-                    <h3 className="text-label-md text-primary uppercase tracking-wider font-semibold print:text-black">
-                      Extras
-                    </h3>
-                  </div>
+            <div className="bg-surface-container-lowest rounded-lg wireframe-border overflow-hidden print:border-0 print:bg-transparent">
+              <div className="flex items-center justify-between px-4 md:px-6 py-3 bg-tertiary/5 border-b border-outline-variant/50 print:bg-transparent print:px-0">
+                <div className="flex items-center gap-2">
+                  <Icon name="add_shopping_cart" size={20} className="text-primary print:hidden" />
+                  <h3 className="text-label-md text-primary uppercase tracking-wider font-semibold print:text-black">
+                    Extras
+                  </h3>
+                </div>
+                {data.extras.length > 0 && (
                   <span className="text-caption bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full print:hidden">
                     {data.extras.length}
                   </span>
+                )}
+              </div>
+              <div className="p-4 md:p-6 space-y-2 print:p-0 print:space-y-0">
+                {/* Inline catalog search: add an extra to My List without
+                    leaving the modal. The popover overlays (no layout shift)
+                    and is hidden when printing. */}
+                <div className="print:hidden">
+                  <IngredientAutocomplete
+                    onSelect={handleAddExtra}
+                    placeholder="Search catalog to add an extra..."
+                  />
                 </div>
-                <div className="p-4 md:p-6 space-y-2 print:p-0 print:space-y-0">
-                  {data.extras.map((item) => (
-                    <div
-                      key={item.catalog_item_id}
-                      className="flex items-center justify-between p-3 bg-surface rounded-lg wireframe-border print:border-0 print:p-1 print:bg-transparent"
-                    >
-                      <div className="flex items-center flex-wrap gap-y-1">
-                        <span className="text-label-md text-on-surface print:text-black">
-                          {item.catalog_item_name}
+                {data.extras.map((item) => (
+                  <div
+                    key={item.catalog_item_id}
+                    className="flex items-center justify-between p-3 bg-surface rounded-lg wireframe-border print:border-0 print:p-1 print:bg-transparent"
+                  >
+                    <div className="flex items-center flex-wrap gap-y-1">
+                      <span className="text-label-md text-on-surface print:text-black">
+                        {item.catalog_item_name}
+                      </span>
+                      {item.total_qty != null && item.unit && (
+                        <span className="text-caption text-on-surface-variant ml-2 print:text-black">
+                          {item.total_qty} {item.unit}
                         </span>
-                        {item.total_qty != null && item.unit && (
-                          <span className="text-caption text-on-surface-variant ml-2 print:text-black">
-                            {item.total_qty} {item.unit}
-                          </span>
-                        )}
-                        {item.packages_needed != null && (
-                          <span className="text-caption text-outline ml-1 print:text-black">
-                            &mdash; buy {item.packages_needed} x {item.package_size}
-                            {item.package_unit}
-                          </span>
-                        )}
-                        {item.is_on_promotion && (
-                          <span className="ml-2 inline-flex items-center gap-1 bg-tertiary-container text-on-tertiary-container text-xs px-2 py-0.5 rounded-full font-semibold print:hidden">
-                            <Icon name="local_offer" size={12} />
-                            Promo
-                          </span>
-                        )}
-                        {isPriceStale(item.last_enriched_at) && (
-                          <span
-                            className="ml-2 inline-flex items-center gap-1 text-error text-xs print:hidden"
-                            title="Price may be outdated"
-                          >
-                            <Icon name="warning" size={14} />
-                          </span>
-                        )}
-                      </div>
-                      {item.line_total != null && (
-                        <span className="text-label-md font-semibold text-primary print:text-black">
-                          &euro;{item.line_total.toFixed(2)}
+                      )}
+                      {item.packages_needed != null && (
+                        <span className="text-caption text-outline ml-1 print:text-black">
+                          &mdash; buy {item.packages_needed} x {item.package_size}
+                          {item.package_unit}
+                        </span>
+                      )}
+                      {item.is_on_promotion && (
+                        <span className="ml-2 inline-flex items-center gap-1 bg-tertiary-container text-on-tertiary-container text-xs px-2 py-0.5 rounded-full font-semibold print:hidden">
+                          <Icon name="local_offer" size={12} />
+                          Promo
+                        </span>
+                      )}
+                      {isPriceStale(item.last_enriched_at) && (
+                        <span
+                          className="ml-2 inline-flex items-center gap-1 text-error text-xs print:hidden"
+                          title="Price may be outdated"
+                        >
+                          <Icon name="warning" size={14} />
                         </span>
                       )}
                     </div>
-                  ))}
-                </div>
+                    {item.line_total != null && (
+                      <span className="text-label-md font-semibold text-primary print:text-black">
+                        &euro;{item.line_total.toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
 
             <div className="bg-primary/5 border border-outline-variant p-4 rounded-lg flex flex-col sm:flex-row gap-4 sm:gap-6 print:border-0 print:bg-transparent print:px-0">
               <div>
