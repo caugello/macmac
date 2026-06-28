@@ -48,6 +48,7 @@ later Phase-1 patch lands. It performs **no** conversions itself. The
 | **#400** | `local-path` StorageClass on the 4 database PVCs | `bases/macmac/databases/*-db.yaml` |
 | **#401** | RabbitMQ amqps via Traefik TCP / hostPort on 5671 (TLS preserved) | `bases/macmac/infra/rabbitmq.yaml`, `network/network-policies.yaml` |
 | **#405** | Delete the base placeholder Secrets so `apply -k` never clobbers the manually-managed live values | `bases/macmac/config/db-secrets.yaml`, `infra/redis.yaml` |
+| **#406** | RabbitMQ `fsGroup` (read 0640 secret mounts without OpenShift's gid 0) + `Recreate` strategy (single-node hostPort 5671 can't roll) | `bases/macmac/infra/rabbitmq.yaml` |
 
 Each later issue should add its patch to `patches:` (and any new resource files
 it introduces), keeping `kustomize build` green at every step.

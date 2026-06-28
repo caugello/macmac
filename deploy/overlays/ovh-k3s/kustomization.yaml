@@ -464,3 +464,34 @@ patches:
       metadata:
         name: redis-secret
         namespace: macmac
+  #
+  # #406 — RabbitMQ secret-file readability on k3s. The base mounts the
+  #        rabbitmq-tls and rabbitmq-definitions Secrets at mode 0640
+  #        (owner+group read). On OpenShift the pod runs with gid 0 via
+  #        its SCC, so the group-readable files are reachable. k3s has no
+  #        SCC: the rabbitmq image runs as uid/gid 999, which owns neither
+  #        the files (root) nor their group (root), so RabbitMQ boots with
+  #        "cacertfile/keyfile/load_definitions ... cannot be read" and
+  #        crashes. Set fsGroup so Kubernetes chowns the mounted Secret
+  #        files to that group and adds it to the process's supplementary
+  #        groups, making the 0640 files readable without widening perms.
+  #
+  #        Also force a Recreate rollout. The #401 hostPort: 5671 binding
+  #        is a node-level resource only one pod can hold. The default
+  #        RollingUpdate surges the new pod before terminating the old, so
+  #        on this single node the new pod is stuck Pending ("didn't have
+  #        free ports") forever. Recreate tears down the old pod first,
+  #        freeing 5671 before the replacement schedules.
+  - patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: rabbitmq
+        namespace: macmac
+      spec:
+        strategy:
+          type: Recreate
+        template:
+          spec:
+            securityContext:
+              fsGroup: 999
