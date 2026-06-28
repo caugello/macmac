@@ -1,0 +1,6 @@
+---
+# Galaxy collections used by playbook.yml (referenced by FQCN).
+#   ansible-galaxy collection install -r requirements.yml
+collections:
+  - name: ansible.posix      # firewalld, selinux
+  - name: community.general  # ini_file (dnf-automatic config)
