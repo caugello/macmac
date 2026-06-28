@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { Card } from '@/components/ui/card'
 import { Icon } from '@/components/ui/icon'
 import { CategoryBadge } from '@/components/recipes/CategoryBadge'
 import { getDifficultyLabel, formatPrepTime } from '@/lib/recipeDifficulty'
@@ -17,8 +18,8 @@ interface BadgeProps {
 }
 
 const MetaBadge = ({ icon, label }: BadgeProps) => (
-  <span className="inline-flex items-center gap-1.5 bg-surface-container text-on-surface-variant text-caption font-semibold px-2.5 py-1 rounded-full">
-    <Icon name={icon} size={16} className="text-primary" />
+  <span className="inline-flex items-center gap-1.5 rounded-full bg-cream px-2.5 py-1 font-body text-caption font-semibold text-ink/70">
+    <Icon name={icon} size={16} className="text-green" />
     {label}
   </span>
 )
@@ -28,51 +29,52 @@ export const FeaturedRecipeCard = ({ recipe }: { recipe: RecipeOut }) => {
   const ingredientCount = recipe.ingredients.length
 
   return (
-    <section aria-label="Featured recipe" className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-title-lg font-heading font-semibold text-on-surface">
-          Featured recipe
-        </h2>
+    <section aria-label="Featured recipe" className="flex h-full flex-col gap-3">
+      <div className="flex items-center justify-between gap-3 px-1">
+        <h2 className="font-display text-title-lg font-semibold text-ink">Featured recipe</h2>
         <Link
           to="/recipes"
-          className="text-label-md font-semibold text-primary hover:brightness-110 transition-all flex items-center gap-1 min-h-[44px] px-2"
+          className="flex min-h-[44px] items-center gap-1 px-2 font-body text-label-md font-semibold text-ink/70 transition-colors hover:text-ink"
         >
           View all
           <Icon name="chevron_right" size={18} />
         </Link>
       </div>
 
-      <Link to={`/recipes/${recipe.id}`} className="group block">
-        <article className="bg-surface-container-lowest rounded-xl ambient-shadow card-hover-shadow overflow-hidden md:flex">
-          <div className="relative aspect-[16/9] md:aspect-auto md:w-2/5 overflow-hidden">
+      <Link to={`/recipes/${recipe.id}`} className="group block flex-1">
+        <Card
+          tone="white"
+          className="h-full overflow-hidden transition-transform hover:-translate-y-0.5 md:flex"
+        >
+          <div className="relative aspect-[16/9] overflow-hidden md:aspect-auto md:w-2/5">
             {recipe.image_url ? (
               <img
                 src={recipe.image_url}
                 alt={recipe.title}
-                className="w-full h-full min-h-[180px] object-cover group-hover:scale-105 transition-transform duration-500"
+                className="h-full min-h-[180px] w-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
             ) : (
               <div
-                className="w-full h-full min-h-[180px] flex items-center justify-center group-hover:scale-105 transition-transform duration-500"
+                className="flex h-full min-h-[180px] w-full items-center justify-center transition-transform duration-500 group-hover:scale-105"
                 style={{
                   background: `linear-gradient(135deg, hsl(${hue} 40% 92%) 0%, hsl(${hue} 30% 85%) 100%)`,
                 }}
               >
-                <Icon name="restaurant_menu" size={56} className="text-outline-variant/40" />
+                <Icon name="restaurant_menu" size={56} className="text-ink/15" />
               </div>
             )}
             <CategoryBadge
               category={recipe.category}
-              className="absolute top-3 left-3 backdrop-blur-sm"
+              className="absolute left-3 top-3 backdrop-blur-sm"
             />
           </div>
 
-          <div className="p-5 md:p-6 md:flex-1 flex flex-col justify-center gap-3">
-            <h3 className="text-title-lg md:text-headline-md font-heading font-bold text-on-surface line-clamp-2">
+          <div className="flex flex-col justify-center gap-3 p-5 md:flex-1 md:p-6">
+            <h3 className="font-display text-title-lg font-bold text-ink line-clamp-2 md:text-headline-md">
               {recipe.title}
             </h3>
             {recipe.description && (
-              <p className="text-body-md text-on-surface-variant line-clamp-2">
+              <p className="font-body text-body-md text-ink/60 line-clamp-2">
                 {recipe.description}
               </p>
             )}
@@ -98,7 +100,7 @@ export const FeaturedRecipeCard = ({ recipe }: { recipe: RecipeOut }) => {
               />
             </div>
           </div>
-        </article>
+        </Card>
       </Link>
     </section>
   )

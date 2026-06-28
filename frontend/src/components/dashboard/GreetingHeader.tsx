@@ -21,18 +21,21 @@ export const GreetingHeader = ({ name, todayCount }: GreetingHeaderProps) => {
       : `${todayCount} ${todayCount === 1 ? 'meal' : 'meals'} planned for today`
 
   return (
-    <header className="flex items-start justify-between gap-4">
-      <div className="space-y-1.5">
-        <h1 className="text-headline-lg-mobile md:text-headline-lg font-heading font-bold text-on-surface">
+    <header className="flex items-center justify-between gap-4">
+      <div className="space-y-1">
+        <p className="font-serif text-body-lg italic text-ink/50">
+          pantry<span className="text-green">.</span>
+        </p>
+        <h1 className="font-display text-headline-lg-mobile md:text-headline-lg font-bold text-ink">
           {greeting}, {name}
         </h1>
-        <p className="text-body-md text-on-surface-variant flex items-center gap-1.5">
-          <Icon name="event_available" size={18} className="text-primary" />
+        <p className="font-body text-body-md text-ink/60 flex items-center gap-1.5">
+          <Icon name="event_available" size={18} className="text-green" />
           {taskLabel}
         </p>
       </div>
-      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-        <Icon name="person" size={26} className="text-primary" filled />
+      <div className="w-12 h-12 rounded-full bg-lime flex items-center justify-center shrink-0">
+        <Icon name="person" size={26} className="text-ink" filled />
       </div>
     </header>
   )
