@@ -122,11 +122,21 @@ data:
 # (rabbitmq-enricher-<location>) — see the operator runbook below. Rotating or
 # revoking one location only touches that location's entry + Secret.
 #
-# This Secret is a TEMPLATE: it ships with one example location ("example") set
-# to a non-functional placeholder hash. Replace/extend it at deploy time with
-# real per-location hashes (runbook below). Definitions load is idempotent:
-# users present here are created/updated on boot; users removed here are NOT
-# auto-deleted (use `rabbitmqctl delete_user` to revoke — see runbook).
+# This Secret is a TEMPLATE. It ships with NO users so the broker boots
+# cleanly out of the box — RabbitMQ aborts boot if load_definitions points at
+# a file with an invalid entry (e.g. a non-base64 password_hash placeholder).
+# The macmac app user is created separately via RABBITMQ_DEFAULT_USER/PASS.
+# Add remote-enricher users at deploy time (runbook below). Definitions load is
+# idempotent: users present here are created/updated on boot; users removed here
+# are NOT auto-deleted (use `rabbitmqctl delete_user` to revoke — see runbook).
+#
+# Each enricher user references a SHA-256 password hash generated from the
+# per-location password held in its own Secret (rabbitmq-enricher-<location>).
+# Shape of one entry to add to "users" + "permissions" at deploy time:
+#   users:        { "name": "enricher-<loc>", "password_hash": "<base64 hash>",
+#                   "hashing_algorithm": "rabbit_password_hashing_sha256", "tags": [] }
+#   permissions:  { "user": "enricher-<loc>", "vhost": "/", "configure": "^$",
+#                   "write": "^amq\\.default$", "read": "^macmac\\.catalog\\.process\\.entity$" }
 apiVersion: v1
 kind: Secret
 metadata:
@@ -137,26 +147,11 @@ stringData:
   definitions.json: |
     {
       "rabbit_version": "4.0.0",
-      "users": [
-        {
-          "name": "enricher-example",
-          "password_hash": "REPLACE_AT_DEPLOY_TIME_WITH_REAL_HASH",
-          "hashing_algorithm": "rabbit_password_hashing_sha256",
-          "tags": []
-        }
-      ],
+      "users": [],
       "vhosts": [
         { "name": "/" }
       ],
-      "permissions": [
-        {
-          "user": "enricher-example",
-          "vhost": "/",
-          "configure": "^$",
-          "write": "^amq\\.default$",
-          "read": "^macmac\\.catalog\\.process\\.entity$"
-        }
-      ],
+      "permissions": [],
       "topic_permissions": [],
       "parameters": [],
       "policies": [],
