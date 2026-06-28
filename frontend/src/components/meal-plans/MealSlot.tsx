@@ -99,19 +99,20 @@ export const MealSlot = ({ date, mealType, mealPlan }: MealSlotProps) => {
   return (
     <>
       {mealPlan ? (
-        <div className="bg-surface rounded-xl wireframe-border p-3 card-hover-shadow group">
+        <div className="bg-cream rounded-bento border border-border p-3 group">
           <div className="flex items-center gap-3">
-            <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-surface-container-low to-surface-container flex items-center justify-center shrink-0 overflow-hidden">
-              <Icon name="restaurant_menu" size={24} className="text-outline-variant/40" />
+            <div className="w-16 h-16 rounded-bento bg-lime flex items-center justify-center shrink-0 overflow-hidden">
+              <Icon name="restaurant_menu" size={24} className="text-ink/70" />
             </div>
             <div className="flex-grow min-w-0">
-              <p className="text-label-md font-semibold text-on-surface truncate">
+              <p className="text-label-md font-semibold text-ink truncate">
                 {mealPlan.recipe_title || 'Untitled'}
               </p>
             </div>
             <button
               onClick={handleDelete}
-              className="p-1.5 text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              aria-label="Remove meal"
+              className="p-1.5 rounded-full text-coral opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-coral/10 transition-opacity shrink-0"
             >
               <Icon name="close" size={18} />
             </button>
@@ -127,7 +128,7 @@ export const MealSlot = ({ date, mealType, mealPlan }: MealSlotProps) => {
                 onKeyDown={handleNotesKeyDown}
                 maxLength={1000}
                 rows={2}
-                className="w-full text-body-sm text-on-surface bg-surface-container-low rounded-md p-2 resize-none outline-none focus:ring-1 focus:ring-primary"
+                className="w-full text-body-sm text-ink bg-white rounded-bento p-2 resize-none outline-none focus:ring-2 focus:ring-ink"
                 placeholder="Add a note..."
               />
             ) : (
@@ -138,19 +139,19 @@ export const MealSlot = ({ date, mealType, mealPlan }: MealSlotProps) => {
                 {truncatedNotes ? (
                   <span className="text-body-sm text-on-surface-variant">{truncatedNotes}</span>
                 ) : (
-                  <span className="text-body-sm text-outline-variant/60">Add notes...</span>
+                  <span className="text-body-sm text-on-surface-variant/60">Add notes...</span>
                 )}
               </button>
             )}
             {saveStatus === 'saved' && (
-              <p className="text-body-sm text-primary mt-1 animate-fade">Saved</p>
+              <p className="text-body-sm text-ink/70 mt-1 animate-fade">Saved</p>
             )}
           </div>
         </div>
       ) : (
         <button
           onClick={() => setShowSelector(true)}
-          className="w-full dashed-outline rounded-lg p-4 flex items-center justify-center gap-2 text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
+          className="w-full min-h-[44px] rounded-bento border-2 border-dashed border-border p-4 flex items-center justify-center gap-2 text-on-surface-variant hover:bg-cream hover:border-ink hover:text-ink transition-colors"
         >
           <Icon name="add_circle" size={20} />
           <span className="text-caption">Add meal</span>
