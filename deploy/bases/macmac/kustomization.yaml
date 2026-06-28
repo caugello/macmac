@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Namespaced MacMac deployment. Apply with: oc apply -k openshift/
+# Resources are ordered config/secrets -> infra -> data -> apps -> jobs -> network.
+namespace: macmac
+
+resources:
+  - config/macmac-config.yaml
+  - config/db-secrets.yaml
+  - infra/redis.yaml
+  - infra/rabbitmq.yaml
+  - databases/recipes-db.yaml
+  - databases/catalog-db.yaml
+  - databases/auth-db.yaml
+  - databases/meal-plans-db.yaml
+  - apps/gateway.yaml
+  - apps/recipes-api.yaml
+  - apps/catalog-api.yaml
+  - apps/auth-api.yaml
+  - apps/meal-plans-api.yaml
+  - apps/frontend.yaml
+  - jobs/crawler.yaml
+  - jobs/reenrich.yaml
+  - network/network-policies.yaml

@@ -1,0 +1,45 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# ============================================================
+# k3s overlay (OVH single-node VPS, Fedora 44)
+# ============================================================
+# Phase 1 of the OpenShift -> k3s migration. This overlay layers
+# k3s-specific changes on top of the portable base so the base
+# stays reusable for a future OVH Managed K8s migration.
+#
+# Build / render:
+#   kubectl kustomize deploy/overlays/ovh-k3s/
+#   kustomize build  deploy/overlays/ovh-k3s/
+#
+# This issue (#397) is scaffolding only: it wires the overlay to
+# the base and earmarks the sections that later Phase-1 issues
+# fill in. It performs NO conversions itself.
+
+namespace: macmac
+
+resources:
+  - ../../bases/macmac
+
+# ------------------------------------------------------------
+# Patches earmarked for downstream Phase-1 issues.
+# Each later issue drops its patch(es) here (and any new
+# resource files it needs), leaving this overlay buildable
+# at every step.
+# ------------------------------------------------------------
+patches:
+  # #398 — Route -> Ingress (gateway, frontend): delete the
+  #        route.openshift.io/v1 Routes and add
+  #        networking.k8s.io/v1 Ingress with cert-manager
+  #        annotations + hosts.
+  #
+  # #399 — Resource requests/limits: patch every workload
+  #        (Deployments + StatefulSets) with the requests/limits
+  #        from the migration plan §4 table.
+  #
+  # #400 — local-path storage: set spec.storageClassName:
+  #        local-path on the 4 database PVCs.
+  #
+  # #401 — RabbitMQ amqps: re-express the passthrough Route as a
+  #        Traefik TCP entrypoint / hostPort on 5671 (TLS preserved).
+  []

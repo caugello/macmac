@@ -1,0 +1,138 @@
+---
+# ============================================================
+# Catalog API
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog-api
+  namespace: macmac
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: catalog-api
+  template:
+    metadata:
+      labels:
+        app: catalog-api
+    spec:
+      imagePullSecrets:
+        - name: macmac-pull-secret
+      volumes:
+        - name: cfg
+          configMap:
+            name: macmac-config
+      initContainers:
+        - name: migrate
+          image: quay.io/caugello/macmac-catalog:v0.2.6
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: cfg
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+          env:
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: catalog-db-secret
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: catalog-db-secret
+                  key: DB_PASSWORD
+            - name: CATALOG_DATABASE_URL
+              value: "postgresql+pg8000://$(DB_USER):$(DB_PASSWORD)@catalog-db:5432/catalog"
+          command:
+            - python
+            - -c
+            - |
+              import socket, time, subprocess, sys
+              while True:
+                  try:
+                      socket.create_connection(("catalog-db", 5432), timeout=2)
+                      break
+                  except OSError:
+                      time.sleep(2)
+              sys.exit(subprocess.call([sys.executable, "-m", "alembic", "-c", "services/catalog/alembic.ini", "upgrade", "head"]))
+      containers:
+        - name: catalog-api
+          image: quay.io/caugello/macmac-catalog:v0.2.6
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8002
+          volumeMounts:
+            - name: cfg
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+          env:
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: macmac-app-secret
+                  key: JWT_SECRET_KEY
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-secret
+                  key: password
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: catalog-db-secret
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: catalog-db-secret
+                  key: DB_PASSWORD
+            - name: CATALOG_DATABASE_URL
+              value: "postgresql+pg8000://$(DB_USER):$(DB_PASSWORD)@catalog-db:5432/catalog"
+            - name: RABBITMQ_USER
+              valueFrom:
+                secretKeyRef:
+                  name: macmac-app-secret
+                  key: RABBITMQ_USER
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: macmac-app-secret
+                  key: RABBITMQ_PASSWORD
+            - name: RABBITMQ_URL
+              value: "amqp://$(RABBITMQ_USER):$(RABBITMQ_PASSWORD)@rabbitmq:5672/%2F"
+          command:
+            - gunicorn
+            - services.catalog.main:app
+            - --workers=4
+            - --worker-class=uvicorn.workers.UvicornWorker
+            - --bind=0.0.0.0:8002
+            - --access-logfile=-
+            - --error-logfile=-
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8002
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8002
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalog-api
+  namespace: macmac
+  labels:
+    app: catalog-api
+spec:
+  selector:
+    app: catalog-api
+  ports:
+    - name: http
+      port: 8002
+      targetPort: 8002

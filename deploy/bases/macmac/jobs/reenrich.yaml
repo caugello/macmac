@@ -1,0 +1,74 @@
+---
+# ============================================================
+# Re-enrichment CronJob (every 3 days)
+# ============================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: macmac-reenrich
+  namespace: macmac
+spec:
+  schedule: "0 2 * * 4"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: reenrich
+        spec:
+          restartPolicy: OnFailure
+          imagePullSecrets:
+            - name: macmac-pull-secret
+          volumes:
+            - name: cfg
+              configMap:
+                name: macmac-config
+          containers:
+            - name: reenrich
+              image: quay.io/caugello/macmac-enricher:v0.2.6
+              imagePullPolicy: Always
+              volumeMounts:
+                - name: cfg
+                  mountPath: /opt/app-root/src/config.yaml
+                  subPath: config.yaml
+              env:
+                - name: RABBITMQ_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: macmac-app-secret
+                      key: RABBITMQ_USER
+                - name: RABBITMQ_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: macmac-app-secret
+                      key: RABBITMQ_PASSWORD
+                - name: RABBITMQ_URL
+                  value: "amqp://$(RABBITMQ_USER):$(RABBITMQ_PASSWORD)@rabbitmq:5672/%2F"
+                - name: DB_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: catalog-db-secret
+                      key: DB_USER
+                - name: DB_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: catalog-db-secret
+                      key: DB_PASSWORD
+                - name: CATALOG_DATABASE_URL
+                  value: "postgresql+pg8000://$(DB_USER):$(DB_PASSWORD)@catalog-db:5432/catalog"
+                # Per-run re-enqueue budget (#352). Bounds how many items a single
+                # run requeues so the cheap-VPS egress fleet stays within its IP
+                # flag budget (~125 reqs/IP). Tune REENRICH_MAX_ITEMS from the
+                # measured flag budget once the #353 spike lands. <=0 disables the cap.
+                - name: REENRICH_MAX_ITEMS
+                  value: "500"
+                - name: REENRICH_STALE_DAYS
+                  value: "14"
+              command:
+                - python
+                - -m
+                - services.catalog.enricher.requeue_stale

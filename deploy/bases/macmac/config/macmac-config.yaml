@@ -1,0 +1,443 @@
+---
+# ============================================================
+# ConfigMap — full production config.yaml
+# ============================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: macmac-config
+  namespace: macmac
+data:
+  config.yaml: |
+    ---
+    urlPrefix: /api/v1
+    title: MacMac
+    version: 0.2.1
+    tmpDir: /tmp
+
+    auth:
+      jwt:
+        algorithm: HS256
+        access_token_expire_minutes: 30
+      firebase:
+        project_id: "macmac-f8946"
+
+    cache:
+      host: redis-cache
+      port: 6379
+      db: 0
+      socket_timeout: 5
+      socket_connect_timeout: 5
+      ttl:
+        recipes_list: 120
+        recipes_detail: 300
+        catalog_list: 300
+        catalog_detail: 600
+        meal_plans_list: 60
+        meal_plans_detail: 120
+
+    rate_limiting:
+      enabled: true
+      default:
+        calls: 100
+        period: 60
+      endpoints:
+        "/auth/login":
+          calls: 5
+          period: 60
+        "/auth/":
+          calls: 20
+          period: 60
+        "/api/v1/recipes":
+          calls: 60
+          period: 60
+        "/api/v1/catalog":
+          calls: 60
+          period: 60
+        "/api/v1/meal-plans":
+          calls: 60
+          period: 60
+        "/auth/groups":
+          calls: 10
+          period: 60
+        "/auth/groups/.*/invitations":
+          calls: 5
+          period: 300
+
+    gateway:
+      cors:
+        allowed_origins:
+          - "https://macmac.apps.example.com"
+        allow_credentials: true
+        allow_methods:
+          - GET
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+          - OPTIONS
+        allow_headers:
+          - Authorization
+          - Content-Type
+          - X-Request-ID
+        max_age: 3600
+
+    vendors:
+      colruyt:
+        url: "https://www.collectandgo.be/sitemap.xml"
+        name: Colruyt Collect & Go
+        product_url_identifier: "/assortiment/"
+
+    services:
+      auth:
+        name: auth
+        title: Authentication API
+        version: 0.2.1
+        url: "http://auth-api:8004"
+        db: "postgresql+pg8000://auth-db:5432/auth"
+        routes:
+          - name: login
+            method: post
+            path: /auth/login
+            request_model: services.shared.schemas.auth.FirebaseLoginRequest
+            response_model: services.shared.schemas.auth.LoginResponse
+            handler: services.auth.crud.login
+            description: Authenticate with Firebase ID token and return internal JWT
+            tags: [auth]
+          - name: logout
+            method: post
+            path: /auth/logout
+            request_model: services.shared.schemas.auth.LogoutRequest
+            handler: services.auth.crud.logout
+            description: Revoke an access token (logout)
+            tags: [auth]
+          - name: get_me
+            method: get
+            path: /auth/me
+            response_model: services.shared.schemas.auth.UserOut
+            handler: services.auth.crud.get_current_user
+            description: Get current user info
+            tags: [auth]
+          - name: create_group
+            method: post
+            path: /auth/groups
+            request_model: services.shared.schemas.auth.GroupCreate
+            response_model: services.shared.schemas.auth.GroupOut
+            handler: services.auth.crud.create_group
+            description: Create a new group
+            tags: [groups]
+          - name: list_groups
+            method: get
+            path: /auth/groups
+            response_model: services.shared.schemas.auth.GroupListResponse
+            handler: services.auth.crud.list_groups
+            description: List user's groups
+            tags: [groups]
+          - name: update_group
+            method: patch
+            path: /auth/groups/{group_id}
+            request_model: services.shared.schemas.auth.GroupUpdate
+            response_model: services.shared.schemas.auth.GroupOut
+            handler: services.auth.crud.update_group
+            description: Rename a group (owner only)
+            tags: [groups]
+          - name: list_group_invitations
+            method: get
+            path: /auth/groups/{group_id}/invitations
+            response_model: services.shared.schemas.auth.InvitationListResponse
+            handler: services.auth.crud.list_group_invitations
+            description: List pending invitations for a group (owner only)
+            tags: [groups]
+          - name: invite_member
+            method: post
+            path: /auth/groups/{group_id}/invitations
+            request_model: services.shared.schemas.auth.InviteMemberRequest
+            handler: services.auth.crud.invite_user_to_group
+            description: Invite a user to a group by email
+            tags: [groups]
+          - name: cancel_invitation
+            method: delete
+            path: /auth/groups/{group_id}/invitations/{invitation_id}
+            handler: services.auth.crud.cancel_invitation
+            description: Cancel a pending invitation (owner only)
+            tags: [groups]
+          - name: list_my_invitations
+            method: get
+            path: /auth/invitations
+            response_model: services.shared.schemas.auth.InvitationListResponse
+            handler: services.auth.crud.list_my_invitations
+            description: List pending invitations for the current user
+            tags: [groups]
+          - name: respond_to_invitation
+            method: post
+            path: /auth/invitations/{invitation_id}
+            request_model: services.shared.schemas.auth.InvitationActionRequest
+            handler: services.auth.crud.respond_to_invitation
+            description: Accept or decline an invitation
+            tags: [groups]
+          - name: remove_member
+            method: delete
+            path: /auth/groups/{group_id}/members/{user_id}
+            handler: services.auth.crud.remove_user_from_group
+            description: Remove user from group
+            tags: [groups]
+          - name: leave_group
+            method: post
+            path: /auth/groups/{group_id}/leave
+            handler: services.auth.crud.leave_group
+            description: Leave a group (non-owner)
+            tags: [groups]
+          - name: delete_group
+            method: delete
+            path: /auth/groups/{group_id}
+            handler: services.auth.crud.delete_group
+            description: Delete a group (owner only)
+            tags: [groups]
+
+      recipes:
+        name: recipes
+        title: Recipes API
+        version: 0.2.1
+        url: "http://recipes-api:8001"
+        db: "postgresql+pg8000://recipes-db:5432/recipes"
+        routes:
+          - name: create_recipe
+            method: post
+            path: /recipes
+            request_model: services.shared.schemas.recipe.RecipeCreate
+            response_model: services.shared.schemas.recipe.RecipeOut
+            handler: services.recipes.crud.create_recipe
+            description: Create a new recipe
+            tags: [recipe]
+          - name: list_recipes
+            method: get
+            path: /recipes
+            response_model: services.shared.schemas.recipe.RecipeListResponse
+            handler: services.recipes.crud.list_recipes
+            description: List recipes
+            query_params:
+              limit:
+                type: int
+                default: 20
+                ge: 1
+                le: 100
+              offset:
+                type: int
+                default: 0
+                ge: 0
+              search:
+                type: str
+                default: null
+              ingredient:
+                type: str
+                default: null
+              sort:
+                type: str
+                default: null
+                example: "title:asc"
+              category:
+                type: str
+                default: null
+                example: "breakfast,dessert"
+            tags: [recipe]
+          - name: category_counts
+            method: get
+            path: /recipes/category-counts
+            response_model: services.shared.schemas.recipe.RecipeCategoryCountsResponse
+            handler: services.recipes.crud.category_counts
+            description: Recipe count per category for the current user
+            query_params:
+              search:
+                type: str
+                default: null
+            tags: [recipe]
+          - name: get_recipe
+            method: get
+            path: /recipes/{recipe_id}
+            handler: services.recipes.crud.get_recipe
+            response_model: services.shared.schemas.recipe.RecipeOut
+            description: Get a single recipe
+            tags: [recipes]
+          - name: updateRecipe
+            description: Update a single recipe
+            method: patch
+            path: /recipes/{recipe_id}
+            handler: services.recipes.crud.update_recipe
+            request_model: services.shared.schemas.recipe.RecipeUpdate
+            response_model: services.shared.schemas.recipe.RecipeOut
+            tags: [recipes]
+          - name: deleteRecipe
+            description: delete a single recipe
+            method: delete
+            path: /recipes/{recipe_id}
+            handler: services.recipes.crud.delete_recipe
+            response_model: services.shared.schemas.generic.DeleteResponse
+            tags: [recipes]
+          - name: batch_get_recipes
+            description: Batch fetch recipes by IDs
+            method: post
+            path: /recipes/batch
+            handler: services.recipes.crud.batch_get_recipes
+            request_model: services.shared.schemas.recipe.BatchRecipeRequest
+            response_model: services.shared.schemas.recipe.BatchRecipeResponse
+            tags: [recipes]
+
+      catalog:
+        name: catalog
+        title: catalog API
+        version: 0.2.1
+        url: "http://catalog-api:8002"
+        db: "postgresql+pg8000://catalog-db:5432/catalog"
+        enricher:
+          batch_size: 5
+          delay_between_requests: 5
+          page_timeout: 15000
+          batch_pause: 60
+          openai_model: "gpt-4o-mini"
+          max_retries: 3
+          retry_backoff: 2.0
+        routes:
+          - name: list_catalog_items
+            method: get
+            path: /catalog
+            response_model: services.shared.schemas.catalog.CatalogItemListResponse
+            handler: services.catalog.crud.list_catalog_items
+            description: List Catalog Items
+            query_params:
+              limit:
+                type: int
+                default: 20
+                ge: 1
+                le: 100
+              offset:
+                type: int
+                default: 0
+                ge: 0
+              search:
+                type: str
+                default: null
+              sort:
+                type: str
+                default: null
+                example: "title:asc"
+              category:
+                type: str
+                default: null
+              is_food:
+                type: bool
+                default: null
+            tags: [catalog]
+          - name: list_catalog_categories
+            method: get
+            path: /catalog/categories
+            handler: services.catalog.crud.list_catalog_categories
+            response_model: services.shared.schemas.catalog.CatalogCategoriesResponse
+            description: List distinct catalog categories
+            tags: [catalog]
+          - name: get_catalog_item
+            method: get
+            path: /catalog/{item_id}
+            handler: services.catalog.crud.get_catalog_item
+            response_model: services.shared.schemas.catalog.CatalogItemOut
+            description: Get a single catalog item
+            tags: [catalog]
+          - name: batch_get_catalog_items
+            method: post
+            path: /catalog/batch
+            handler: services.catalog.crud.batch_get_catalog_items
+            request_model: services.shared.schemas.catalog.BatchCatalogRequest
+            response_model: services.shared.schemas.catalog.BatchCatalogResponse
+            description: Batch fetch catalog items by IDs
+            tags: [catalog]
+        dependencies:
+          - name: crawler
+            title: Crawler
+            version: 0.2.1
+            url: "amqp://rabbitmq:5672/%2F"
+
+      meal_plans:
+        name: meal_plans
+        title: Meal Plans API
+        version: 0.2.1
+        url: "http://meal-plans-api:8003"
+        db: "postgresql+pg8000://meal-plans-db:5432/meal_plans"
+        routes:
+          - name: create_meal_plan
+            method: post
+            path: /meal-plans
+            request_model: services.shared.schemas.meal_plan.MealPlanCreate
+            response_model: services.shared.schemas.meal_plan.MealPlanOut
+            handler: services.meal_plans.crud.create_meal_plan
+            description: Schedule a recipe to a date+meal_type slot
+            tags: [meal_plans]
+          - name: list_meal_plans
+            method: get
+            path: /meal-plans
+            response_model: services.shared.schemas.meal_plan.MealPlanListResponse
+            handler: services.meal_plans.crud.list_meal_plans
+            description: List meal plans for a date range (default current week)
+            query_params:
+              start_date:
+                type: date
+                default: null
+                description: "Start date (YYYY-MM-DD)"
+              end_date:
+                type: date
+                default: null
+                description: "End date (YYYY-MM-DD)"
+              limit:
+                type: int
+                default: 100
+                ge: 1
+                le: 1000
+              offset:
+                type: int
+                default: 0
+                ge: 0
+            tags: [meal_plans]
+          - name: get_meal_plan
+            method: get
+            path: /meal-plans/{meal_plan_id}
+            handler: services.meal_plans.crud.get_meal_plan
+            response_model: services.shared.schemas.meal_plan.MealPlanOut
+            description: Get a single meal plan
+            tags: [meal_plans]
+          - name: update_meal_plan
+            description: Update a meal plan
+            method: patch
+            path: /meal-plans/{meal_plan_id}
+            handler: services.meal_plans.crud.update_meal_plan
+            request_model: services.shared.schemas.meal_plan.MealPlanUpdate
+            response_model: services.shared.schemas.meal_plan.MealPlanOut
+            tags: [meal_plans]
+          - name: delete_meal_plan
+            description: Delete a meal plan (clear meal slot)
+            method: delete
+            path: /meal-plans/{meal_plan_id}
+            handler: services.meal_plans.crud.delete_meal_plan
+            response_model: services.shared.schemas.generic.DeleteResponse
+            tags: [meal_plans]
+          - name: copy_day
+            method: post
+            path: /meal-plans/copy-day
+            request_model: services.shared.schemas.meal_plan.CopyDayRequest
+            response_model: services.shared.schemas.meal_plan.CopyResponse
+            handler: services.meal_plans.crud.copy_day
+            description: Copy all 3 meals from one date to another
+            tags: [meal_plans]
+          - name: copy_week
+            method: post
+            path: /meal-plans/copy-week
+            request_model: services.shared.schemas.meal_plan.CopyWeekRequest
+            response_model: services.shared.schemas.meal_plan.CopyResponse
+            handler: services.meal_plans.crud.copy_week
+            description: Copy entire week (Mon-Sun) to another week
+            tags: [meal_plans]
+          - name: generate_shopping_list
+            method: post
+            path: /meal-plans/shopping-list
+            request_model: services.shared.schemas.meal_plan.ShoppingListRequest
+            response_model: services.shared.schemas.meal_plan.ShoppingListResponse
+            handler: services.meal_plans.crud.generate_shopping_list
+            description: Generate shopping list for date range
+            tags: [meal_plans]
