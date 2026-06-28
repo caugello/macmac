@@ -418,3 +418,49 @@ patches:
                 ports:
                   - containerPort: 5671
                     hostPort: 5671
+  #
+  # #405 — Secrets management (manual now, SOPS later): the base ships
+  #        the data-store Secrets with CHANGE_ME placeholders so the
+  #        portable manifest stays complete. On this cluster those
+  #        Secrets are created out-of-band with real generated values
+  #        (see the "Secrets" section in README.md). Delete the placeholders from the
+  #        overlay so `apply -k` never clobbers the live values.
+  #        rabbitmq-definitions is left in place (it is a non-functional
+  #        stub for future remote enrichers, not a live credential).
+  #        macmac-app-secret and rabbitmq-tls are not defined in the
+  #        base — only referenced — so they need no delete patch.
+  - patch: |
+      $patch: delete
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: recipes-db-secret
+        namespace: macmac
+  - patch: |
+      $patch: delete
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: catalog-db-secret
+        namespace: macmac
+  - patch: |
+      $patch: delete
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: auth-db-secret
+        namespace: macmac
+  - patch: |
+      $patch: delete
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: meal-plans-db-secret
+        namespace: macmac
+  - patch: |
+      $patch: delete
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: redis-secret
+        namespace: macmac
