@@ -12,7 +12,7 @@ export const BottomNav = () => {
   const location = useLocation()
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-around items-center px-4 py-2 md:hidden bg-surface-container-lowest border-t border-outline-variant shadow-none">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-around items-center px-4 py-2 md:hidden bg-white/80 backdrop-blur-[20px] border-t border-outline-variant shadow-none">
       {navItems.map(({ to, icon, label }) => {
         const isActive = location.pathname.startsWith(to)
         return (
@@ -20,14 +20,14 @@ export const BottomNav = () => {
             key={to}
             to={to}
             className={cn(
-              'flex flex-col items-center justify-center px-4 py-1.5 transition-colors active:scale-90 duration-150 rounded-lg',
-              isActive ? 'text-primary' : 'text-on-surface-variant hover:text-primary'
+              'flex min-h-[44px] flex-col items-center justify-center px-4 py-1 transition-colors active:scale-90 duration-150 rounded-full',
+              isActive ? 'text-ink' : 'text-on-surface-variant hover:text-ink'
             )}
           >
             <div
               className={cn(
                 'px-4 py-1 rounded-full transition-colors',
-                isActive && 'bg-primary/10'
+                isActive && 'bg-lime text-ink'
               )}
             >
               <Icon name={icon} size={24} filled={isActive} />

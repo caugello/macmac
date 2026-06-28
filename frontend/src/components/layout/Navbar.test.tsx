@@ -32,10 +32,9 @@ describe('Navbar Component', () => {
       })
     })
 
-    it('should render MacMac logo', () => {
+    it('should render pantry wordmark', () => {
       renderWithRouter(<Navbar />)
-      expect(screen.getByText('MacMac')).toBeInTheDocument()
-      expect(screen.getByText('M')).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /pantry/ })).toBeInTheDocument()
     })
 
     it('should render unauthenticated navigation links', () => {
@@ -74,9 +73,9 @@ describe('Navbar Component', () => {
       })
     })
 
-    it('should render MacMac logo', () => {
+    it('should render pantry wordmark', () => {
       renderWithRouter(<Navbar />)
-      expect(screen.getByText('MacMac')).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /pantry/ })).toBeInTheDocument()
     })
 
     it('should render authenticated navigation links', () => {
@@ -128,7 +127,7 @@ describe('Navbar Component', () => {
 
     it('should not render navbar', () => {
       renderWithRouter(<Navbar />, '/login')
-      expect(screen.queryByText('MacMac')).not.toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: /pantry/ })).not.toBeInTheDocument()
     })
   })
 
@@ -145,7 +144,7 @@ describe('Navbar Component', () => {
 
     it('should link to home page', () => {
       renderWithRouter(<Navbar />)
-      const logoLink = screen.getByText('MacMac').closest('a')
+      const logoLink = screen.getByRole('link', { name: /pantry/ })
       expect(logoLink).toHaveAttribute('href', '/')
     })
   })

@@ -43,25 +43,25 @@ describe('BottomNav Component', () => {
     it('should highlight recipes link when on /recipes', () => {
       renderWithRouter('/recipes')
       const link = screen.getByText('Recipes').closest('a')!
-      expect(link.className).toContain('text-primary')
+      expect(link.className).toContain('text-ink')
     })
 
     it('should highlight meal plans link when on /meal-plans', () => {
       renderWithRouter('/meal-plans')
       const link = screen.getByText('Meal Plans').closest('a')!
-      expect(link.className).toContain('text-primary')
+      expect(link.className).toContain('text-ink')
     })
 
     it('should highlight catalog link when on /catalog', () => {
       renderWithRouter('/catalog')
       const link = screen.getByText('Catalog').closest('a')!
-      expect(link.className).toContain('text-primary')
+      expect(link.className).toContain('text-ink')
     })
 
     it('should highlight based on path prefix', () => {
       renderWithRouter('/recipes/123')
       const link = screen.getByText('Recipes').closest('a')!
-      expect(link.className).toContain('text-primary')
+      expect(link.className).toContain('text-ink')
     })
 
     it('should not highlight inactive links', () => {
