@@ -3,9 +3,11 @@ import { useCatalogItem } from '@/hooks/useCatalog'
 import { NutriscoreBadge } from '@/components/catalog/NutriscoreBadge'
 import { ProductDetailHero } from '@/components/catalog/ProductDetailHero'
 import { ProductDetailNutrition } from '@/components/catalog/ProductDetailNutrition'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Icon } from '@/components/ui/icon'
 import { useMyList } from '@/hooks/useMyList'
-import { cn } from '@/lib/utils'
 
 const STALE_DAYS = 7
 
@@ -29,7 +31,7 @@ export const CatalogDetail = () => {
   if (isLoading) {
     return (
       <div className="max-w-7xl mx-auto px-4 md:px-12 pt-6 pb-12 flex items-center justify-center min-h-[400px]">
-        <p className="text-on-surface-variant">Loading product...</p>
+        <p className="text-muted-foreground">Loading product...</p>
       </div>
     )
   }
@@ -38,13 +40,12 @@ export const CatalogDetail = () => {
     return (
       <div className="max-w-7xl mx-auto px-4 md:px-12 pt-6 pb-12 flex flex-col items-center justify-center min-h-[400px] gap-4">
         <p className="text-destructive">Product not found.</p>
-        <Link
-          to="/catalog"
-          className="inline-flex items-center gap-2 h-12 px-5 rounded-full bg-primary text-on-primary font-semibold transition-all hover:-translate-y-px hover:ambient-shadow"
-        >
-          <Icon name="arrow_back" size={18} />
-          Back to Catalog
-        </Link>
+        <Button asChild>
+          <Link to="/catalog">
+            <Icon name="arrow_back" size={18} className="mr-2" />
+            Back to Catalog
+          </Link>
+        </Button>
       </div>
     )
   }
@@ -69,10 +70,10 @@ export const CatalogDetail = () => {
       {/* Back navigation */}
       <Link
         to="/catalog"
-        className="inline-flex items-center gap-2 text-on-surface-variant hover:text-on-surface transition-colors mb-6"
+        className="inline-flex items-center gap-2 text-muted-foreground hover:text-ink transition-colors mb-6"
       >
         <Icon name="arrow_back" size={20} />
-        <span className="text-label-md">Back to Catalog</span>
+        <span className="text-label-md font-semibold">Back to Catalog</span>
       </Link>
 
       {/* Hero + info: stacked on mobile, two-column on desktop */}
@@ -87,25 +88,25 @@ export const CatalogDetail = () => {
         {/* Product information */}
         <div className="lg:sticky lg:top-6">
           {item.nutriscore && (
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-3 mb-4">
               <NutriscoreBadge score={item.nutriscore} size="lg" />
-              <span className="text-caption text-on-surface-variant uppercase tracking-wider">
+              <span className="text-caption font-semibold text-muted-foreground uppercase tracking-wider">
                 Nutri-Score
               </span>
             </div>
           )}
 
           {item.brand && (
-            <p className="text-on-surface-variant text-label-md uppercase tracking-wider mb-1">
+            <p className="text-muted-foreground text-label-md font-semibold uppercase tracking-wider mb-1">
               {item.brand}
             </p>
           )}
 
-          <h1 className="text-headline-lg-mobile md:text-headline-lg font-heading font-bold mb-2">
+          <h1 className="text-headline-lg-mobile md:text-headline-lg font-display font-bold text-ink mb-2">
             {title}
           </h1>
 
-          <p className="text-on-surface-variant text-body-md">
+          <p className="text-muted-foreground text-body-md">
             {item.vendor_name}
             {item.net_quantity_value && item.net_quantity_unit && (
               <span>
@@ -116,59 +117,52 @@ export const CatalogDetail = () => {
           </p>
 
           {item.price && (
-            <p className="text-display-md font-heading font-bold mt-4 text-primary">
+            <p className="text-display-md font-display font-bold mt-4 text-ink">
               {item.price.toFixed(2)}&nbsp;&euro;
-              <span className="text-body-md font-normal text-on-surface-variant"> / unit</span>
+              <span className="text-body-md font-body font-normal text-muted-foreground">
+                {' '}
+                / unit
+              </span>
             </p>
           )}
 
           {/* Status badges */}
           <div className="flex flex-wrap gap-2 mt-4">
             {item.promotion_until_date && (
-              <div className="inline-flex items-center gap-2 bg-error-container text-on-error-container px-3 py-1.5 rounded-full text-caption font-semibold">
+              <Badge variant="promotion" className="gap-1.5 px-3 py-1.5 text-caption">
                 <Icon name="schedule" size={16} />
                 Promo until {new Date(item.promotion_until_date).toLocaleDateString()}
-              </div>
+              </Badge>
             )}
             {fresh && (
-              <div
-                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-caption font-semibold ${
-                  fresh.stale
-                    ? 'bg-error-container text-on-error-container'
-                    : 'bg-secondary-container text-on-secondary-container'
-                }`}
+              <Badge
+                variant={fresh.stale ? 'destructive' : 'accent'}
+                className="gap-1.5 px-3 py-1.5 text-caption"
               >
                 <Icon name={fresh.stale ? 'warning' : 'check_circle'} size={16} />
                 {fresh.label}
-              </div>
+              </Badge>
             )}
           </div>
 
           {/* Actions */}
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
-            <a
-              href={item.product_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex flex-1 items-center justify-center gap-2 h-12 rounded-full bg-primary text-on-primary font-semibold transition-all hover:-translate-y-px hover:ambient-shadow active:scale-[0.98]"
-            >
-              <Icon name="open_in_new" size={18} />
-              View on Vendor Site
-            </a>
-            <button
+            <Button asChild className="flex-1">
+              <a href={item.product_url} target="_blank" rel="noopener noreferrer">
+                <Icon name="open_in_new" size={18} className="mr-2" />
+                View on Vendor Site
+              </a>
+            </Button>
+            <Button
               type="button"
+              variant={inList ? 'accent' : 'outline'}
               onClick={handleToggleList}
               aria-pressed={inList}
-              className={cn(
-                'inline-flex flex-1 items-center justify-center gap-2 h-12 rounded-full border font-semibold transition-all hover:-translate-y-px active:scale-[0.98]',
-                inList
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-outline-variant text-on-surface hover:border-primary hover:text-primary'
-              )}
+              className="flex-1"
             >
-              <Icon name="shopping_cart" size={18} filled={inList} />
+              <Icon name="shopping_cart" size={18} filled={inList} className="mr-2" />
               {inList ? 'In My List' : 'Add to My List'}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -178,37 +172,43 @@ export const CatalogDetail = () => {
         {item.nutrition && <ProductDetailNutrition nutrition={item.nutrition} />}
 
         <section>
-          <h2 className="text-headline-md font-heading font-semibold mb-4">Product Details</h2>
-          <ul className="divide-y divide-outline-variant">
-            {item.net_quantity_value && item.net_quantity_unit && (
-              <li className="flex justify-between py-3">
-                <span className="text-on-surface-variant">Weight</span>
-                <span className="font-semibold text-right">
-                  {item.net_quantity_value} {item.net_quantity_unit}
+          <h2 className="text-headline-md font-display font-bold text-ink mb-4">Product Details</h2>
+          <Card tone="white" className="p-5">
+            <ul className="divide-y divide-border">
+              {item.net_quantity_value && item.net_quantity_unit && (
+                <li className="flex justify-between py-3 first:pt-0">
+                  <span className="text-muted-foreground">Weight</span>
+                  <span className="font-semibold text-ink text-right">
+                    {item.net_quantity_value} {item.net_quantity_unit}
+                  </span>
+                </li>
+              )}
+              {item.category && (
+                <li className="flex justify-between py-3 first:pt-0">
+                  <span className="text-muted-foreground">Category</span>
+                  <span className="font-semibold text-ink text-right">{item.category}</span>
+                </li>
+              )}
+              <li className="flex justify-between py-3 first:pt-0">
+                <span className="text-muted-foreground">Type</span>
+                <span className="font-semibold text-ink text-right">
+                  {item.is_food ? 'Food' : 'Non-Food'}
                 </span>
               </li>
-            )}
-            {item.category && (
-              <li className="flex justify-between py-3">
-                <span className="text-on-surface-variant">Category</span>
-                <span className="font-semibold text-right">{item.category}</span>
+              <li className="flex justify-between py-3 first:pt-0">
+                <span className="text-muted-foreground">Vendor</span>
+                <span className="font-semibold text-ink text-right">{item.vendor_name}</span>
               </li>
-            )}
-            <li className="flex justify-between py-3">
-              <span className="text-on-surface-variant">Type</span>
-              <span className="font-semibold text-right">{item.is_food ? 'Food' : 'Non-Food'}</span>
-            </li>
-            <li className="flex justify-between py-3">
-              <span className="text-on-surface-variant">Vendor</span>
-              <span className="font-semibold text-right">{item.vendor_name}</span>
-            </li>
-            {item.canonical_name && item.canonical_name !== item.raw_name && (
-              <li className="flex justify-between py-3">
-                <span className="text-on-surface-variant">Raw Name</span>
-                <span className="font-semibold text-right max-w-[60%]">{item.raw_name}</span>
-              </li>
-            )}
-          </ul>
+              {item.canonical_name && item.canonical_name !== item.raw_name && (
+                <li className="flex justify-between py-3 first:pt-0">
+                  <span className="text-muted-foreground">Raw Name</span>
+                  <span className="font-semibold text-ink text-right max-w-[60%]">
+                    {item.raw_name}
+                  </span>
+                </li>
+              )}
+            </ul>
+          </Card>
         </section>
       </div>
     </div>

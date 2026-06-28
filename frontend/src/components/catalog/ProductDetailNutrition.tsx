@@ -1,3 +1,4 @@
+import { Card } from '@/components/ui/card'
 import type { NutritionData } from '@/lib/types'
 
 interface ProductDetailNutritionProps {
@@ -13,14 +14,15 @@ interface NutrientRow {
 }
 
 /**
- * Ivory Flux nutrition panel: a 2x2 card grid (per 100g) with daily-value bars.
+ * Pantry Fresh nutrition panel: a 2x2 bento-tile grid (per 100g) where each
+ * nutrient shows a large display number and a daily-value progress bar.
  */
 export const ProductDetailNutrition = ({ nutrition }: ProductDetailNutritionProps) => {
   const rows: NutrientRow[] = [
-    { label: 'Energy', value: nutrition.energy_kcal, unit: 'kcal', daily: 2000, bar: 'bg-primary' },
-    { label: 'Fat', value: nutrition.fat_g, unit: 'g', daily: 70, bar: 'bg-tertiary' },
-    { label: 'Carbs', value: nutrition.carbs_g, unit: 'g', daily: 260, bar: 'bg-secondary' },
-    { label: 'Protein', value: nutrition.protein_g, unit: 'g', daily: 50, bar: 'bg-primary' },
+    { label: 'Energy', value: nutrition.energy_kcal, unit: 'kcal', daily: 2000, bar: 'bg-lime' },
+    { label: 'Fat', value: nutrition.fat_g, unit: 'g', daily: 70, bar: 'bg-coral' },
+    { label: 'Carbs', value: nutrition.carbs_g, unit: 'g', daily: 260, bar: 'bg-yellow' },
+    { label: 'Protein', value: nutrition.protein_g, unit: 'g', daily: 50, bar: 'bg-soft-purple' },
   ]
 
   const present = rows.filter((r) => r.value != null)
@@ -28,37 +30,38 @@ export const ProductDetailNutrition = ({ nutrition }: ProductDetailNutritionProp
 
   return (
     <section>
-      <h2 className="text-headline-md font-heading font-semibold mb-4">
+      <h2 className="text-headline-md font-display font-bold text-ink mb-4">
         Nutritional Values (100g)
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {present.map((r) => {
           const pct = Math.min(Math.round(((r.value ?? 0) / r.daily) * 100), 100)
           return (
-            <div
-              key={r.label}
-              className="bg-surface-container-lowest wireframe-border rounded-xl p-4"
-            >
+            <Card key={r.label} tone="white" className="p-4">
               <div className="flex items-baseline justify-between mb-2">
-                <span className="text-label-md font-medium text-on-surface">{r.label}</span>
-                <span className="text-label-md font-semibold">
-                  {r.value}
-                  {r.unit}
-                  <span className="text-on-surface-variant font-normal ml-1.5">{pct}% DV</span>
+                <span className="text-label-md font-semibold text-muted-foreground uppercase tracking-wider">
+                  {r.label}
                 </span>
+                <span className="text-caption text-muted-foreground">{pct}% DV</span>
               </div>
-              <div className="h-2 bg-surface-container rounded-full overflow-hidden">
+              <p className="text-headline-md font-display font-bold text-ink mb-3">
+                {r.value}
+                <span className="text-body-md font-body font-normal text-muted-foreground ml-1">
+                  {r.unit}
+                </span>
+              </p>
+              <div className="h-2 bg-cream rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full ${r.bar} transition-all duration-700 ease-out`}
                   style={{ width: `${pct}%` }}
                 />
               </div>
-            </div>
+            </Card>
           )
         })}
       </div>
       {nutrition.serving_size && (
-        <p className="text-caption text-on-surface-variant mt-3">
+        <p className="text-caption text-muted-foreground mt-3">
           Serving size: {nutrition.serving_size}
         </p>
       )}
