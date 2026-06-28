@@ -28,7 +28,7 @@ export const Navbar = () => {
           </button>
           <Link to="/" className="flex items-center">
             <span className="text-2xl font-display font-bold lowercase tracking-tight text-ink">
-              pantry<span className="text-lime">.</span>
+              MacMac<span className="text-lime">.</span>
             </span>
           </Link>
         </div>

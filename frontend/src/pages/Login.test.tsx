@@ -34,7 +34,7 @@ describe('Login Page', () => {
     it('should render MacMac heading', () => {
       render(<Login />)
 
-      expect(screen.getByText('MacMac')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'MacMac' })).toBeInTheDocument()
     })
   })
 

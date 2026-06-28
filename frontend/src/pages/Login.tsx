@@ -34,7 +34,7 @@ export const Login: React.FC = () => {
 
         <div className="relative z-10">
           <span className="font-display text-3xl font-bold lowercase tracking-tight">
-            pantry<span className="text-lime">.</span>
+            MacMac<span className="text-lime">.</span>
           </span>
         </div>
 
@@ -69,7 +69,7 @@ export const Login: React.FC = () => {
           {/* Header */}
           <div className="text-center">
             <span className="font-display text-4xl font-bold lowercase tracking-tight text-ink md:hidden">
-              pantry<span className="text-lime">.</span>
+              MacMac<span className="text-lime">.</span>
             </span>
             <h1 className="mt-4 font-display text-3xl font-bold tracking-tight md:mt-0">MacMac</h1>
             <p className="mt-2 font-body text-lg text-ink/60">

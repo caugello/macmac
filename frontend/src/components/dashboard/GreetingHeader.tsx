@@ -24,7 +24,7 @@ export const GreetingHeader = ({ name, todayCount }: GreetingHeaderProps) => {
     <header className="flex items-center justify-between gap-4">
       <div className="space-y-1">
         <p className="font-serif text-body-lg italic text-ink/50">
-          pantry<span className="text-green">.</span>
+          MacMac<span className="text-green">.</span>
         </p>
         <h1 className="font-display text-headline-lg-mobile md:text-headline-lg font-bold text-ink">
           {greeting}, {name}
