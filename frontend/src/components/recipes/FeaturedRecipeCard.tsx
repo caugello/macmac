@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { Card } from '@/components/ui/card'
 import { Icon } from '@/components/ui/icon'
 import { CategoryBadge } from '@/components/recipes/CategoryBadge'
 import { getDifficultyLabel, formatPrepTime } from '@/lib/recipeDifficulty'
@@ -16,10 +17,10 @@ interface FeaturedRecipeCardProps {
 }
 
 /**
- * Large hero card for the most recent recipe, modeled on the Stitch "Ivory Flux"
- * featured card: full-bleed image (with hue placeholder fallback), title,
- * description, metadata badges (prep time / calories / difficulty / servings /
- * ingredient count) and a bookmark affordance.
+ * Large hero tile for the most recent recipe in the Pantry Fresh bento system:
+ * an ink-toned card with a full-bleed image (hue placeholder fallback), a lime
+ * "Featured" pill, the display title, description and metadata pills (prep time
+ * / calories / difficulty / servings / ingredient count).
  *
  * Only metadata that the recipe actually provides is rendered; missing fields
  * are omitted rather than fabricated.
@@ -31,90 +32,90 @@ export const FeaturedRecipeCard = ({ recipe }: FeaturedRecipeCardProps) => {
   return (
     <Link
       to={`/recipes/${recipe.id}`}
-      className="group block bg-surface-container-lowest rounded-2xl overflow-hidden ambient-shadow card-hover-shadow"
+      className="group block"
       aria-label={`Featured recipe: ${recipe.title}`}
     >
-      <div className="grid md:grid-cols-2">
-        {/* Image area */}
-        <div className="relative aspect-[16/10] md:aspect-auto md:min-h-[20rem] overflow-hidden">
-          {recipe.image_url ? (
-            <img
-              src={recipe.image_url}
-              alt={recipe.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            />
-          ) : (
-            <div
-              className="w-full h-full flex items-center justify-center group-hover:scale-105 transition-transform duration-500"
-              style={{
-                background: `linear-gradient(135deg, hsl(${hue} 45% 90%) 0%, hsl(${hue} 35% 82%) 100%)`,
-              }}
-            >
-              <Icon name="restaurant_menu" size={72} className="text-outline-variant/30" />
-            </div>
-          )}
-          <span className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-surface-container-lowest/90 backdrop-blur-sm px-3 py-1 text-label-md font-semibold text-primary">
-            <Icon name="star" size={16} filled />
-            Featured
-          </span>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 md:p-8 flex flex-col">
-          <div className="flex items-start justify-between gap-4">
-            <CategoryBadge category={recipe.category} />
-            <span
-              className="shrink-0 inline-flex items-center justify-center w-11 h-11 -mt-1 -mr-1 rounded-full text-on-surface-variant group-hover:text-primary transition-colors"
-              aria-hidden="true"
-            >
-              <Icon name="bookmark" size={24} />
+      <Card tone="ink" className="overflow-hidden transition-shadow hover:shadow-lg">
+        <div className="grid md:grid-cols-2">
+          {/* Image area */}
+          <div className="relative aspect-[16/10] md:aspect-auto md:min-h-[20rem] overflow-hidden bg-cream">
+            {recipe.image_url ? (
+              <img
+                src={recipe.image_url}
+                alt={recipe.title}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+            ) : (
+              <div
+                className="w-full h-full flex items-center justify-center group-hover:scale-105 transition-transform duration-500"
+                style={{
+                  background: `linear-gradient(135deg, hsl(${hue} 45% 90%) 0%, hsl(${hue} 35% 82%) 100%)`,
+                }}
+              >
+                <Icon name="restaurant_menu" size={72} className="text-ink/20" />
+              </div>
+            )}
+            <span className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-lime px-3 py-1 text-label-md font-semibold text-ink">
+              <Icon name="star" size={16} filled />
+              Featured
             </span>
           </div>
 
-          <h2 className="mt-3 text-headline-md font-heading font-bold text-on-surface line-clamp-2">
-            {recipe.title}
-          </h2>
+          {/* Content */}
+          <div className="p-6 md:p-8 flex flex-col">
+            <div className="flex items-start justify-between gap-4">
+              <CategoryBadge category={recipe.category} />
+              <span
+                className="shrink-0 inline-flex items-center justify-center w-11 h-11 -mt-1 -mr-1 rounded-full text-cream/70 group-hover:text-lime transition-colors"
+                aria-hidden="true"
+              >
+                <Icon name="bookmark" size={24} />
+              </span>
+            </div>
 
-          {recipe.description && (
-            <p className="mt-2 text-body-md text-on-surface-variant line-clamp-3">
-              {recipe.description}
-            </p>
-          )}
+            <h2 className="mt-3 text-headline-md font-display font-bold text-cream line-clamp-2">
+              {recipe.title}
+            </h2>
 
-          <div className="mt-auto pt-5 flex flex-wrap items-center gap-2">
-            {recipe.prep_time != null && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-3 py-1.5 text-label-md font-medium text-on-surface-variant">
-                <Icon name="schedule" size={16} />
-                {formatPrepTime(recipe.prep_time)}
-              </span>
+            {recipe.description && (
+              <p className="mt-2 text-body-md text-cream/70 line-clamp-3">{recipe.description}</p>
             )}
-            {recipe.calories != null && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-3 py-1.5 text-label-md font-medium text-on-surface-variant">
-                <Icon name="local_fire_department" size={16} />
-                {recipe.calories} kcal
-              </span>
-            )}
-            {recipe.difficulty != null && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-3 py-1.5 text-label-md font-medium text-on-surface-variant">
-                <Icon name="bar_chart" size={16} />
-                {getDifficultyLabel(recipe.difficulty)}
-              </span>
-            )}
-            {recipe.servings != null && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-3 py-1.5 text-label-md font-medium text-on-surface-variant">
-                <Icon name="group" size={16} />
-                {recipe.servings} {recipe.servings === 1 ? 'serving' : 'servings'}
-              </span>
-            )}
-            {ingredientCount > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-3 py-1.5 text-label-md font-medium text-on-surface-variant">
-                <Icon name="grocery" size={16} />
-                {ingredientCount} {ingredientCount === 1 ? 'ingredient' : 'ingredients'}
-              </span>
-            )}
+
+            <div className="mt-auto pt-5 flex flex-wrap items-center gap-2">
+              {recipe.prep_time != null && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-cream/10 px-3 py-1.5 text-label-md font-medium text-cream">
+                  <Icon name="schedule" size={16} />
+                  {formatPrepTime(recipe.prep_time)}
+                </span>
+              )}
+              {recipe.calories != null && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-cream/10 px-3 py-1.5 text-label-md font-medium text-cream">
+                  <Icon name="local_fire_department" size={16} />
+                  {recipe.calories} kcal
+                </span>
+              )}
+              {recipe.difficulty != null && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-cream/10 px-3 py-1.5 text-label-md font-medium text-cream">
+                  <Icon name="bar_chart" size={16} />
+                  {getDifficultyLabel(recipe.difficulty)}
+                </span>
+              )}
+              {recipe.servings != null && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-cream/10 px-3 py-1.5 text-label-md font-medium text-cream">
+                  <Icon name="group" size={16} />
+                  {recipe.servings} {recipe.servings === 1 ? 'serving' : 'servings'}
+                </span>
+              )}
+              {ingredientCount > 0 && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-cream/10 px-3 py-1.5 text-label-md font-medium text-cream">
+                  <Icon name="grocery" size={16} />
+                  {ingredientCount} {ingredientCount === 1 ? 'ingredient' : 'ingredients'}
+                </span>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </Card>
     </Link>
   )
 }
