@@ -59,9 +59,289 @@ patches:
       kind: Route
       name: frontend
   #
-  # #399 — Resource requests/limits: patch every workload
-  #        (Deployments + StatefulSets) with the requests/limits
-  #        from the migration plan §4 table.
+  # #399 — Resource requests/limits: set requests.cpu,
+  #        requests.memory and limits.memory on every container
+  #        across all workloads (sizing per migration plan §4 /
+  #        issue #399). CPU limits are intentionally omitted —
+  #        k3s throttles CPU fairly, while memory limits are hard
+  #        (OOMKilled if exceeded). Strategic-merge patches match
+  #        containers (and the alembic `migrate` initContainers)
+  #        by name. Migrate initContainers are short-lived and get
+  #        a modest sizing sufficient for a single alembic run.
+  - patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: gateway
+        namespace: macmac
+      spec:
+        template:
+          spec:
+            containers:
+              - name: gateway
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 256Mi
+                  limits:
+                    memory: 512Mi
+  - patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: frontend
+        namespace: macmac
+      spec:
+        template:
+          spec:
+            containers:
+              - name: frontend
+                resources:
+                  requests:
+                    cpu: 25m
+                    memory: 32Mi
+                  limits:
+                    memory: 64Mi
+  - patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: auth-api
+        namespace: macmac
+      spec:
+        template:
+          spec:
+            initContainers:
+              - name: migrate
+                resources:
+                  requests:
+                    cpu: 50m
+                    memory: 128Mi
+                  limits:
+                    memory: 256Mi
+            containers:
+              - name: auth-api
+                resources:
+                  requests:
+                    cpu: 75m
+                    memory: 192Mi
+                  limits:
+                    memory: 384Mi
+  - patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: catalog-api
+        namespace: macmac
+      spec:
+        template:
+          spec:
+            initContainers:
+              - name: migrate
+                resources:
+                  requests:
+                    cpu: 50m
+                    memory: 128Mi
+                  limits:
+                    memory: 256Mi
+            containers:
+              - name: catalog-api
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 256Mi
+                  limits:
+                    memory: 512Mi
+  - patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: recipes-api
+        namespace: macmac
+      spec:
+        template:
+          spec:
+            initContainers:
+              - name: migrate
+                resources:
+                  requests:
+                    cpu: 50m
+                    memory: 128Mi
+                  limits:
+                    memory: 256Mi
+            containers:
+              - name: recipes-api
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 256Mi
+                  limits:
+                    memory: 512Mi
+  - patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: meal-plans-api
+        namespace: macmac
+      spec:
+        template:
+          spec:
+            initContainers:
+              - name: migrate
+                resources:
+                  requests:
+                    cpu: 50m
+                    memory: 128Mi
+                  limits:
+                    memory: 256Mi
+            containers:
+              - name: meal-plans-api
+                resources:
+                  requests:
+                    cpu: 75m
+                    memory: 192Mi
+                  limits:
+                    memory: 384Mi
+  - patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: redis-cache
+        namespace: macmac
+      spec:
+        template:
+          spec:
+            containers:
+              - name: valkey
+                resources:
+                  requests:
+                    cpu: 25m
+                    memory: 64Mi
+                  limits:
+                    memory: 128Mi
+  - patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: rabbitmq
+        namespace: macmac
+      spec:
+        template:
+          spec:
+            containers:
+              - name: rabbitmq
+                resources:
+                  requests:
+                    cpu: 150m
+                    memory: 384Mi
+                  limits:
+                    memory: 768Mi
+  - patch: |
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: auth-db
+        namespace: macmac
+      spec:
+        template:
+          spec:
+            containers:
+              - name: postgres
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 192Mi
+                  limits:
+                    memory: 384Mi
+  - patch: |
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: catalog-db
+        namespace: macmac
+      spec:
+        template:
+          spec:
+            containers:
+              - name: postgres
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 192Mi
+                  limits:
+                    memory: 384Mi
+  - patch: |
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: recipes-db
+        namespace: macmac
+      spec:
+        template:
+          spec:
+            containers:
+              - name: postgres
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 192Mi
+                  limits:
+                    memory: 384Mi
+  - patch: |
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: meal-plans-db
+        namespace: macmac
+      spec:
+        template:
+          spec:
+            containers:
+              - name: postgres
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 192Mi
+                  limits:
+                    memory: 384Mi
+  - patch: |
+      apiVersion: batch/v1
+      kind: CronJob
+      metadata:
+        name: macmac-crawler
+        namespace: macmac
+      spec:
+        jobTemplate:
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: crawler
+                    resources:
+                      requests:
+                        cpu: 100m
+                        memory: 192Mi
+                      limits:
+                        memory: 384Mi
+  - patch: |
+      apiVersion: batch/v1
+      kind: CronJob
+      metadata:
+        name: macmac-reenrich
+        namespace: macmac
+      spec:
+        jobTemplate:
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: reenrich
+                    resources:
+                      requests:
+                        cpu: 100m
+                        memory: 192Mi
+                      limits:
+                        memory: 384Mi
   #
   # #400 — local-path storage: set spec.storageClassName:
   #        local-path on the 4 database PVCs.
