@@ -22,6 +22,8 @@ resources:
   - ../../bases/macmac
   # #398 — Ingress objects replacing the gateway/frontend Routes.
   - ingress.yaml
+  # #411 — allow Traefik to reach cert-manager's ACME HTTP-01 solver pods.
+  - network-policies-k3s.yaml
 
 # ------------------------------------------------------------
 # Patches earmarked for downstream Phase-1 issues.
@@ -495,3 +497,83 @@ patches:
           spec:
             securityContext:
               fsGroup: 999
+  #
+  # #411 — Retarget the ingress NetworkPolicy selectors from OpenShift to k3s.
+  #        The base allows ingress from the OpenShift router via
+  #        `namespaceSelector: network.openshift.io/policy-group: ingress`.
+  #        k3s has no such namespace; its ingress controller is Traefik in
+  #        kube-system (pod label app.kubernetes.io/name=traefik). Replace the
+  #        peer with namespaceSelector(kube-system) AND podSelector(traefik) —
+  #        both in one `from` element so only Traefik pods match, not the whole
+  #        namespace. (k3s labels namespaces with kubernetes.io/metadata.name;
+  #        there is no `name: kube-system` label.) spec.ingress is an atomic
+  #        list, so each patch restates the full rule.
+  #
+  # gateway: reachable from Traefik (HTTP 8080) and still from the frontend pod.
+  - patch: |
+      apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: allow-ingress-gateway
+        namespace: macmac
+      spec:
+        ingress:
+          - from:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: kube-system
+                podSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: traefik
+              - podSelector:
+                  matchLabels:
+                    app: frontend
+            ports:
+              - protocol: TCP
+                port: 8080
+  # frontend: reachable from Traefik (HTTP 8080).
+  - patch: |
+      apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: allow-ingress-frontend
+        namespace: macmac
+      spec:
+        ingress:
+          - from:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: kube-system
+                podSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: traefik
+            ports:
+              - protocol: TCP
+                port: 8080
+  # rabbitmq: drop the third OpenShift-router peer. It allowed the now-removed
+  #        amqps passthrough Route (#401 replaced it with a hostPort on 5671,
+  #        which does not flow through Traefik). The in-cluster peer is kept;
+  #        external amqps reachability under hostPort is settled when remote
+  #        enrichers are onboarded, not here.
+  - patch: |
+      apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: allow-ingress-rabbitmq
+        namespace: macmac
+      spec:
+        ingress:
+          - from:
+              - podSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - reenrich
+                        - crawler
+                        - catalog-api
+            ports:
+              - protocol: TCP
+                port: 5672
+              - protocol: TCP
+                port: 5671

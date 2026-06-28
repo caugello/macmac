@@ -1,0 +1,33 @@
+---
+# k3s-only NetworkPolicy (#411). The portable base has no cert-manager HTTP-01
+# story (OpenShift used passthrough Routes), so the ACME solver allow rule lives
+# here in the overlay.
+#
+# cert-manager spins up a short-lived `cm-acme-http-solver-*` pod (label
+# acme.cert-manager.io/http01-solver=true, listening on 8089) plus an Ingress
+# routing /.well-known/acme-challenge/<token> to it. With default-deny-ingress
+# in effect and no allow rule, Traefik cannot reach the solver and the challenge
+# fails with 502 — blocking issuance and every future renewal. Allow Traefik
+# (kube-system) to reach solver pods on 8089.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-acme-solver
+  namespace: macmac
+spec:
+  podSelector:
+    matchLabels:
+      acme.cert-manager.io/http01-solver: "true"
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+      ports:
+        - protocol: TCP
+          port: 8089
