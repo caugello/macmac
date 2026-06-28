@@ -13,6 +13,8 @@ const badgeVariants = cva(
           'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80',
         destructive:
           'border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80',
+        accent: 'border-transparent bg-lime text-ink',
+        promotion: 'border-transparent bg-coral text-white',
         outline: 'text-foreground',
         'nutri-a': 'bg-nutri-a text-white border-transparent',
         'nutri-b': 'bg-nutri-b text-white border-transparent',

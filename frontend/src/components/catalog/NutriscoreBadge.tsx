@@ -19,8 +19,8 @@ export const NutriscoreBadge = ({ score, size = 'sm', className }: NutriscoreBad
   return (
     <span
       className={cn(
-        'flex items-center justify-center font-bold rounded-lg',
-        size === 'sm' ? 'w-7 h-7 text-xs' : 'w-9 h-9 text-lg',
+        'inline-flex items-center justify-center font-display font-extrabold leading-none',
+        size === 'sm' ? 'w-7 h-7 text-sm rounded-[10px]' : 'w-10 h-10 text-xl rounded-xl',
         scoreStyles[key],
         className
       )}

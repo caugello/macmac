@@ -34,10 +34,10 @@ export const FilterChips = ({ items, activeItem, onItemChange, className }: Filt
             key={item}
             onClick={() => onItemChange(item)}
             className={cn(
-              'px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-caption font-medium uppercase tracking-wider whitespace-nowrap transition-colors',
+              'h-9 px-4 inline-flex items-center rounded-full text-caption font-semibold tracking-wide whitespace-nowrap transition-colors',
               activeItem === item
-                ? 'bg-primary/10 text-primary'
-                : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-white text-muted-foreground border border-border hover:bg-surface-container'
             )}
           >
             {item}
