@@ -346,5 +346,38 @@ patches:
   # #400 — local-path storage: set spec.storageClassName:
   #        local-path on the 4 database PVCs.
   #
+  - patch: |
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: auth-db-pvc
+        namespace: macmac
+      spec:
+        storageClassName: local-path
+  - patch: |
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: catalog-db-pvc
+        namespace: macmac
+      spec:
+        storageClassName: local-path
+  - patch: |
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: recipes-db-pvc
+        namespace: macmac
+      spec:
+        storageClassName: local-path
+  - patch: |
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: meal-plans-db-pvc
+        namespace: macmac
+      spec:
+        storageClassName: local-path
+  #
   # #401 — RabbitMQ amqps: re-express the passthrough Route as a
   #        Traefik TCP entrypoint / hostPort on 5671 (TLS preserved).
