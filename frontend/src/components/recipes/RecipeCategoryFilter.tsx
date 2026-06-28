@@ -33,10 +33,10 @@ export const RecipeCategoryFilter = ({
             onClick={() => onToggle(c.value)}
             aria-pressed={isActive}
             className={cn(
-              'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-label-md font-medium whitespace-nowrap transition-colors',
+              'inline-flex items-center gap-1.5 h-9 px-4 rounded-full text-caption font-semibold tracking-wide whitespace-nowrap transition-colors',
               isActive
-                ? 'bg-primary text-on-primary'
-                : 'bg-surface-container-low text-on-surface-variant wireframe-border hover:bg-surface-container'
+                ? 'bg-ink text-cream'
+                : 'bg-white text-muted-foreground border border-border hover:bg-surface-container'
             )}
           >
             {c.label}
@@ -44,7 +44,7 @@ export const RecipeCategoryFilter = ({
               <span
                 className={cn(
                   'text-caption tabular-nums',
-                  isActive ? 'text-on-primary/80' : 'text-on-surface-variant/70'
+                  isActive ? 'text-cream/70' : 'text-muted-foreground/70'
                 )}
               >
                 {count}

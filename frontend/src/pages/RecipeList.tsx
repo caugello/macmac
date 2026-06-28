@@ -6,7 +6,9 @@ import { Pagination } from '@/components/shared/Pagination'
 import { RecipeCategoryFilter } from '@/components/recipes/RecipeCategoryFilter'
 import { FeaturedRecipeCard } from '@/components/recipes/FeaturedRecipeCard'
 import { RecipeDiscoveryCard } from '@/components/recipes/RecipeDiscoveryCard'
+import { Card } from '@/components/ui/card'
 import { Icon } from '@/components/ui/icon'
+import { cn } from '@/lib/utils'
 import { RecipeCategoryEnum } from '@/lib/types'
 
 export const RecipeList = () => {
@@ -40,34 +42,31 @@ export const RecipeList = () => {
   if (isLoading) {
     return (
       <div className="max-w-7xl mx-auto px-4 md:px-12 pt-6 pb-32">
-        <h1 className="text-headline-lg-mobile md:text-headline-lg font-heading font-bold mb-6">
+        <h1 className="text-headline-lg-mobile md:text-headline-lg font-display font-bold text-ink mb-6">
           Recipes
         </h1>
         <p className="sr-only">Loading recipes...</p>
-        <div className="bg-surface-container-lowest rounded-2xl overflow-hidden ambient-shadow mb-8">
+        <Card tone="white" className="overflow-hidden mb-8">
           <div className="grid md:grid-cols-2">
             <div className="aspect-[16/10] md:aspect-auto md:min-h-[20rem] skeleton-shimmer" />
             <div className="p-6 md:p-8 space-y-4">
-              <div className="h-5 w-1/3 rounded bg-surface-container skeleton-shimmer" />
-              <div className="h-6 w-2/3 rounded bg-surface-container skeleton-shimmer" />
-              <div className="h-4 w-full rounded bg-surface-container skeleton-shimmer" />
-              <div className="h-4 w-4/5 rounded bg-surface-container skeleton-shimmer" />
+              <div className="h-5 w-1/3 rounded skeleton-shimmer" />
+              <div className="h-6 w-2/3 rounded skeleton-shimmer" />
+              <div className="h-4 w-full rounded skeleton-shimmer" />
+              <div className="h-4 w-4/5 rounded skeleton-shimmer" />
             </div>
           </div>
-        </div>
+        </Card>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {[1, 2, 3].map((n) => (
-            <div
-              key={n}
-              className="bg-surface-container-lowest rounded-2xl overflow-hidden ambient-shadow"
-            >
+            <Card key={n} tone="white" className="overflow-hidden">
               <div className="aspect-[4/3] skeleton-shimmer" />
               <div className="p-4 space-y-3">
-                <div className="h-4 w-3/4 rounded bg-surface-container skeleton-shimmer" />
-                <div className="h-3 w-full rounded bg-surface-container skeleton-shimmer" />
-                <div className="h-3 w-1/2 rounded bg-surface-container skeleton-shimmer" />
+                <div className="h-4 w-3/4 rounded skeleton-shimmer" />
+                <div className="h-3 w-full rounded skeleton-shimmer" />
+                <div className="h-3 w-1/2 rounded skeleton-shimmer" />
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       </div>
@@ -94,10 +93,10 @@ export const RecipeList = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-12 pt-6 pb-32">
       <header className="mb-6 space-y-1.5">
-        <h1 className="text-headline-lg-mobile md:text-headline-lg font-heading font-bold text-on-surface">
+        <h1 className="text-headline-lg-mobile md:text-headline-lg font-display font-bold text-ink">
           Recipes
         </h1>
-        <p className="text-body-md text-on-surface-variant">
+        <p className="text-body-lg text-muted-foreground">
           Discover and cook from your collection.
         </p>
       </header>
@@ -112,11 +111,12 @@ export const RecipeList = () => {
           onClick={() => setShowCategories((v) => !v)}
           aria-pressed={showCategories}
           aria-label="Toggle category filters"
-          className={`w-14 h-14 flex items-center justify-center rounded-xl transition-colors shrink-0 ${
+          className={cn(
+            'w-14 h-14 flex items-center justify-center rounded-full transition-colors shrink-0',
             showCategories || selectedCategories.length > 0
-              ? 'bg-primary text-on-primary'
-              : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'
-          }`}
+              ? 'bg-ink text-cream'
+              : 'bg-white text-muted-foreground border border-border hover:bg-surface-container'
+          )}
         >
           <Icon name="tune" size={22} />
         </button>
@@ -134,23 +134,25 @@ export const RecipeList = () => {
 
       {isEmpty ? (
         <div className="flex flex-col items-center justify-center py-24">
-          <div className="w-full max-w-sm rounded-2xl bg-gradient-to-br from-primary/5 to-transparent p-12 flex flex-col items-center gap-5 border border-outline-variant/50">
-            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
-              <Icon name="restaurant_menu" size={36} className="text-primary" />
+          <Card tone="white" className="w-full max-w-sm p-12 flex flex-col items-center gap-5">
+            <div className="w-20 h-20 rounded-full bg-lime flex items-center justify-center">
+              <Icon name="restaurant_menu" size={36} className="text-ink" />
             </div>
             <div className="text-center space-y-1.5">
-              <p className="text-headline-md font-heading font-semibold">Your kitchen awaits</p>
-              <p className="text-body-md text-on-surface-variant">
+              <p className="text-headline-md font-display font-bold text-ink">
+                Your kitchen awaits
+              </p>
+              <p className="text-body-md text-muted-foreground">
                 Add your first recipe and start building your collection.
               </p>
             </div>
             <Link
               to="/recipes/new"
-              className="bg-primary text-primary-foreground px-6 py-2.5 rounded-full text-label-md font-semibold hover:brightness-110 transition-all"
+              className="bg-ink text-cream px-6 py-2.5 rounded-full text-label-md font-semibold hover:-translate-y-px hover:ambient-shadow transition-all"
             >
               Create a recipe
             </Link>
-          </div>
+          </Card>
         </div>
       ) : (
         <>
@@ -172,13 +174,13 @@ export const RecipeList = () => {
         </>
       )}
 
-      {/* FAB */}
+      {/* Create FAB — stacked above the global My List launcher */}
       <Link
         to="/recipes/new"
-        className="fixed bottom-36 right-4 md:bottom-24 md:right-4 z-40 px-6 py-4 bg-primary text-on-primary rounded-xl shadow-lg flex items-center gap-2 hover:shadow-xl active:scale-95 transition-all"
+        className="fixed bottom-36 right-4 md:bottom-24 z-40 px-6 py-4 bg-lime text-ink rounded-full ambient-shadow flex items-center gap-2 hover:-translate-y-px active:scale-95 transition-all"
       >
         <Icon name="add" size={20} />
-        <span className="font-label-md">Create Recipe</span>
+        <span className="text-label-md font-semibold">Create Recipe</span>
       </Link>
     </div>
   )
