@@ -1,0 +1,126 @@
+---
+# ============================================================
+# Meal Plans API
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: meal-plans-api
+  namespace: macmac
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: meal-plans-api
+  template:
+    metadata:
+      labels:
+        app: meal-plans-api
+    spec:
+      imagePullSecrets:
+        - name: macmac-pull-secret
+      volumes:
+        - name: cfg
+          configMap:
+            name: macmac-config
+      initContainers:
+        - name: migrate
+          image: quay.io/caugello/macmac-meal-plans:v0.2.6
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: cfg
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+          env:
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: meal-plans-db-secret
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: meal-plans-db-secret
+                  key: DB_PASSWORD
+            - name: MEAL_PLANS_DATABASE_URL
+              value: "postgresql+pg8000://$(DB_USER):$(DB_PASSWORD)@meal-plans-db:5432/meal_plans"
+          command:
+            - python
+            - -c
+            - |
+              import socket, time, subprocess, sys
+              while True:
+                  try:
+                      socket.create_connection(("meal-plans-db", 5432), timeout=2)
+                      break
+                  except OSError:
+                      time.sleep(2)
+              sys.exit(subprocess.call([sys.executable, "-m", "alembic", "-c", "services/meal_plans/alembic.ini", "upgrade", "head"]))
+      containers:
+        - name: meal-plans-api
+          image: quay.io/caugello/macmac-meal-plans:v0.2.6
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8003
+          volumeMounts:
+            - name: cfg
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+          env:
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: macmac-app-secret
+                  key: JWT_SECRET_KEY
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-secret
+                  key: password
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: meal-plans-db-secret
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: meal-plans-db-secret
+                  key: DB_PASSWORD
+            - name: MEAL_PLANS_DATABASE_URL
+              value: "postgresql+pg8000://$(DB_USER):$(DB_PASSWORD)@meal-plans-db:5432/meal_plans"
+          command:
+            - gunicorn
+            - services.meal_plans.main:app
+            - --workers=4
+            - --worker-class=uvicorn.workers.UvicornWorker
+            - --bind=0.0.0.0:8003
+            - --access-logfile=-
+            - --error-logfile=-
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8003
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8003
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: meal-plans-api
+  namespace: macmac
+  labels:
+    app: meal-plans-api
+spec:
+  selector:
+    app: meal-plans-api
+  ports:
+    - name: http
+      port: 8003
+      targetPort: 8003

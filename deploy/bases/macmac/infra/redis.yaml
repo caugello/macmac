@@ -1,0 +1,65 @@
+---
+# ============================================================
+# Valkey (Redis-compatible cache)
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-cache
+  namespace: macmac
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-cache
+  template:
+    metadata:
+      labels:
+        app: redis-cache
+    spec:
+      containers:
+        - name: valkey
+          image: registry.access.redhat.com/hi/valkey:latest
+          ports:
+            - containerPort: 6379
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-secret
+                  key: password
+          args: ["--requirepass", "$(REDIS_PASSWORD)", "--save", ""]
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "valkey-cli -a $REDIS_PASSWORD ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "valkey-cli -a $REDIS_PASSWORD ping"]
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cache
+  namespace: macmac
+  labels:
+    app: redis-cache
+spec:
+  selector:
+    app: redis-cache
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-secret
+  namespace: macmac
+type: Opaque
+stringData:
+  password: "CHANGE_ME_AT_DEPLOY_TIME"

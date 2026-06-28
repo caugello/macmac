@@ -1,0 +1,266 @@
+# ============================================================
+# OPERATOR RUNBOOK — per-location RabbitMQ enricher users (#343)
+# ============================================================
+# Each remote location gets its own user `enricher-<location>` plus a Secret
+# holding that location's password. Two ways to provision; pick one.
+#
+# ── A) Live (rabbitmqctl) — preferred for adding ONE location ────────────────
+#   Generate a password and create the user + scoped permissions on "/":
+#     PW=$(openssl rand -base64 24)
+#     LOC=paris
+#     oc -n macmac exec deploy/rabbitmq -- rabbitmqctl add_user "enricher-$LOC" "$PW"
+#     # No tags = no management UI/API, no admin:
+#     oc -n macmac exec deploy/rabbitmq -- rabbitmqctl set_user_tags "enricher-$LOC"
+#     # configure="" (no declare), write=default exchange only, read=entity queue only:
+#     oc -n macmac exec deploy/rabbitmq -- rabbitmqctl set_permissions \
+#       -p / "enricher-$LOC" \
+#       '^$' '^amq\.default$' '^macmac\.catalog\.process\.entity$'
+#   Store the credential for the location (the remote VPS reads it from here):
+#     oc -n macmac create secret generic "rabbitmq-enricher-$LOC" \
+#       --from-literal=RABBITMQ_USER="enricher-$LOC" \
+#       --from-literal=RABBITMQ_PASSWORD="$PW"
+#   The remote worker connects with:
+#     RABBITMQ_URL=amqps://enricher-$LOC:<PW>@<rabbitmq-amqps-route-host>:443/%2F
+#
+# ── B) Declarative (definitions.json) — for baking users into the manifest ───
+#   Compute the RabbitMQ SHA-256 password_hash for the location's password:
+#     oc -n macmac exec deploy/rabbitmq -- \
+#       rabbitmqctl hash_password "$PW"
+#   Add a {users[],permissions[]} pair to the rabbitmq-definitions Secret above
+#   (same regexes as A), then roll RabbitMQ so it reloads definitions:
+#     oc -n macmac rollout restart deploy/rabbitmq
+#   (definitions load is additive on boot; it never deletes users.)
+#
+# ── Revoke ONE location (does not touch others or the central user) ──────────
+#     oc -n macmac exec deploy/rabbitmq -- rabbitmqctl delete_user "enricher-$LOC"
+#     oc -n macmac delete secret "rabbitmq-enricher-$LOC"
+#   If the user was declared via definitions.json, also remove its
+#   users[]/permissions[] entries from the Secret so it isn't recreated on the
+#   next RabbitMQ restart.
+#
+# ── Verify least-privilege (expect publish/consume OK, everything else denied) ─
+#     # consume process.entity  -> allowed
+#     # publish enrichment.results (default exchange) -> allowed
+#     # read/declare any other queue, or hit :15672 mgmt -> denied
+#   e.g.:
+#     oc -n macmac exec deploy/rabbitmq -- \
+#       rabbitmqctl list_permissions -p /
+# ============================================================
+
+---
+# ============================================================
+# RabbitMQ
+# ============================================================
+# ConfigMap — rabbitmq.conf enabling the amqps (TLS) listener on 5671
+# alongside the existing plaintext amqp listener on 5672.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-config
+  namespace: macmac
+data:
+  rabbitmq.conf: |
+    # Plaintext listener (unchanged) for in-cluster clients.
+    listeners.tcp.default = 5672
+
+    # TLS (amqps) listener for out-of-cluster workers.
+    listeners.ssl.default = 5671
+    ssl_options.cacertfile = /etc/rabbitmq/tls/ca.crt
+    ssl_options.certfile   = /etc/rabbitmq/tls/tls.crt
+    ssl_options.keyfile    = /etc/rabbitmq/tls/tls.key
+    # Server-auth only; remote workers verify the server cert, not vice-versa.
+    # (mTLS client-cert auth is optional and intentionally NOT enabled here so
+    # we don't contradict the server-auth-only posture from #341/#342.)
+    ssl_options.verify = verify_none
+    ssl_options.fail_if_no_peer_cert = false
+
+    # Declaratively load users/permissions at boot (#343). The file is mounted
+    # from Secret rabbitmq-definitions (it carries password hashes, so it must
+    # be a Secret, not a ConfigMap). Per-location enricher users live here.
+    load_definitions = /etc/rabbitmq/definitions/definitions.json
+---
+# ============================================================
+# Per-location least-privilege RabbitMQ users (#343)
+# ============================================================
+# definitions.json loaded at boot via `load_definitions`. Declares each remote
+# location's enricher user on the SHARED default vhost "/", scoped so it can
+# ONLY consume macmac.catalog.process.entity and publish
+# macmac.catalog.enrichment.results. The central producers (crawler, reenrich)
+# and the snitch consumer keep using the macmac-app-secret user on "/" and are
+# unaffected. The enricher worker itself no longer runs on-cluster — it runs
+# only on the remote satellite VPSes (deploy/enricher-remote), each with its own
+# per-location enricher-<location> user defined here.
+#
+# Why the shared "/" vhost (not a dedicated one): the central crawler PUBLISHES
+# process.entity and the central snitch CONSUMES enrichment.results on "/", and
+# vhosts are a hard isolation boundary — a separate vhost would strand remote
+# workers from the central topology. Isolation is achieved with regexes instead.
+#
+# Least-privilege regexes per enricher user:
+#   configure ^$                              cannot declare/delete any
+#                                             queue/exchange (central owns
+#                                             declaration via declare_queue).
+#   write     ^amq\.default$                  publish only via the default
+#                                             exchange (messaging_bus.publish
+#                                             uses exchange="" + routing_key);
+#                                             RabbitMQ checks write on the
+#                                             destination exchange.
+#   read      ^macmac\.catalog\.process\.entity$
+#                                             consume only the entity queue;
+#                                             no other queue is readable.
+#   tags: [] (no "management"/"administrator") — no UI/API, no admin.
+#
+# NOTE ON write SCOPING: messaging_bus.publish() targets the default exchange,
+# and RabbitMQ's permission model scopes write by EXCHANGE name, not routing
+# key — so write cannot be narrowed below the default exchange without an app
+# topology change (out of scope for #343). The remaining controls (empty
+# configure, read limited to process.entity, no tags) keep the user unable to
+# read any other queue, reshape topology, or reach the management API.
+#
+# Passwords are NOT stored here. Each user references a SHA-256 password hash
+# generated from the per-location password held in its own Secret
+# (rabbitmq-enricher-<location>) — see the operator runbook below. Rotating or
+# revoking one location only touches that location's entry + Secret.
+#
+# This Secret is a TEMPLATE: it ships with one example location ("example") set
+# to a non-functional placeholder hash. Replace/extend it at deploy time with
+# real per-location hashes (runbook below). Definitions load is idempotent:
+# users present here are created/updated on boot; users removed here are NOT
+# auto-deleted (use `rabbitmqctl delete_user` to revoke — see runbook).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: rabbitmq-definitions
+  namespace: macmac
+type: Opaque
+stringData:
+  definitions.json: |
+    {
+      "rabbit_version": "4.0.0",
+      "users": [
+        {
+          "name": "enricher-example",
+          "password_hash": "REPLACE_AT_DEPLOY_TIME_WITH_REAL_HASH",
+          "hashing_algorithm": "rabbit_password_hashing_sha256",
+          "tags": []
+        }
+      ],
+      "vhosts": [
+        { "name": "/" }
+      ],
+      "permissions": [
+        {
+          "user": "enricher-example",
+          "vhost": "/",
+          "configure": "^$",
+          "write": "^amq\\.default$",
+          "read": "^macmac\\.catalog\\.process\\.entity$"
+        }
+      ],
+      "topic_permissions": [],
+      "parameters": [],
+      "policies": [],
+      "queues": [],
+      "exchanges": [],
+      "bindings": []
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  namespace: macmac
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      volumes:
+        - name: rabbitmq-config
+          configMap:
+            name: rabbitmq-config
+        - name: rabbitmq-tls
+          secret:
+            secretName: rabbitmq-tls
+            defaultMode: 0640
+        - name: rabbitmq-definitions
+          secret:
+            secretName: rabbitmq-definitions
+            defaultMode: 0640
+      containers:
+        - name: rabbitmq
+          image: docker.io/library/rabbitmq:4-management
+          ports:
+            - containerPort: 5672
+            - containerPort: 5671
+            - containerPort: 15672
+          volumeMounts:
+            - name: rabbitmq-config
+              mountPath: /etc/rabbitmq/rabbitmq.conf
+              subPath: rabbitmq.conf
+            - name: rabbitmq-tls
+              mountPath: /etc/rabbitmq/tls
+              readOnly: true
+            - name: rabbitmq-definitions
+              mountPath: /etc/rabbitmq/definitions
+              readOnly: true
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: macmac-app-secret
+                  key: RABBITMQ_USER
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: macmac-app-secret
+                  key: RABBITMQ_PASSWORD
+          readinessProbe:
+            tcpSocket:
+              port: 5672
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  namespace: macmac
+  labels:
+    app: rabbitmq
+spec:
+  selector:
+    app: rabbitmq
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: 5672
+    - name: amqps
+      port: 5671
+      targetPort: 5671
+    - name: management
+      port: 15672
+      targetPort: 15672
+---
+# Route exposing RabbitMQ amqps (5671) externally for remote VPS workers.
+# TLS passthrough: AMQPS clients perform their own TLS handshake/SNI against
+# the rabbitmq pod (server cert from Secret rabbitmq-tls), so the router must
+# not terminate TLS.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: rabbitmq-amqps
+  namespace: macmac
+spec:
+  to:
+    kind: Service
+    name: rabbitmq
+  port:
+    targetPort: amqps
+  tls:
+    termination: passthrough

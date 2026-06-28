@@ -1,0 +1,74 @@
+---
+# ============================================================
+# Meal Plans Database
+# ============================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: meal-plans-db-pvc
+  namespace: macmac
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: meal-plans-db
+  namespace: macmac
+spec:
+  serviceName: meal-plans-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: meal-plans-db
+  template:
+    metadata:
+      labels:
+        app: meal-plans-db
+    spec:
+      containers:
+        - name: postgres
+          image: registry.access.redhat.com/hi/postgresql:18
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: meal-plans-db-secret
+                  key: DB_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: meal-plans-db-secret
+                  key: DB_PASSWORD
+            - name: POSTGRES_DB
+              value: meal_plans
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: meal-plans-db-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: meal-plans-db
+  namespace: macmac
+  labels:
+    app: meal-plans-db
+spec:
+  clusterIP: None
+  selector:
+    app: meal-plans-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
