@@ -19,15 +19,15 @@ describe('FilterChips Component', () => {
       render(<FilterChips items={items} activeItem="Fruits" onItemChange={vi.fn()} />)
 
       const activeButton = screen.getByRole('button', { name: 'Fruits' })
-      expect(activeButton.className).toContain('bg-primary/10')
-      expect(activeButton.className).toContain('text-primary')
+      expect(activeButton.className).toContain('bg-primary')
+      expect(activeButton.className).toContain('text-primary-foreground')
     })
 
     it('should style inactive chips differently', () => {
       render(<FilterChips items={items} activeItem="All" onItemChange={vi.fn()} />)
 
       const inactiveButton = screen.getByRole('button', { name: 'Fruits' })
-      expect(inactiveButton.className).toContain('bg-surface-container-low')
+      expect(inactiveButton.className).toContain('bg-white')
       expect(inactiveButton.className).not.toContain('bg-primary')
     })
 
