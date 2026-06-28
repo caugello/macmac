@@ -20,6 +20,8 @@ namespace: macmac
 
 resources:
   - ../../bases/macmac
+  # #398 — Ingress objects replacing the gateway/frontend Routes.
+  - ingress.yaml
 
 # ------------------------------------------------------------
 # Patches earmarked for downstream Phase-1 issues.
@@ -29,9 +31,33 @@ resources:
 # ------------------------------------------------------------
 patches:
   # #398 — Route -> Ingress (gateway, frontend): delete the
-  #        route.openshift.io/v1 Routes and add
-  #        networking.k8s.io/v1 Ingress with cert-manager
-  #        annotations + hosts.
+  #        route.openshift.io/v1 Routes (replaced by the Ingress
+  #        objects in ingress.yaml). The rabbitmq-amqps Route is
+  #        left in place for #401.
+  - patch: |
+      $patch: delete
+      apiVersion: route.openshift.io/v1
+      kind: Route
+      metadata:
+        name: gateway
+        namespace: macmac
+    target:
+      group: route.openshift.io
+      version: v1
+      kind: Route
+      name: gateway
+  - patch: |
+      $patch: delete
+      apiVersion: route.openshift.io/v1
+      kind: Route
+      metadata:
+        name: frontend
+        namespace: macmac
+    target:
+      group: route.openshift.io
+      version: v1
+      kind: Route
+      name: frontend
   #
   # #399 — Resource requests/limits: patch every workload
   #        (Deployments + StatefulSets) with the requests/limits
@@ -42,4 +68,3 @@ patches:
   #
   # #401 — RabbitMQ amqps: re-express the passthrough Route as a
   #        Traefik TCP entrypoint / hostPort on 5671 (TLS preserved).
-  []
