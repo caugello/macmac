@@ -3,43 +3,92 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Icon } from '@/components/ui/icon'
 
+const FEATURES = [
+  {
+    tone: 'lime' as const,
+    icon: 'calendar_today',
+    title: 'Meal plans that know your store',
+    body: "Plan your week and MacMac matches every ingredient to real products on real shelves — with today's prices already filled in.",
+  },
+  {
+    tone: 'white' as const,
+    icon: 'shopping_cart',
+    title: 'Shopping lists with real prices',
+    body: 'One click turns a week of meals into a priced, sorted shopping list. Promotions are flagged automatically so you never miss a deal.',
+  },
+  {
+    tone: 'soft-purple' as const,
+    icon: 'eco',
+    title: 'Buy what you need, use what you buy',
+    body: 'Precise quantities calculated from your recipes mean fewer impulse buys, less forgotten produce, and a fridge that makes sense.',
+  },
+  {
+    tone: 'white' as const,
+    icon: 'nutrition',
+    title: 'Nutri-Score on every product',
+    body: 'AI extracts nutritional data from every cataloged product and assigns a Nutri-Score automatically — no manual entry, no guesswork.',
+  },
+]
+
+const STEPS = [
+  {
+    label: '1. Add your recipes',
+    icon: 'restaurant_menu',
+    body: 'Build your family collection or browse what others have shared — each recipe links to real catalog products',
+  },
+  {
+    label: '2. Plan your meals',
+    icon: 'calendar_month',
+    body: 'Drag recipes into your weekly calendar for breakfast, lunch, and dinner',
+  },
+  {
+    label: '3. AI does the math',
+    icon: 'auto_awesome',
+    body: 'MacMac matches every ingredient to real store products, calculates quantities, and builds a priced list — sorted by category',
+  },
+  {
+    label: '4. Shop with confidence',
+    icon: 'shopping_cart',
+    body: 'Walk into the store knowing exactly what to buy, how much it costs, and which items are on promotion this week',
+  },
+]
+
 export const Landing = () => {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-cream text-ink">
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+      <section className="mx-auto max-w-7xl px-5 pt-12 pb-16 md:px-16 md:pt-20 md:pb-24">
+        <span className="font-display text-2xl font-bold lowercase tracking-tight">
+          pantry<span className="text-lime">.</span>
+        </span>
+        <div className="mt-10 grid items-center gap-12 lg:grid-cols-2">
           <div className="space-y-6">
-            <h1 className="text-5xl lg:text-6xl font-heading font-bold leading-tight">
+            <p className="font-serif text-2xl italic text-green">Fresh from your store.</p>
+            <h1 className="font-display text-5xl font-bold leading-[1.05] tracking-tight lg:text-6xl">
               AI reads every product at your store.{' '}
-              <span className="text-primary">Your meal plan writes its own shopping list.</span>
+              <span className="text-green">Your meal plan writes its own shopping list.</span>
             </h1>
-            <p className="text-xl text-on-surface-variant leading-relaxed">
+            <p className="font-body text-xl leading-relaxed text-ink/70">
               MacMac crawls real store catalogs, enriches every product with AI, and turns your
               weekly meals into a priced shopping list — automatically.
             </p>
-            <div className="flex gap-4">
-              <Button
-                asChild
-                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-8 py-6 text-lg rounded-full"
-              >
+            <div className="flex flex-wrap gap-4 pt-2">
+              <Button asChild variant="accent" className="h-14 px-8 text-lg">
                 <Link to="/recipes">Get Started Free</Link>
               </Button>
-              <Button
-                variant="outline"
-                className="border-outline-variant text-on-surface-variant hover:bg-surface-variant px-8 py-6 text-lg rounded-full"
-              >
+              <Button variant="outline" className="h-14 px-8 text-lg">
                 Learn More
               </Button>
             </div>
           </div>
 
           <div className="relative">
-            <div className="bg-gradient-to-br from-primary/10 to-transparent rounded-lg p-8 border border-outline-variant">
+            <div className="absolute -top-6 -right-4 hidden h-24 w-24 rounded-full bg-lime md:block" />
+            <div className="rounded-bento border border-border bg-white p-4">
               <img
                 src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&h=600&fit=crop"
                 alt="Meal prep preview"
-                className="rounded-lg shadow-lg"
+                className="w-full rounded-[14px]"
               />
             </div>
           </div>
@@ -47,149 +96,67 @@ export const Landing = () => {
       </section>
 
       {/* Features Section */}
-      <section className="container mx-auto px-4 py-20">
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 stagger-grid">
-          <Card className="bg-surface-container-lowest wireframe-border card-hover-shadow">
-            <CardContent className="p-6 space-y-4">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Icon name="calendar_today" size={24} className="text-primary" />
-              </div>
-              <h3 className="text-xl font-heading font-semibold">
-                Meal plans that know your store
-              </h3>
-              <p className="text-on-surface-variant">
-                Plan your week and MacMac matches every ingredient to real products on real shelves
-                — with today&apos;s prices already filled in.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-surface-container-lowest wireframe-border card-hover-shadow">
-            <CardContent className="p-6 space-y-4">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Icon name="shopping_cart" size={24} className="text-primary" />
-              </div>
-              <h3 className="text-xl font-heading font-semibold">
-                Shopping lists with real prices
-              </h3>
-              <p className="text-on-surface-variant">
-                One click turns a week of meals into a priced, sorted shopping list. Promotions are
-                flagged automatically so you never miss a deal.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-surface-container-lowest wireframe-border card-hover-shadow">
-            <CardContent className="p-6 space-y-4">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Icon name="eco" size={24} className="text-primary" />
-              </div>
-              <h3 className="text-xl font-heading font-semibold">
-                Buy what you need, use what you buy
-              </h3>
-              <p className="text-on-surface-variant">
-                Precise quantities calculated from your recipes mean fewer impulse buys, less
-                forgotten produce, and a fridge that makes sense.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-surface-container-lowest wireframe-border card-hover-shadow">
-            <CardContent className="p-6 space-y-4">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Icon name="nutrition" size={24} className="text-primary" />
-              </div>
-              <h3 className="text-xl font-heading font-semibold">Nutri-Score on every product</h3>
-              <p className="text-on-surface-variant">
-                AI extracts nutritional data from every cataloged product and assigns a Nutri-Score
-                automatically — no manual entry, no guesswork.
-              </p>
-            </CardContent>
-          </Card>
+      <section className="mx-auto max-w-7xl px-5 py-16 md:px-16 md:py-20">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {FEATURES.map((feature) => (
+            <Card key={feature.title} tone={feature.tone} className="h-full">
+              <CardContent className="space-y-4 p-6">
+                <div
+                  className={`flex h-12 w-12 items-center justify-center rounded-full ${
+                    feature.tone === 'lime' ? 'bg-ink text-cream' : 'bg-lime text-ink'
+                  }`}
+                >
+                  <Icon name={feature.icon} size={24} />
+                </div>
+                <h3 className="font-display text-xl font-bold tracking-tight">{feature.title}</h3>
+                <p className="font-body text-base leading-relaxed opacity-80">{feature.body}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </section>
 
       {/* How It Works Section */}
-      <section className="container mx-auto px-4 py-20">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-heading font-bold mb-4">
-            How the <span className="text-primary">AI pipeline</span> works
+      <section className="mx-auto max-w-7xl px-5 py-16 md:px-16 md:py-20">
+        <div className="mb-12 text-center">
+          <h2 className="font-display text-4xl font-bold tracking-tight md:text-5xl">
+            How the <span className="text-green">AI pipeline</span> works
           </h2>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 stagger-grid">
-          <Card className="bg-surface-container-lowest wireframe-border">
-            <CardContent className="p-6 space-y-4">
-              <div className="text-primary font-heading font-bold text-lg">1. Add your recipes</div>
-              <div className="aspect-video bg-gradient-to-br from-primary/5 to-transparent rounded-lg flex items-center justify-center">
-                <Icon name="restaurant_menu" size={48} className="text-primary/30" />
-              </div>
-              <p className="text-on-surface-variant">
-                Build your family collection or browse what others have shared — each recipe links
-                to real catalog products
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-surface-container-lowest wireframe-border">
-            <CardContent className="p-6 space-y-4">
-              <div className="text-primary font-heading font-bold text-lg">2. Plan your meals</div>
-              <div className="aspect-video bg-gradient-to-br from-primary/5 to-transparent rounded-lg flex items-center justify-center">
-                <Icon name="calendar_month" size={48} className="text-primary/30" />
-              </div>
-              <p className="text-on-surface-variant">
-                Drag recipes into your weekly calendar for breakfast, lunch, and dinner
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-surface-container-lowest wireframe-border">
-            <CardContent className="p-6 space-y-4">
-              <div className="text-primary font-heading font-bold text-lg">3. AI does the math</div>
-              <div className="aspect-video bg-gradient-to-br from-primary/5 to-transparent rounded-lg flex items-center justify-center">
-                <Icon name="auto_awesome" size={48} className="text-primary/30" />
-              </div>
-              <p className="text-on-surface-variant">
-                MacMac matches every ingredient to real store products, calculates quantities, and
-                builds a priced list — sorted by category
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-surface-container-lowest wireframe-border">
-            <CardContent className="p-6 space-y-4">
-              <div className="text-primary font-heading font-bold text-lg">
-                4. Shop with confidence
-              </div>
-              <div className="aspect-video bg-gradient-to-br from-primary/5 to-transparent rounded-lg flex items-center justify-center">
-                <Icon name="shopping_cart" size={48} className="text-primary/30" />
-              </div>
-              <p className="text-on-surface-variant">
-                Walk into the store knowing exactly what to buy, how much it costs, and which items
-                are on promotion this week
-              </p>
-            </CardContent>
-          </Card>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {STEPS.map((step) => (
+            <Card key={step.label} tone="white" className="h-full">
+              <CardContent className="space-y-4 p-6">
+                <div className="font-display text-lg font-bold text-green">{step.label}</div>
+                <div className="flex aspect-video items-center justify-center rounded-2xl bg-cream">
+                  <Icon name={step.icon} size={48} className="text-green/40" />
+                </div>
+                <p className="font-body text-base leading-relaxed text-ink/70">{step.body}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="container mx-auto px-4 py-20 text-center">
-        <div className="max-w-2xl mx-auto space-y-6">
-          <h2 className="text-4xl font-heading font-bold">
-            Your store is already <span className="text-primary">cataloged</span>
-          </h2>
-          <p className="text-xl text-on-surface-variant">
-            AI has read every product, extracted every price, and scored every Nutri-Score. All
-            that&apos;s left is your first recipe.
-          </p>
-          <Button
-            asChild
-            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-8 py-6 text-lg rounded-full"
-          >
-            <Link to="/recipes">Get Started Free</Link>
-          </Button>
-        </div>
+      <section className="mx-auto max-w-7xl px-5 py-16 md:px-16 md:py-24">
+        <Card tone="ink" className="mx-auto max-w-3xl">
+          <CardContent className="space-y-6 p-10 text-center md:p-14">
+            <h2 className="font-display text-4xl font-bold tracking-tight md:text-5xl">
+              Your store is already <span className="text-lime">cataloged</span>
+            </h2>
+            <p className="font-body text-xl leading-relaxed text-cream/70">
+              AI has read every product, extracted every price, and scored every Nutri-Score. All
+              that&apos;s left is your first recipe.
+            </p>
+            <div className="flex justify-center">
+              <Button asChild variant="accent" className="h-14 px-8 text-lg">
+                <Link to="/recipes">Get Started Free</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </section>
     </div>
   )
