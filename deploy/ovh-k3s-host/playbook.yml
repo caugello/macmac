@@ -1,8 +1,10 @@
 ---
 # Bootstrap a single OVH Fedora 44 Server VPS for the MacMac k3s migration.
-# Two logical concerns, run as two plays:
+# Three logical concerns, run as three plays:
 #   A) Harden the host       (issue #402)
 #   B) Install k3s + fetch kubeconfig to the operator laptop (issue #403)
+#   C) Install cert-manager + Let's Encrypt ClusterIssuers    (issue #404)
+#                            (run just this play: --tags cert-manager)
 #
 # Idempotent: a no-change re-run reports changed=0.
 #
@@ -18,6 +20,13 @@
   hosts: k3s_host
   become: true
   become_method: ansible.builtin.sudo
+
+  # k3s default CIDRs. These are trusted in firewalld so flannel's pod traffic
+  # is not dropped by the default-deny zone. Override only if k3s is installed
+  # with non-default --cluster-cidr / --service-cidr.
+  vars:
+    k3s_pod_cidr: "10.42.0.0/16"
+    k3s_service_cidr: "10.43.0.0/16"
 
   tasks:
     # --- SSH hardening -------------------------------------------------------
@@ -94,6 +103,24 @@
         immediate: true
         permanent: true
       when: not (expose_amqps | bool)
+
+    # k3s + firewalld: flannel forwards pod traffic across the cni0 bridge,
+    # which the default-deny `public` zone drops — breaking pod-to-pod and
+    # ingress-to-pod (Traefik returns 502; cert-manager HTTP-01 never reaches
+    # the solver). Trusting the pod and service CIDRs by source accepts all
+    # cluster-internal traffic regardless of interface, which is the documented
+    # k3s requirement (https://docs.k3s.io/installation/requirements). Added in
+    # the harden play (before k3s exists) — sources need no live interface.
+    - name: Trust the k3s pod and service CIDRs (firewalld)
+      ansible.posix.firewalld:
+        source: "{{ item }}"
+        zone: trusted
+        state: enabled
+        immediate: true
+        permanent: true
+      loop:
+        - "{{ k3s_pod_cidr }}"
+        - "{{ k3s_service_cidr }}"
 
     # --- SELinux -------------------------------------------------------------
     # Fedora 44 Server minimal ships Enforcing/targeted by default, so this is
@@ -293,3 +320,70 @@
         mode: "0600"
       delegate_to: localhost
       become: false
+
+# -----------------------------------------------------------------------------
+
+- name: Install cert-manager and the Let's Encrypt issuers
+  hosts: k3s_host
+  become: true
+  become_method: ansible.builtin.sudo
+  tags: cert-manager
+
+  # Drive the cluster with the on-host kubeconfig via the bundled `k3s kubectl`.
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+  tasks:
+    # cert-manager automates TLS issuance/renewal for Ingress objects (#404).
+    # The single combined manifest is ordered CRDs-first, so one `kubectl apply`
+    # installs the CRDs, controller, webhook and cainjector. apply is idempotent;
+    # the version is pinned via cert_manager_version so re-runs are stable.
+    - name: Apply the cert-manager install manifest (CRDs + controller, pinned)
+      ansible.builtin.command: >-
+        k3s kubectl apply -f
+        https://github.com/cert-manager/cert-manager/releases/download/{{ cert_manager_version }}/cert-manager.yaml
+      register: cert_manager_apply
+      changed_when: >-
+        'created' in cert_manager_apply.stdout or 'configured' in cert_manager_apply.stdout
+
+    # Gate the ClusterIssuers on a serving webhook — applying an issuer before
+    # the webhook is ready fails admission. rollout status blocks until each
+    # Deployment is Available.
+    - name: Wait for the cert-manager deployments to be Available
+      ansible.builtin.command: >-
+        k3s kubectl -n cert-manager rollout status deploy/{{ item }} --timeout=180s
+      loop:
+        - cert-manager
+        - cert-manager-webhook
+        - cert-manager-cainjector
+      changed_when: false
+
+    - name: Render the Let's Encrypt ClusterIssuers (staging + prod)
+      ansible.builtin.template:
+        src: templates/cluster-issuers.yaml.j2
+        dest: /etc/rancher/k3s/cluster-issuers.yaml
+        owner: root
+        group: root
+        mode: "0644"
+
+    # Retry: even after rollout reports Available the webhook may briefly refuse
+    # connections, so apply is retried until it succeeds.
+    - name: Apply the Let's Encrypt ClusterIssuers
+      ansible.builtin.command: k3s kubectl apply -f /etc/rancher/k3s/cluster-issuers.yaml
+      register: issuer_apply
+      changed_when: >-
+        'created' in issuer_apply.stdout or 'configured' in issuer_apply.stdout
+      retries: 6
+      delay: 10
+      until: issuer_apply.rc == 0
+
+    # Ready proves the ACME account registered with each endpoint. Actual cert
+    # issuance happens when the annotated gateway/frontend Ingress objects come
+    # up (HTTP-01 over port 80 — already open in the harden play).
+    - name: Wait for the ClusterIssuers to become Ready
+      ansible.builtin.command: >-
+        k3s kubectl wait clusterissuer/{{ item }} --for=condition=Ready --timeout=120s
+      loop:
+        - letsencrypt-staging
+        - letsencrypt-prod
+      changed_when: false

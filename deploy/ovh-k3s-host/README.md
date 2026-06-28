@@ -8,6 +8,9 @@ One playbook, two concerns:
 - **Install k3s + retrieve kubeconfig** (issue #403) — official installer
   (pinned), k3s-selinux verified, kubeconfig fetched to the laptop with a
   reachable API endpoint.
+- **Install cert-manager + Let's Encrypt issuers** (issue #404) — pinned
+  cert-manager, then `letsencrypt-staging` and `letsencrypt-prod` ClusterIssuers
+  (HTTP-01 via Traefik). Run just this play with `--tags cert-manager`.
 
 Idempotent: a no-change re-run reports `changed=0`.
 
@@ -15,9 +18,11 @@ Idempotent: a no-change re-run reports `changed=0`.
 
 ```
 deploy/ovh-k3s-host/
-├── playbook.yml                  # the two plays (harden, then install k3s)
+├── playbook.yml                  # the three plays (harden, k3s, cert-manager)
 ├── requirements.yml              # Galaxy collections (ansible.posix, community.general)
 ├── inventory.example.ini         # copy -> inventory.ini, list your VPS
+├── templates/
+│   └── cluster-issuers.yaml.j2   # Let's Encrypt staging + prod ClusterIssuers
 ├── group_vars/
 │   └── all/
 │       └── vars.yml.example      # copy -> vars.yml (tunables; no secrets needed)
@@ -54,8 +59,12 @@ cp inventory.example.ini inventory.ini
 $EDITOR inventory.ini                       # your host + sudo ansible_user
 
 cp group_vars/all/vars.yml.example group_vars/all/vars.yml
-$EDITOR group_vars/all/vars.yml             # k3s_api_endpoint, expose_amqps, fail2ban_*, kubeconfig_local_path
+$EDITOR group_vars/all/vars.yml             # k3s_api_endpoint, expose_amqps, fail2ban_*, kubeconfig_local_path, acme_email
 ```
+
+Set `acme_email` to a valid address — Let's Encrypt sends expiry notices there.
+The ClusterIssuer manifests are rendered from this value, so the email never
+needs to live in a committed file.
 
 Set `k3s_api_endpoint` to the VPS public IP or DNS name — it replaces the
 loopback in the fetched kubeconfig so `kubectl` works from the laptop.
@@ -93,7 +102,14 @@ From the laptop:
 kubectl --kubeconfig ~/.kube/config-macmac-k3s get nodes    # node Ready        (#403)
 kubectl --kubeconfig ~/.kube/config-macmac-k3s run -it --rm debug \
   --image=busybox --restart=Never -- nslookup kubernetes.default   # DNS works  (#403)
+kubectl --kubeconfig ~/.kube/config-macmac-k3s -n cert-manager get pods   # Running (#404)
+kubectl --kubeconfig ~/.kube/config-macmac-k3s get clusterissuer          # both Ready (#404)
 ```
+
+End-to-end issuance is verified when the annotated gateway/frontend Ingress
+objects come up: cert-manager solves HTTP-01 and writes the `*-tls` Secrets.
+While iterating, point an Ingress at `letsencrypt-staging` first to avoid the
+Let's Encrypt prod rate limit, then switch the annotation to `letsencrypt-prod`.
 
 ## Btrfs branch
 

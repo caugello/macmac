@@ -1,0 +1,38 @@
+---
+# Managed by Ansible (deploy/ovh-k3s-host). Do not edit by hand.
+# Two ACME ClusterIssuers for cert-manager, both solving HTTP-01 via the
+# bundled Traefik ingress:
+#   - letsencrypt-staging: high rate limits, UNTRUSTED cert. Use while
+#     iterating on Ingress/DNS so you never burn the prod limit on mistakes.
+#   - letsencrypt-prod:    trusted cert, ~50 certs/registered-domain/week and
+#     5 duplicate-certs/week. Switch Ingress annotations to this once staging
+#     issues cleanly.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: {{ acme_email }}
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key
+    solvers:
+      - http01:
+          ingress:
+            class: traefik
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: {{ acme_email }}
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - http01:
+          ingress:
+            class: traefik
