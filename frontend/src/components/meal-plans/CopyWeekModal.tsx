@@ -8,6 +8,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/ui/icon'
 import { useMealPlans, useCopyWeek } from '@/hooks/useMealPlans'
 import { useToast } from '@/components/ui/use-toast'
@@ -88,7 +89,7 @@ export const CopyWeekModal = ({ open, onOpenChange, sourceWeekStart }: CopyWeekM
             type="date"
             value={targetWeekStart ? format(targetWeekStart, 'yyyy-MM-dd') : ''}
             onChange={(e) => handleDateChange(e.target.value)}
-            className="w-full h-11 px-3 rounded-lg wireframe-border bg-surface-container-lowest text-body-md"
+            className="w-full h-11 px-3 rounded-bento border border-border bg-white text-body-md text-ink focus:outline-none focus:ring-2 focus:ring-ink"
           />
           {targetWeekStart && (
             <p className="text-caption text-on-surface-variant">
@@ -100,7 +101,7 @@ export const CopyWeekModal = ({ open, onOpenChange, sourceWeekStart }: CopyWeekM
         {targetHasMeals && (
           <div
             role="alert"
-            className="flex items-start gap-2 p-3 rounded-lg bg-error-container text-on-error-container"
+            className="flex items-start gap-2 p-3 rounded-bento bg-coral text-white"
           >
             <Icon name="warning" size={20} className="shrink-0 mt-0.5" />
             <p className="text-caption">
@@ -110,24 +111,20 @@ export const CopyWeekModal = ({ open, onOpenChange, sourceWeekStart }: CopyWeekM
         )}
 
         <DialogFooter className="gap-2">
-          <button
-            type="button"
-            onClick={() => handleOpenChange(false)}
-            className="min-h-[44px] px-4 py-2 rounded-lg wireframe-border text-label-md hover:bg-surface-container-low transition-colors"
-          >
+          <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={handleConfirm}
             disabled={!targetWeekStart || copyWeek.isPending}
-            className="min-h-[44px] px-4 py-2 rounded-lg bg-tertiary-container text-on-tertiary-container text-label-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="gap-2"
           >
             {copyWeek.isPending && (
               <Icon name="progress_activity" size={18} className="animate-spin" />
             )}
             {targetHasMeals ? 'Overwrite' : 'Copy Week'}
-          </button>
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

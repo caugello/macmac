@@ -3,6 +3,7 @@ import { format, addWeeks, startOfWeek, addDays } from 'date-fns'
 import { useMealPlans } from '@/hooks/useMealPlans'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { MealSlot } from './MealSlot'
+import { Card } from '@/components/ui/card'
 import { Icon } from '@/components/ui/icon'
 import { MealTypeEnum, type MealPlanOut } from '@/lib/types'
 
@@ -25,16 +26,17 @@ const DayCard = ({
 }) => {
   const dateStr = format(day, 'yyyy-MM-dd')
   return (
-    <div
+    <Card
       ref={cardRef}
-      className={`bg-surface-container-lowest rounded-xl wireframe-border overflow-hidden ${
-        isToday ? 'ring-2 ring-primary shadow-lg' : ''
+      tone="white"
+      className={`overflow-hidden ${
+        isToday ? 'ring-2 ring-ink ambient-shadow' : ''
       } ${className ?? ''}`}
     >
-      <div className="bg-primary/5 px-4 py-3 border-b border-outline-variant/50 flex items-center justify-between">
+      <div className="bg-cream px-4 py-3 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div>
-            <span className="text-title-lg font-heading font-semibold text-primary">
+            <span className="text-title-lg font-display font-semibold text-ink">
               {format(day, 'EEE')}
             </span>
             <span className="text-caption text-on-surface-variant ml-2">
@@ -42,19 +44,22 @@ const DayCard = ({
             </span>
           </div>
           {isToday && (
-            <span className="text-caption font-medium px-2 py-0.5 rounded-full bg-primary text-on-primary">
+            <span className="text-caption font-semibold px-2.5 py-0.5 rounded-full bg-lime text-ink">
               Today
             </span>
           )}
         </div>
-        <button className="p-1 text-on-surface-variant hover:text-primary transition-colors">
+        <button
+          aria-label="Day options"
+          className="p-2 -mr-1 rounded-full text-on-surface-variant hover:bg-cream hover:text-ink transition-colors"
+        >
           <Icon name="more_vert" size={18} />
         </button>
       </div>
       <div className="p-4 space-y-4">
         {MEAL_TYPES.map((mealType) => (
           <div key={mealType}>
-            <span className="text-[10px] text-on-surface-variant uppercase tracking-wider font-medium block mb-2">
+            <span className="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold block mb-2">
               {mealType}
             </span>
             <MealSlot
@@ -65,7 +70,7 @@ const DayCard = ({
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   )
 }
 
@@ -133,12 +138,12 @@ export const WeeklyCalendar = () => {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="h-10 w-64 mx-auto rounded skeleton-shimmer" />
+        <div className="h-10 w-64 mx-auto rounded-full skeleton-shimmer" />
         <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 no-scrollbar md:grid md:grid-cols-2 lg:grid-cols-7 md:overflow-x-visible md:snap-none md:pb-0">
           {[1, 2, 3].map((n) => (
             <div
               key={n}
-              className="min-w-[85vw] snap-center md:min-w-0 h-64 rounded-lg skeleton-shimmer"
+              className="min-w-[85vw] snap-center md:min-w-0 h-64 rounded-bento skeleton-shimmer"
             />
           ))}
         </div>
@@ -154,23 +159,19 @@ export const WeeklyCalendar = () => {
     <div>
       {/* View toggle */}
       <div className="flex justify-center mb-4">
-        <div className="inline-flex rounded-lg wireframe-border overflow-hidden">
+        <div className="inline-flex rounded-full bg-white border border-border p-1 gap-1">
           <button
             onClick={() => setViewMode('day')}
-            className={`min-h-[44px] px-5 py-2 text-label-md font-medium transition-colors ${
-              viewMode === 'day'
-                ? 'bg-primary text-on-primary'
-                : 'bg-surface-container-lowest text-on-surface hover:bg-surface-container-low'
+            className={`min-h-[44px] px-5 py-2 rounded-full text-label-md font-semibold transition-colors ${
+              viewMode === 'day' ? 'bg-ink text-cream' : 'text-ink hover:bg-cream'
             }`}
           >
             Day
           </button>
           <button
             onClick={() => setViewMode('week')}
-            className={`min-h-[44px] px-5 py-2 text-label-md font-medium transition-colors ${
-              viewMode === 'week'
-                ? 'bg-primary text-on-primary'
-                : 'bg-surface-container-lowest text-on-surface hover:bg-surface-container-low'
+            className={`min-h-[44px] px-5 py-2 rounded-full text-label-md font-semibold transition-colors ${
+              viewMode === 'week' ? 'bg-ink text-cream' : 'text-ink hover:bg-cream'
             }`}
           >
             Week
@@ -183,17 +184,19 @@ export const WeeklyCalendar = () => {
           {/* Day navigation */}
           <div className="flex items-center justify-between mb-6">
             <button
+              aria-label="Previous day"
               onClick={handlePrevDay}
-              className="w-10 h-10 flex items-center justify-center rounded-full wireframe-border hover:bg-surface-container-low transition-colors"
+              className="w-11 h-11 flex items-center justify-center rounded-full bg-white border border-border text-ink hover:bg-cream transition-colors"
             >
               <Icon name="chevron_left" size={20} />
             </button>
-            <h2 className="text-headline-md font-heading font-semibold">
+            <h2 className="text-headline-md font-display font-semibold text-ink text-center">
               {format(selectedDay, 'EEEE, MMM d, yyyy')}
             </h2>
             <button
+              aria-label="Next day"
               onClick={handleNextDay}
-              className="w-10 h-10 flex items-center justify-center rounded-full wireframe-border hover:bg-surface-container-low transition-colors"
+              className="w-11 h-11 flex items-center justify-center rounded-full bg-white border border-border text-ink hover:bg-cream transition-colors"
             >
               <Icon name="chevron_right" size={20} />
             </button>
@@ -208,17 +211,19 @@ export const WeeklyCalendar = () => {
           {/* Week navigation */}
           <div className="flex items-center justify-between mb-6">
             <button
+              aria-label="Previous week"
               onClick={handlePrevWeek}
-              className="w-10 h-10 flex items-center justify-center rounded-full wireframe-border hover:bg-surface-container-low transition-colors"
+              className="w-11 h-11 flex items-center justify-center rounded-full bg-white border border-border text-ink hover:bg-cream transition-colors"
             >
               <Icon name="chevron_left" size={20} />
             </button>
-            <h2 className="text-headline-md font-heading font-semibold">
+            <h2 className="text-headline-md font-display font-semibold text-ink text-center">
               {format(currentWeekStart, 'MMM d')} – {format(weekEnd, 'MMM d, yyyy')}
             </h2>
             <button
+              aria-label="Next week"
               onClick={handleNextWeek}
-              className="w-10 h-10 flex items-center justify-center rounded-full wireframe-border hover:bg-surface-container-low transition-colors"
+              className="w-11 h-11 flex items-center justify-center rounded-full bg-white border border-border text-ink hover:bg-cream transition-colors"
             >
               <Icon name="chevron_right" size={20} />
             </button>

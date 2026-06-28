@@ -195,7 +195,7 @@ describe('WeeklyCalendar Component', () => {
 
     it("should apply highlight styling to today's card", () => {
       const { container } = render(<WeeklyCalendar />)
-      const highlighted = container.querySelectorAll('.ring-2.ring-primary.shadow-lg')
+      const highlighted = container.querySelectorAll('.ring-2.ring-ink.ambient-shadow')
       expect(highlighted).toHaveLength(1)
     })
 

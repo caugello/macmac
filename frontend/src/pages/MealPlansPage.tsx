@@ -4,6 +4,7 @@ import { useMealPlans } from '@/hooks/useMealPlans'
 import { WeeklyCalendar } from '@/components/meal-plans/WeeklyCalendar'
 import { CopyWeekModal } from '@/components/meal-plans/CopyWeekModal'
 import { ShoppingListModal } from '@/components/meal-plans/ShoppingListModal'
+import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/ui/icon'
 
 export const MealPlansPage = () => {
@@ -28,7 +29,7 @@ export const MealPlansPage = () => {
       {/* Intro header */}
       <header className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
         <div className="space-y-1.5">
-          <h1 className="text-headline-lg-mobile md:text-headline-lg font-heading font-bold text-on-surface">
+          <h1 className="text-headline-lg-mobile md:text-headline-lg font-display font-bold text-ink">
             Plan Your Week
           </h1>
           <p className="text-body-md text-on-surface-variant max-w-prose">
@@ -38,7 +39,7 @@ export const MealPlansPage = () => {
             aria-live="polite"
             className="text-caption text-on-surface-variant flex items-center gap-1.5 pt-1"
           >
-            <Icon name="calendar_today" size={14} className="text-primary" />
+            <Icon name="calendar_today" size={14} className="text-ink" />
             <span>
               {format(currentWeekStart, 'MMM d')} – {format(weekEnd, 'MMM d')}
               {' · '}
@@ -57,20 +58,22 @@ export const MealPlansPage = () => {
 
         {/* Action bar */}
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <button
+          <Button
+            variant="outline"
             onClick={() => setCopyWeekOpen(true)}
-            className="bg-surface-container-lowest px-4 py-2 rounded-lg wireframe-border text-label-md flex items-center gap-2 whitespace-nowrap min-h-[44px] hover:bg-surface-container-low transition-colors"
+            className="gap-2 whitespace-nowrap"
           >
             <Icon name="content_copy" size={18} />
             Copy Week
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="accent"
             onClick={() => setShoppingListOpen(true)}
-            className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-label-md font-semibold flex items-center gap-2 whitespace-nowrap min-h-[44px] hover:brightness-110 active:scale-[0.98] transition-all"
+            className="gap-2 whitespace-nowrap"
           >
             <Icon name="shopping_cart" size={18} />
             Shopping List
-          </button>
+          </Button>
         </div>
       </header>
 

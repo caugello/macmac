@@ -52,20 +52,21 @@ export const RecipeSelectorModal = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
+      className="fixed inset-0 bg-ink/40 backdrop-blur-sm flex items-center justify-center z-50"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg mx-4 bg-surface-container-lowest rounded-lg wireframe-border shadow-xl max-h-[80vh] flex flex-col"
+        className="w-full max-w-lg mx-4 bg-white rounded-bento border border-border ambient-shadow max-h-[80vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-4 border-b border-outline-variant">
-          <h2 className="text-headline-md font-heading font-semibold">
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h2 className="text-headline-md font-display font-semibold text-ink">
             {mode === 'select' ? 'Select Recipe' : 'New Recipe'}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-variant transition-colors"
+            aria-label="Close"
+            className="p-2 rounded-full text-on-surface-variant hover:text-ink hover:bg-cream transition-colors"
           >
             <Icon name="close" size={20} />
           </button>
@@ -78,7 +79,7 @@ export const RecipeSelectorModal = ({
               <SearchBar value={search} onChange={setSearch} placeholder="Search recipes..." />
               <button
                 onClick={() => setMode('create')}
-                className="w-full flex items-center justify-center gap-2 h-11 rounded-lg dashed-outline text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
+                className="w-full flex items-center justify-center gap-2 min-h-[44px] rounded-bento border-2 border-dashed border-border text-on-surface-variant hover:bg-cream hover:border-ink hover:text-ink transition-colors"
               >
                 <Icon name="add_circle" size={20} />
                 <span className="text-label-md">Create New Recipe</span>
@@ -91,12 +92,12 @@ export const RecipeSelectorModal = ({
                   {[1, 2, 3].map((n) => (
                     <div
                       key={n}
-                      className="flex items-center gap-4 p-3 rounded-lg wireframe-border"
+                      className="flex items-center gap-4 p-3 rounded-bento border border-border"
                     >
-                      <div className="w-16 h-16 rounded-lg skeleton-shimmer shrink-0" />
+                      <div className="w-16 h-16 rounded-bento skeleton-shimmer shrink-0" />
                       <div className="flex-1 space-y-2">
-                        <div className="h-4 w-3/4 rounded skeleton-shimmer" />
-                        <div className="h-3 w-1/2 rounded skeleton-shimmer" />
+                        <div className="h-4 w-3/4 rounded-full skeleton-shimmer" />
+                        <div className="h-3 w-1/2 rounded-full skeleton-shimmer" />
                       </div>
                     </div>
                   ))}
@@ -104,8 +105,8 @@ export const RecipeSelectorModal = ({
               )}
               {error && (
                 <div className="flex flex-col items-center justify-center py-8 text-on-surface-variant">
-                  <Icon name="error" size={40} className="text-destructive opacity-50 mb-2" />
-                  <p className="text-body-md text-destructive">Failed to load recipes</p>
+                  <Icon name="error" size={40} className="text-coral opacity-60 mb-2" />
+                  <p className="text-body-md text-coral">Failed to load recipes</p>
                 </div>
               )}
               {data && data.data.length === 0 && (
@@ -118,15 +119,13 @@ export const RecipeSelectorModal = ({
                 <button
                   key={recipe.id}
                   onClick={() => onSelect(recipe.id)}
-                  className="w-full flex items-center gap-4 p-3 rounded-lg wireframe-border hover:border-primary/50 hover:bg-primary/5 transition-colors text-left cursor-pointer"
+                  className="w-full flex items-center gap-4 p-3 rounded-bento border border-border hover:border-ink hover:bg-cream transition-colors text-left cursor-pointer"
                 >
-                  <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-surface-container-low to-surface-container flex items-center justify-center shrink-0">
-                    <Icon name="restaurant_menu" size={24} className="text-outline-variant/40" />
+                  <div className="w-16 h-16 rounded-bento bg-lime flex items-center justify-center shrink-0">
+                    <Icon name="restaurant_menu" size={24} className="text-ink/70" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-label-md font-semibold text-on-surface truncate">
-                      {recipe.title}
-                    </p>
+                    <p className="text-label-md font-semibold text-ink truncate">{recipe.title}</p>
                     <p className="text-caption text-on-surface-variant line-clamp-1">
                       {recipe.description || 'No description'}
                     </p>
