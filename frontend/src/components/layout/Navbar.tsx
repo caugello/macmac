@@ -18,25 +18,24 @@ export const Navbar = () => {
   return (
     <nav className="bg-white/80 backdrop-blur-[20px] border-b border-outline-variant sticky top-0 z-40">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-        {/* Left section: hamburger (mobile) + logo */}
+        {/* Left section: hamburger (mobile) + brand wordmark */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 text-on-surface-variant hover:text-primary transition-colors"
+            className="md:hidden p-2 text-on-surface-variant hover:text-ink transition-colors"
           >
             <Icon name="menu" size={24} />
           </button>
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary text-primary-foreground rounded-md flex items-center justify-center">
-              <span className="font-bold text-xl">M</span>
-            </div>
-            <span className="text-2xl font-heading font-bold text-primary">MacMac</span>
+          <Link to="/" className="flex items-center">
+            <span className="text-2xl font-display font-bold lowercase tracking-tight text-ink">
+              pantry<span className="text-lime">.</span>
+            </span>
           </Link>
         </div>
 
-        {/* Center section (desktop): nav links */}
+        {/* Center section (desktop): pill nav */}
         {isAuthenticated ? (
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-1 rounded-full border border-outline-variant bg-white p-1">
             {[
               { to: '/recipes', label: 'Recipes' },
               { to: '/meal-plans', label: 'Meal Plans' },
@@ -48,8 +47,8 @@ export const Navbar = () => {
                 to={to}
                 className={
                   isActiveLink(to)
-                    ? 'font-label-md text-primary border-b-2 border-primary pb-0.5 transition-colors'
-                    : 'font-label-md text-on-surface-variant hover:text-primary transition-colors'
+                    ? 'font-label-md rounded-full bg-ink px-4 py-2 text-cream transition-colors'
+                    : 'font-label-md rounded-full px-4 py-2 text-on-surface-variant transition-colors hover:bg-cream hover:text-ink'
                 }
               >
                 {label}
@@ -60,13 +59,13 @@ export const Navbar = () => {
           <div className="hidden md:flex items-center gap-8">
             <Link
               to="/#features"
-              className="font-label-md text-on-surface-variant hover:text-primary transition-colors"
+              className="font-label-md text-on-surface-variant hover:text-ink transition-colors"
             >
               Features
             </Link>
             <Link
               to="/#how-it-works"
-              className="font-label-md text-on-surface-variant hover:text-primary transition-colors"
+              className="font-label-md text-on-surface-variant hover:text-ink transition-colors"
             >
               How It Works
             </Link>
@@ -113,8 +112,8 @@ export const Navbar = () => {
                 onClick={() => setMobileMenuOpen(false)}
                 className={
                   isActiveLink(to)
-                    ? 'py-3 px-4 text-primary font-semibold rounded-lg'
-                    : 'py-3 px-4 text-on-surface-variant hover:text-primary hover:bg-surface-container-low rounded-lg transition-colors'
+                    ? 'py-3 px-4 bg-ink text-cream font-semibold rounded-full'
+                    : 'py-3 px-4 text-on-surface-variant hover:text-ink hover:bg-cream rounded-full transition-colors'
                 }
               >
                 {label}
