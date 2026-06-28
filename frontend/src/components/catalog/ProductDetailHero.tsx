@@ -1,4 +1,5 @@
 import { ProductImage } from '@/components/catalog/ProductImage'
+import { Badge } from '@/components/ui/badge'
 import { NutriscoreBadge } from '@/components/catalog/NutriscoreBadge'
 
 interface ProductDetailHeroProps {
@@ -9,8 +10,9 @@ interface ProductDetailHeroProps {
 }
 
 /**
- * Ivory Flux product-detail hero panel.
- * Mobile: full-width rounded image. Desktop: tall left column.
+ * Pantry Fresh product-detail hero panel: a rounded bento tile holding the
+ * product image, with a coral promotion badge and the large Nutri-Score badge
+ * floating over the corners. Mobile: full-width square. Desktop: tall column.
  */
 export const ProductDetailHero = ({
   imageUrl,
@@ -19,13 +21,13 @@ export const ProductDetailHero = ({
   isPromo,
 }: ProductDetailHeroProps) => {
   return (
-    <div className="relative w-full aspect-square lg:aspect-auto lg:h-full lg:min-h-[480px] rounded-2xl overflow-hidden bg-surface-container-lowest wireframe-border">
+    <div className="relative w-full aspect-square lg:aspect-auto lg:h-full lg:min-h-[480px] rounded-bento overflow-hidden bg-cream border border-border">
       <ProductImage src={imageUrl} alt={alt} iconSize={96} />
 
       {isPromo && (
-        <span className="absolute top-4 left-4 inline-flex items-center gap-1.5 bg-primary text-on-primary text-caption font-bold px-3 py-1.5 rounded-full shadow-sm">
+        <Badge variant="promotion" className="absolute top-4 left-4 uppercase tracking-wider">
           Promo
-        </span>
+        </Badge>
       )}
 
       {nutriscore && (
