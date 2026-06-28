@@ -137,7 +137,7 @@ describe('RecipeDetail Page', () => {
 
     it('should render ingredients', () => {
       render(<RecipeDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText('Ingredients')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Ingredients' })).toBeInTheDocument()
       expect(screen.getByText('400 g')).toBeInTheDocument()
       expect(screen.getByText('Spaghetti')).toBeInTheDocument()
       expect(screen.getByText('4 pcs')).toBeInTheDocument()
@@ -146,7 +146,7 @@ describe('RecipeDetail Page', () => {
 
     it('should render steps', () => {
       render(<RecipeDetail />, { wrapper: createWrapper() })
-      expect(screen.getByText('Steps')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Steps' })).toBeInTheDocument()
       expect(screen.getByText('Boil pasta')).toBeInTheDocument()
       expect(screen.getByText('Cook bacon')).toBeInTheDocument()
       expect(screen.getByText('Mix with eggs')).toBeInTheDocument()
