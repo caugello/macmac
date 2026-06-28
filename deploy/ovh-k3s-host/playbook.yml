@@ -26,9 +26,15 @@
     # if you have not verified your key works you can lock yourself out. The
     # drop-in is validated with `sshd -t` before being written, and the handler
     # RELOADS (not restarts) sshd so the active connection is never dropped.
+    #
+    # The drop-in is prefixed 00- so it sorts FIRST. sshd uses the FIRST value
+    # obtained for each keyword, and drop-ins load in alphanumeric order, so a
+    # hardening file MUST sort ahead of the distro/cloud defaults. Fedora Cloud
+    # Edition ships 50-cloud-init.conf / 50-redhat.conf with
+    # `PasswordAuthentication yes`; a 99- file would lose to them. 00- wins.
     - name: Install sshd hardening drop-in (no root login, no password auth)
       ansible.builtin.copy:
-        dest: /etc/ssh/sshd_config.d/99-macmac-hardening.conf
+        dest: /etc/ssh/sshd_config.d/00-macmac-hardening.conf
         content: |
           # Managed by Ansible (deploy/ovh-k3s-host). Do not edit by hand.
           PermitRootLogin no
@@ -37,6 +43,14 @@
         group: root
         mode: "0644"
         validate: "sshd -t -f %s"
+      notify: Reload sshd
+
+    # Remove the earlier-named drop-in from before the 00- fix so it cannot
+    # linger as a confusing (and order-losing) duplicate.
+    - name: Remove the legacy 99- sshd hardening drop-in
+      ansible.builtin.file:
+        path: /etc/ssh/sshd_config.d/99-macmac-hardening.conf
+        state: absent
       notify: Reload sshd
 
     # --- firewalld: default-deny inbound -------------------------------------
