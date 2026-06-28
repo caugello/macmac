@@ -379,5 +379,42 @@ patches:
       spec:
         storageClassName: local-path
   #
-  # #401 — RabbitMQ amqps: re-express the passthrough Route as a
-  #        Traefik TCP entrypoint / hostPort on 5671 (TLS preserved).
+  # #401 — RabbitMQ amqps: expose 5671 externally for remote
+  #        enrichers via hostPort, and drop the OpenShift passthrough
+  #        Route. hostPort was chosen over a Traefik TCP entrypoint
+  #        because the latter needs a HelmChartConfig in the
+  #        kube-system namespace, which collides with this overlay's
+  #        `namespace: macmac` transformer. On single-node k3s,
+  #        hostPort binds amqps directly on the node and preserves
+  #        end-to-end TLS (TLS terminates at the rabbitmq pod, not in
+  #        any proxy). The ClusterIP Service is left intact so
+  #        in-cluster clients keep using it.
+  #
+  # Delete the OpenShift Route (replaced by the hostPort binding).
+  - patch: |
+      $patch: delete
+      apiVersion: route.openshift.io/v1
+      kind: Route
+      metadata:
+        name: rabbitmq-amqps
+        namespace: macmac
+    target:
+      group: route.openshift.io
+      version: v1
+      kind: Route
+      name: rabbitmq-amqps
+  # Bind the amqps containerPort (5671) to hostPort 5671 on the node.
+  - patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: rabbitmq
+        namespace: macmac
+      spec:
+        template:
+          spec:
+            containers:
+              - name: rabbitmq
+                ports:
+                  - containerPort: 5671
+                    hostPort: 5671
