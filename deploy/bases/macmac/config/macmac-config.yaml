@@ -67,7 +67,7 @@ data:
     gateway:
       cors:
         allowed_origins:
-          - "https://macmac.apps.example.com"
+          - "https://macmac.augello.be"
         allow_credentials: true
         allow_methods:
           - GET

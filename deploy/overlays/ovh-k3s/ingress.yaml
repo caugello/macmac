@@ -16,12 +16,11 @@ spec:
   ingressClassName: traefik
   tls:
     - hosts:
-        # TODO(cutover #3.4): replace with the real production domain
-        - macmac.apps.example.com
+        # Working domain; revisit when the final product domain is chosen (#404).
+        - macmac.augello.be
       secretName: frontend-tls
   rules:
-    # TODO(cutover #3.4): replace with the real production domain
-    - host: macmac.apps.example.com
+    - host: macmac.augello.be
       http:
         paths:
           - path: /
@@ -43,12 +42,11 @@ spec:
   ingressClassName: traefik
   tls:
     - hosts:
-        # TODO(cutover #3.4): replace with the real production domain
-        - api.macmac.apps.example.com
+        # Working domain; revisit when the final product domain is chosen (#404).
+        - api.macmac.augello.be
       secretName: gateway-tls
   rules:
-    # TODO(cutover #3.4): replace with the real production domain
-    - host: api.macmac.apps.example.com
+    - host: api.macmac.augello.be
       http:
         paths:
           - path: /
