@@ -1,0 +1,29 @@
+---
+# Config for the OVH k3s host bootstrap. Copy to vars.yml (git-ignored).
+# A single-node k3s install needs no secrets here (no registry creds, no
+# cluster token), so there is no vault.yml — see the README.
+
+# --- k3s version pin ---------------------------------------------------------
+# Track a release channel by default. To pin an exact release, set k3s_version
+# (e.g. "v1.30.5+k3s1"); when set it overrides the channel.
+k3s_channel: "stable"
+k3s_version: ""
+
+# --- firewalld ---------------------------------------------------------------
+# Open amqps (5671/tcp) for off-box workers (e.g. remote enrichers) reaching
+# the broker on this host. Set false for a closed default if nothing external
+# connects over amqps.
+expose_amqps: true
+
+# --- fail2ban sshd jail ------------------------------------------------------
+fail2ban_maxretry: 5       # ban after this many failed logins
+fail2ban_bantime: 3600     # ban duration, seconds (1h)
+fail2ban_findtime: 600     # failures must occur within this window, seconds (10m)
+
+# --- kubeconfig retrieval ----------------------------------------------------
+# Reachable API endpoint (public IP or DNS name of the VPS). The on-host
+# kubeconfig points at 127.0.0.1; this value replaces it so kubectl works from
+# the laptop. The k3s API listens on 6443.
+k3s_api_endpoint: "203.0.113.10"
+# Where to write the rewritten kubeconfig on the operator laptop (mode 0600).
+kubeconfig_local_path: "~/.kube/config-macmac-k3s"

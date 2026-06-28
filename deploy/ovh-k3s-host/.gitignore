@@ -1,0 +1,7 @@
+# Real inventory and vars files — never commit. Only *.example.* are tracked.
+inventory.ini
+group_vars/all/vars.yml
+group_vars/all/vault.yml
+# Any kubeconfig accidentally fetched into this dir.
+*kubeconfig*
+config-macmac-k3s

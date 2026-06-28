@@ -1,0 +1,281 @@
+---
+# Bootstrap a single OVH Fedora 44 Server VPS for the MacMac k3s migration.
+# Two logical concerns, run as two plays:
+#   A) Harden the host       (issue #402)
+#   B) Install k3s + fetch kubeconfig to the operator laptop (issue #403)
+#
+# Idempotent: a no-change re-run reports changed=0.
+#
+#   ansible-playbook -i inventory.ini playbook.yml --syntax-check
+#   ansible-playbook -i inventory.ini playbook.yml --check     # dry-run
+#   ansible-playbook -i inventory.ini playbook.yml             # apply
+#
+# Connects as an unprivileged sudo user (ansible_user) and escalates with sudo —
+# never direct root login. The play DISABLES password auth and root login, so
+# key-based SSH for that sudo user MUST already work before you run this.
+
+- name: Harden the OVH Fedora 44 host
+  hosts: k3s_host
+  become: true
+  become_method: ansible.builtin.sudo
+
+  tasks:
+    # --- SSH hardening -------------------------------------------------------
+    # PRECONDITION: key-based SSH for the sudo `ansible_user` MUST be confirmed
+    # working before this task runs. It disables password auth and root login;
+    # if you have not verified your key works you can lock yourself out. The
+    # drop-in is validated with `sshd -t` before being written, and the handler
+    # RELOADS (not restarts) sshd so the active connection is never dropped.
+    - name: Install sshd hardening drop-in (no root login, no password auth)
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/99-macmac-hardening.conf
+        content: |
+          # Managed by Ansible (deploy/ovh-k3s-host). Do not edit by hand.
+          PermitRootLogin no
+          PasswordAuthentication no
+        owner: root
+        group: root
+        mode: "0644"
+        validate: "sshd -t -f %s"
+      notify: Reload sshd
+
+    # --- firewalld: default-deny inbound -------------------------------------
+    - name: Ensure firewalld is installed
+      ansible.builtin.package:
+        name: firewalld
+        state: present
+        update_cache: true
+
+    - name: Ensure firewalld is enabled and running
+      ansible.builtin.systemd_service:
+        name: firewalld
+        state: started
+        enabled: true
+
+    - name: Allow base inbound services (ssh, http, https)
+      ansible.posix.firewalld:
+        service: "{{ item }}"
+        state: enabled
+        immediate: true
+        permanent: true
+      loop:
+        - ssh
+        - http
+        - https
+
+    # amqps (5671/tcp) is only opened when the broker must be reachable from
+    # off-box workers (e.g. remote enrichers). Gated so a closed default holds.
+    - name: Allow amqps (5671/tcp) when exposed
+      ansible.posix.firewalld:
+        port: 5671/tcp
+        state: enabled
+        immediate: true
+        permanent: true
+      when: expose_amqps | bool
+
+    - name: Close amqps (5671/tcp) when not exposed
+      ansible.posix.firewalld:
+        port: 5671/tcp
+        state: disabled
+        immediate: true
+        permanent: true
+      when: not (expose_amqps | bool)
+
+    # --- SELinux -------------------------------------------------------------
+    # Fedora 44 Server minimal ships Enforcing/targeted by default, so this is
+    # usually a no-op. We assert it explicitly and surface a reboot if the
+    # policy state actually had to change (rare).
+    - name: Ensure SELinux is Enforcing (targeted policy)
+      ansible.posix.selinux:
+        state: enforcing
+        policy: targeted
+      register: selinux_state
+
+    - name: Note that a reboot is required for the SELinux change
+      ansible.builtin.set_fact:
+        reboot_required: true
+      when: selinux_state.reboot_required | default(false)
+
+    # --- fail2ban: brute-force protection on sshd ----------------------------
+    - name: Ensure fail2ban is installed
+      ansible.builtin.package:
+        name: fail2ban
+        state: present
+
+    - name: Configure the fail2ban sshd jail
+      ansible.builtin.copy:
+        dest: /etc/fail2ban/jail.d/sshd.local
+        content: |
+          # Managed by Ansible (deploy/ovh-k3s-host). Do not edit by hand.
+          [sshd]
+          enabled  = true
+          maxretry = {{ fail2ban_maxretry }}
+          bantime  = {{ fail2ban_bantime }}
+          findtime = {{ fail2ban_findtime }}
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart fail2ban
+
+    - name: Ensure fail2ban is enabled and running
+      ansible.builtin.systemd_service:
+        name: fail2ban
+        state: started
+        enabled: true
+
+    # --- dnf-automatic: unattended security updates --------------------------
+    - name: Ensure dnf-automatic is installed
+      ansible.builtin.package:
+        name: dnf-automatic
+        state: present
+
+    - name: Configure dnf-automatic for security updates
+      community.general.ini_file:
+        path: /etc/dnf/automatic.conf
+        section: "{{ item.section }}"
+        option: "{{ item.option }}"
+        value: "{{ item.value }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - { section: commands, option: upgrade_type, value: security }
+        - { section: commands, option: apply_updates, value: "yes" }
+
+    - name: Ensure dnf-automatic.timer is enabled and running
+      ansible.builtin.systemd_service:
+        name: dnf-automatic.timer
+        state: started
+        enabled: true
+
+    # --- Root filesystem branch (load-bearing) -------------------------------
+    # k3s local-path PVCs and Postgres data live under /var/lib/rancher on the
+    # single root disk. On Btrfs, copy-on-write wrecks Postgres write
+    # performance and fragments the data files, so CoW MUST be disabled on the
+    # storage dir WHILE IT IS EMPTY — chattr +C only takes effect for files
+    # created afterwards, so this has to happen before k3s writes any PVC.
+    # XFS/ext4 have no CoW concern and need no action.
+    - name: Detect the root filesystem type
+      ansible.builtin.command: findmnt -no FSTYPE /
+      register: root_fstype
+      changed_when: false
+
+    - name: Create the k3s storage dir (Btrfs only, while empty)
+      ansible.builtin.file:
+        path: /var/lib/rancher/k3s/storage
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      when: root_fstype.stdout | trim == "btrfs"
+
+    - name: Check the current CoW attribute on the k3s storage dir (Btrfs only)
+      ansible.builtin.command: lsattr -d /var/lib/rancher/k3s/storage
+      register: lsattr_cow
+      changed_when: false
+      when: root_fstype.stdout | trim == "btrfs"
+
+    - name: Disable copy-on-write on the k3s storage dir (Btrfs only)
+      ansible.builtin.command: chattr +C /var/lib/rancher/k3s/storage
+      register: chattr_cow
+      changed_when: true
+      when:
+        - root_fstype.stdout | trim == "btrfs"
+        - "'C' not in (lsattr_cow.stdout | default('') | regex_replace('\\s.*$', ''))"
+
+    # Best-effort: stop snapper from snapshotting the k3s subvolume tree, which
+    # would otherwise pin deleted PVC/etcd blocks and balloon disk use on the
+    # single disk. Documented as best-effort — snapper may not be installed.
+    - name: Disable automatic Btrfs snapshots for the k3s subvolume (best-effort)
+      ansible.builtin.command: snapper -c root set-config TIMELINE_CREATE=no
+      register: snapper_disable
+      changed_when: snapper_disable.rc == 0
+      failed_when: false
+      when: root_fstype.stdout | trim == "btrfs"
+
+  handlers:
+    # Reload, never restart: a restart can drop the active SSH session mid-run.
+    - name: Reload sshd
+      ansible.builtin.systemd_service:
+        name: sshd
+        state: reloaded
+
+    - name: Restart fail2ban
+      ansible.builtin.systemd_service:
+        name: fail2ban
+        state: restarted
+
+# -----------------------------------------------------------------------------
+
+- name: Install k3s and retrieve the kubeconfig
+  hosts: k3s_host
+  become: true
+  become_method: ansible.builtin.sudo
+
+  vars:
+    k3s_install_script: /usr/local/bin/macmac-k3s-install.sh
+
+  tasks:
+    # Idempotency for the install is carried by get_url (content-stable) and the
+    # `creates: /usr/local/bin/k3s` guard on the installer run — once k3s is in
+    # place the installer is skipped, so a re-run is a no-op.
+    #
+    # CRITICAL: do NOT pass --disable traefik, --disable servicelb, or
+    # --disable local-storage. The deploy/overlays/ovh-k3s manifests depend on
+    # the bundled Traefik ingress, ServiceLB (LoadBalancer), and the local-path
+    # provisioner. Stripping any of them breaks ingress/services/PVCs on this
+    # node. Version is pinned via k3s_channel (default) or k3s_version.
+    - name: Fetch the official k3s installer
+      ansible.builtin.get_url:
+        url: https://get.k3s.io
+        dest: "{{ k3s_install_script }}"
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Run the k3s installer (pinned version/channel)
+      ansible.builtin.command: "{{ k3s_install_script }}"
+      environment:
+        INSTALL_K3S_CHANNEL: "{{ k3s_channel }}"
+        INSTALL_K3S_VERSION: "{{ k3s_version | default('') }}"
+      args:
+        creates: /usr/local/bin/k3s
+
+    - name: Gather installed package facts
+      ansible.builtin.package_facts:
+        manager: rpm
+
+    # Confirms the installer pulled in the SELinux policy (it auto-detects an
+    # enforcing host). Without it, kubelet/containerd run unconfined.
+    - name: Verify the k3s-selinux policy rpm is installed
+      ansible.builtin.assert:
+        that:
+          - "'k3s-selinux' in ansible_facts.packages"
+        fail_msg: "k3s-selinux is not installed; kubelet/containerd would run unconfined under SELinux."
+
+    - name: Ensure the k3s service is enabled and running
+      ansible.builtin.systemd_service:
+        name: k3s
+        state: started
+        enabled: true
+
+    # --- Retrieve kubeconfig to the operator laptop --------------------------
+    - name: Read the on-host kubeconfig
+      ansible.builtin.slurp:
+        src: /etc/rancher/k3s/k3s.yaml
+      register: k3s_kubeconfig
+
+    # delegate_to localhost + become:false so the file lands on the laptop with
+    # operator ownership (mode 0600), not root. The server URL is rewritten
+    # from the loopback the installer writes to the reachable endpoint.
+    - name: Write the kubeconfig to the operator laptop with a reachable endpoint
+      ansible.builtin.copy:
+        content: >-
+          {{
+            k3s_kubeconfig.content | b64decode
+            | regex_replace('https://127\.0\.0\.1:6443', 'https://' + k3s_api_endpoint + ':6443')
+          }}
+        dest: "{{ kubeconfig_local_path }}"
+        mode: "0600"
+      delegate_to: localhost
+      become: false
