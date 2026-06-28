@@ -27,8 +27,8 @@ export const Navbar = () => {
             <Icon name="menu" size={24} />
           </button>
           <Link to="/" className="flex items-center">
-            <span className="text-2xl font-display font-bold lowercase tracking-tight text-ink">
-              pantry<span className="text-lime">.</span>
+            <span className="text-2xl font-display font-bold tracking-tight text-ink">
+              MacMac<span className="text-lime">.</span>
             </span>
           </Link>
         </div>

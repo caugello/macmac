@@ -58,8 +58,8 @@ export const Landing = () => {
     <div className="min-h-screen bg-cream text-ink">
       {/* Hero Section */}
       <section className="mx-auto max-w-7xl px-5 pt-12 pb-16 md:px-16 md:pt-20 md:pb-24">
-        <span className="font-display text-2xl font-bold lowercase tracking-tight">
-          pantry<span className="text-lime">.</span>
+        <span className="font-display text-2xl font-bold tracking-tight">
+          MacMac<span className="text-lime">.</span>
         </span>
         <div className="mt-10 grid items-center gap-12 lg:grid-cols-2">
           <div className="space-y-6">

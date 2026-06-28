@@ -32,9 +32,9 @@ describe('Navbar Component', () => {
       })
     })
 
-    it('should render pantry wordmark', () => {
+    it('should render MacMac wordmark', () => {
       renderWithRouter(<Navbar />)
-      expect(screen.getByRole('link', { name: /pantry/ })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /MacMac/ })).toBeInTheDocument()
     })
 
     it('should render unauthenticated navigation links', () => {
@@ -73,9 +73,9 @@ describe('Navbar Component', () => {
       })
     })
 
-    it('should render pantry wordmark', () => {
+    it('should render MacMac wordmark', () => {
       renderWithRouter(<Navbar />)
-      expect(screen.getByRole('link', { name: /pantry/ })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /MacMac/ })).toBeInTheDocument()
     })
 
     it('should render authenticated navigation links', () => {
@@ -127,7 +127,7 @@ describe('Navbar Component', () => {
 
     it('should not render navbar', () => {
       renderWithRouter(<Navbar />, '/login')
-      expect(screen.queryByRole('link', { name: /pantry/ })).not.toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: /MacMac/ })).not.toBeInTheDocument()
     })
   })
 
@@ -144,7 +144,7 @@ describe('Navbar Component', () => {
 
     it('should link to home page', () => {
       renderWithRouter(<Navbar />)
-      const logoLink = screen.getByRole('link', { name: /pantry/ })
+      const logoLink = screen.getByRole('link', { name: /MacMac/ })
       expect(logoLink).toHaveAttribute('href', '/')
     })
   })
