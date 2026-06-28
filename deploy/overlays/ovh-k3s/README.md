@@ -49,6 +49,7 @@ later Phase-1 patch lands. It performs **no** conversions itself. The
 | **#401** | RabbitMQ amqps via Traefik TCP / hostPort on 5671 (TLS preserved) | `bases/macmac/infra/rabbitmq.yaml`, `network/network-policies.yaml` |
 | **#405** | Delete the base placeholder Secrets so `apply -k` never clobbers the manually-managed live values | `bases/macmac/config/db-secrets.yaml`, `infra/redis.yaml` |
 | **#406** | RabbitMQ `fsGroup` (read 0640 secret mounts without OpenShift's gid 0) + `Recreate` strategy (single-node hostPort 5671 can't roll) | `bases/macmac/infra/rabbitmq.yaml` |
+| **#411** | Retarget ingress NetworkPolicies (gateway, frontend) from the OpenShift router to Traefik (`kube-system` AND `app.kubernetes.io/name=traefik`); drop rabbitmq's obsolete router peer; add `allow-ingress-acme-solver` so HTTP-01 challenges issue TLS | `bases/macmac/network/network-policies.yaml`, new `network-policies-k3s.yaml` |
 
 Each later issue should add its patch to `patches:` (and any new resource files
 it introduces), keeping `kustomize build` green at every step.
@@ -56,9 +57,10 @@ it introduces), keeping `kustomize build` green at every step.
 ## Decisions baked into this migration (do not revisit here)
 
 - **4 separate PostgreSQL instances** — kept, not consolidated (isolation).
-- **NetworkPolicies** — kept as-is; k3s enforces them natively. Only the 3 rules
-  selecting `network.openshift.io/policy-group: ingress` get retargeted to the
-  Traefik namespace (`kube-system`) later in Phase 4.2.
+- **NetworkPolicies** — kept as-is; k3s enforces them natively. The rules that
+  selected `network.openshift.io/policy-group: ingress` are retargeted to the
+  Traefik namespace (`kube-system`) AND pod (`app.kubernetes.io/name=traefik`)
+  in the #411 patch block (Phase 4.2).
 - **Secrets** — never in git. The base ships placeholder Secrets
   (`CHANGE_ME_AT_DEPLOY_TIME`); real values are created out-of-band in the
   cluster (Phase 2.4). See **Secrets** below.
