@@ -1,0 +1,60 @@
+---
+# ============================================================
+# k3s Ingress (#398): replaces the OpenShift Routes for the
+# gateway and frontend Services. TLS certificates are issued by
+# cert-manager (letsencrypt-prod ClusterIssuer) and served by
+# k3s's built-in Traefik ingress controller.
+# ============================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend
+  namespace: macmac
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        # TODO(cutover #3.4): replace with the real production domain
+        - macmac.apps.example.com
+      secretName: frontend-tls
+  rules:
+    # TODO(cutover #3.4): replace with the real production domain
+    - host: macmac.apps.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gateway
+  namespace: macmac
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        # TODO(cutover #3.4): replace with the real production domain
+        - api.macmac.apps.example.com
+      secretName: gateway-tls
+  rules:
+    # TODO(cutover #3.4): replace with the real production domain
+    - host: api.macmac.apps.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway
+                port:
+                  number: 8080
