@@ -6,7 +6,11 @@ from collections.abc import Iterable
 from urllib.parse import unquote
 
 import defusedxml.ElementTree as ET
-from playwright.sync_api import sync_playwright
+
+try:
+    from playwright.sync_api import sync_playwright
+except ImportError:  # playwright is an optional crawler/enricher extra (absent in CI)
+    sync_playwright = None  # type: ignore[assignment]
 
 from services.config import Vendor, get_config, get_config_for_service
 from services.shared.lib.url_validator import validate_url
