@@ -110,3 +110,139 @@
         name: enricher.service
         state: restarted
         daemon_reload: true
+
+# ----------------------------------------------------------------------------
+# Host hardening. The enricher is a DB-free competing-consumer that only dials
+# OUT (amqps to the broker + https to OpenAI/vendor sites), so it needs ZERO
+# inbound except SSH. Cloud images ship with no firewall and password SSH auth
+# on, so harden: firewalld (deny inbound except SSH), key-only SSH, fail2ban on
+# the SSH jail, and unattended security updates. Idempotent — safe to re-run.
+- name: Harden the enricher host
+  hosts: enricher_workers
+  become: true
+  become_method: ansible.builtin.sudo
+
+  tasks:
+    # --- firewalld: default-deny inbound, allow only SSH ---
+    - name: Ensure firewalld is installed
+      ansible.builtin.package:
+        name: firewalld
+        state: present
+
+    - name: Ensure firewalld is enabled and running
+      ansible.builtin.systemd_service:
+        name: firewalld
+        enabled: true
+        state: started
+
+    # Allow SSH BEFORE any reload so we can never lock ourselves out. The
+    # default public zone already permits ssh, so starting firewalld above is
+    # also safe. firewall-cmd is idempotent: a no-op prints ALREADY_ENABLED.
+    - name: Allow SSH through firewalld (permanent)
+      ansible.builtin.command: firewall-cmd --permanent --add-service=ssh
+      register: fw_ssh
+      changed_when: "'ALREADY_ENABLED' not in fw_ssh.stderr"
+      notify: Reload firewalld
+
+    # Drop cockpit if the image pre-opened it — the enricher needs no web admin.
+    - name: Remove cockpit from firewalld (permanent, best-effort)
+      ansible.builtin.command: firewall-cmd --permanent --remove-service=cockpit
+      register: fw_cockpit
+      changed_when: "'NOT_ENABLED' not in fw_cockpit.stderr"
+      failed_when: false
+      notify: Reload firewalld
+
+    # --- SSH: key-only, no root login, fewer auth tries ---
+    # 10- prefix loads before cloud-init's 50-cloud-init.conf (which sets
+    # PasswordAuthentication yes); sshd uses the first value seen, so ours wins.
+    - name: Harden sshd (key-only, no root, no X11)
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/10-macmac-hardening.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          # Managed by the MacMac enricher playbook — do not edit by hand.
+          PasswordAuthentication no
+          KbdInteractiveAuthentication no
+          PermitRootLogin no
+          X11Forwarding no
+          MaxAuthTries 3
+        validate: /usr/sbin/sshd -t -f %s
+      notify: Reload sshd
+
+    # --- fail2ban: ban brute-force SSH sources via firewalld ---
+    - name: Ensure fail2ban is installed (firewalld backend)
+      ansible.builtin.package:
+        name:
+          - fail2ban
+          - fail2ban-firewalld
+        state: present
+
+    - name: Configure fail2ban SSH jail
+      ansible.builtin.copy:
+        dest: /etc/fail2ban/jail.d/00-macmac.local
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          # Managed by the MacMac enricher playbook — do not edit by hand.
+          [DEFAULT]
+          backend  = systemd
+          bantime  = 1h
+          findtime = 10m
+          maxretry = 5
+
+          [sshd]
+          enabled = true
+      notify: Restart fail2ban
+
+    - name: Ensure fail2ban is enabled and running
+      ansible.builtin.systemd_service:
+        name: fail2ban
+        enabled: true
+        state: started
+
+    # --- unattended security updates ---
+    - name: Ensure dnf-automatic is installed
+      ansible.builtin.package:
+        name: dnf-automatic
+        state: present
+
+    # dnf5 (Fedora 44) reads defaults from
+    # /usr/share/dnf5/dnf5-plugins/automatic.conf and merges host overrides
+    # from /etc/dnf/automatic.conf (which the package does not ship). A minimal
+    # override that enables security-only auto-apply is all we need.
+    - name: Apply security updates automatically
+      ansible.builtin.copy:
+        dest: /etc/dnf/automatic.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          # Managed by the MacMac enricher playbook — overrides merged over
+          # /usr/share/dnf5/dnf5-plugins/automatic.conf defaults.
+          [commands]
+          upgrade_type = security
+          apply_updates = yes
+
+    - name: Enable the dnf-automatic timer
+      ansible.builtin.systemd_service:
+        name: dnf5-automatic.timer
+        enabled: true
+        state: started
+
+  handlers:
+    - name: Reload firewalld
+      ansible.builtin.command: firewall-cmd --reload
+      changed_when: true
+
+    - name: Reload sshd
+      ansible.builtin.systemd_service:
+        name: sshd
+        state: reloaded
+
+    - name: Restart fail2ban
+      ansible.builtin.systemd_service:
+        name: fail2ban
+        state: restarted

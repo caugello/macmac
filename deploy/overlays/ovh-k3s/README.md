@@ -84,7 +84,7 @@ block in `kustomization.yaml`) so a future `apply -k` cannot overwrite them.
 | `macmac-app-secret` | `JWT_SECRET_KEY`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD` | generated | no (referenced only) |
 | `rabbitmq-tls` | `ca.crt`, `tls.crt`, `tls.key` | generated (self-signed) | no (referenced only) |
 | `macmac-firebase-credentials` | `google-credentials.json` (the key name auth-api mounts at `GOOGLE_APPLICATION_CREDENTIALS`) | **external** (provided by operator) | no (referenced only) |
-| `rabbitmq-definitions` | `definitions.json` (central `macmac` admin user + per-location `enricher-*` least-priv users, real password hashes) | generated out-of-band | placeholder (delete-patched) |
+| `rabbitmq-definitions` | `definitions.json` (central `macmac` admin user + per-location `enricher-*` users scoped to the catalog queues `macmac.catalog.{process.entity,enrichment.results}` + their `.dlx`/`.dlq` and `amq.default`, real password hashes) | generated out-of-band | placeholder (delete-patched) |
 
 Images are pulled from **public** Quay repositories, so no `macmac-pull-secret`
 is needed.
@@ -94,3 +94,32 @@ After bootstrap, verify the namespace holds every secret:
 ```bash
 kubectl get secrets -n macmac
 ```
+
+## External amqps (remote enrichers)
+
+Remote enricher workers connect to RabbitMQ over `amqps://…:5671` via the
+hostPort bound in #401. Two things gate that path and are deliberately **not**
+in this overlay because both embed enricher VPS IPs and this repo is public:
+
+1. **NetworkPolicy** — `allow-ingress-rabbitmq-external` (a standalone, additive
+   policy in gitignored `secrets/rabbitmq-external-amqps-netpol.yaml`). kube-router
+   enforces NetworkPolicies, and hostPort traffic reaches the rabbitmq pod with
+   the **real external source IP** (not masqueraded), so each enricher VPS needs
+   an `ipBlock: <ip>/32` allow on 5671. It is a separate object so the #411
+   `allow-ingress-rabbitmq` patch (an atomic-list strategic merge) never clobbers
+   it. Apply after `apply -k`:
+
+   ```bash
+   kubectl apply -f deploy/overlays/ovh-k3s/secrets/rabbitmq-external-amqps-netpol.yaml
+   ```
+
+2. **Node firewalld** — 5671 is opened only to the same enricher `/32`s via a
+   rich rule (not a broad `--add-port`), keeping the L4 surface pinned to known
+   workers. Pinned (not `0.0.0.0/0`) is safe because the broker only ever sees
+   fixed enricher VPS IPs — Brightdata is an *outbound* scraping proxy, never
+   used to dial the broker. TLS + SASL + the per-enricher least-priv user remain
+   the real auth gate. Add one `/32` (in both places) per new enricher VPS.
+
+The enricher hosts themselves are provisioned and hardened by
+`deploy/enricher-remote/playbook.yml` (podman quadlet service + firewalld
+deny-inbound-except-SSH, key-only SSH, fail2ban, unattended security updates).
