@@ -565,9 +565,13 @@ patches:
                 port: 8080
   # rabbitmq: drop the third OpenShift-router peer. It allowed the now-removed
   #        amqps passthrough Route (#401 replaced it with a hostPort on 5671,
-  #        which does not flow through Traefik). The in-cluster peer is kept;
-  #        external amqps reachability under hostPort is settled when remote
-  #        enrichers are onboarded, not here.
+  #        which does not flow through Traefik). The in-cluster peer is kept.
+  #        External amqps reachability (remote enrichers reaching 5671 via the
+  #        hostPort) is granted by a SEPARATE, additive NetworkPolicy
+  #        `allow-ingress-rabbitmq-external`, applied out-of-band from gitignored
+  #        secrets/ because it embeds enricher VPS IPs and this repo is public.
+  #        It is standalone (not folded here) so this atomic-list patch never
+  #        clobbers it on re-apply. See README "External amqps".
   - patch: |
       apiVersion: networking.k8s.io/v1
       kind: NetworkPolicy
