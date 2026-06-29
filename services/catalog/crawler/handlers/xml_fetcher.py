@@ -2,6 +2,7 @@ import gzip
 import io
 import re
 import time
+import urllib.parse
 from collections.abc import Iterable
 from urllib.parse import unquote
 
@@ -34,9 +35,32 @@ DELAY_BETWEEN_REQUESTS = 3
 # purpose: the two are separate services (sync Playwright here, async there).
 WAF_BLOCK_STATUSES = {403, 405, 456}
 
-# Brightdata CDP "scraping browser" endpoint, read the same way the enricher does.
+# Static ISP/residential forward proxy URL (format http://USER:PASS@host:port).
 # When unset, the crawler runs local-only with no proxy fallback (unchanged behavior).
-PROXY_URL = catalog_config.enricher.proxy_url if catalog_config.enricher else None
+FORWARD_PROXY_URL = (
+    catalog_config.enricher.crawler_forward_proxy_url if catalog_config.enricher else None
+)
+
+
+def _parse_forward_proxy(raw: str | None) -> dict[str, str] | None:
+    """Parse a forward-proxy URL into Playwright launch proxy kwargs.
+
+    Returns None when unset. Username/password are URL-decoded. A malformed
+    value must not crash import, so this stays a simple, defensive parse.
+    """
+    if not raw:
+        return None
+    parsed = urllib.parse.urlparse(raw)
+    proxy: dict[str, str] = {"server": f"{parsed.scheme}://{parsed.hostname}:{parsed.port}"}
+    if parsed.username:
+        proxy["username"] = urllib.parse.unquote(parsed.username)
+    if parsed.password:
+        proxy["password"] = urllib.parse.unquote(parsed.password)
+    return proxy
+
+
+# Forward proxy kwargs for the LOCAL Chromium launch used as the WAF-block fallback.
+FORWARD_PROXY = _parse_forward_proxy(FORWARD_PROXY_URL)
 
 
 class WafBlocked(Exception):
@@ -126,35 +150,34 @@ def fetch_xml_playwright(url: str, page) -> str | None:
         return None
 
 
-def _launch_local(p):
-    """Launch a local headless Chromium browser."""
-    return p.chromium.launch(
-        headless=True,
-        args=[
+def _launch_local(p, proxy: dict[str, str] | None = None):
+    """Launch a local headless Chromium browser.
+
+    When ``proxy`` is given, Chromium egresses through that forward proxy, so
+    page.request.get() (raw XHR) is fetched from the proxy's clean ISP IP.
+    """
+    kwargs: dict = {
+        "headless": True,
+        "args": [
             "--disable-dev-shm-usage",
             "--no-sandbox",
             "--disable-blink-features=AutomationControlled",
         ],
-    )
+    }
+    if proxy:
+        kwargs["proxy"] = proxy
+    return p.chromium.launch(**kwargs)
 
 
-def _new_page(browser, use_proxy: bool):
-    """Create a fresh context + page on the given browser.
-
-    APIRequestContext (used by page.request.get) is bound to the browser context,
-    so a page created on a CDP-connected browser egresses through that remote
-    browser (i.e. the Brightdata endpoint).
-    """
+def _new_page(browser):
+    """Create a fresh context + page on the given browser."""
     context = browser.new_context(
         user_agent=HEADERS["User-Agent"],
         locale="fr-BE",
         timezone_id="Europe/Brussels",
     )
     page = context.new_page()
-    if not use_proxy:
-        page.add_init_script(
-            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
-        )
+    page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined});")
     return page
 
 
@@ -162,20 +185,20 @@ def fetch_products_for_vendor(vendor: Vendor) -> Iterable[VendorCatalogItem]:
     try:
         with sync_playwright() as p:
             browser = _launch_local(p)
-            page = _new_page(browser, use_proxy=False)
+            page = _new_page(browser)
             # In-run latch: once the WAF blocks us, route the rest of this crawl
             # through the proxy. Held only for the duration of this short-lived Job;
             # no cross-run persistence (unlike the enricher's 24h hold).
             using_proxy = False
 
             def fetch(url: str) -> str | None:
-                """Fetch via the current browser; on a WAF block, switch to the
-                Brightdata proxy (if configured) and retry once through it."""
+                """Fetch via the current browser; on a WAF block, relaunch a local
+                Chromium through the forward proxy (if configured) and retry once."""
                 nonlocal browser, page, using_proxy
                 try:
                     return fetch_xml_playwright(url, page)
                 except WafBlocked:
-                    if using_proxy or not PROXY_URL:
+                    if using_proxy or not FORWARD_PROXY:
                         # Already proxied, or no proxy available — give up on this url.
                         return None
                     print("  → WAF block detected, switching to proxy")
@@ -183,8 +206,8 @@ def fetch_products_for_vendor(vendor: Vendor) -> Iterable[VendorCatalogItem]:
                         browser.close()
                     except Exception:
                         pass
-                    browser = p.chromium.connect_over_cdp(PROXY_URL)
-                    page = _new_page(browser, use_proxy=True)
+                    browser = _launch_local(p, proxy=FORWARD_PROXY)
+                    page = _new_page(browser)
                     using_proxy = True
                     try:
                         return fetch_xml_playwright(url, page)
