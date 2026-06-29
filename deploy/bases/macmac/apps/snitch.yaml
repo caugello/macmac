@@ -31,7 +31,7 @@ spec:
           # command below overrides anyway. No separate macmac-snitch image is
           # built/published by CI, so this avoids an extra image to build,
           # sign, and keep version-matched with catalog-api.
-          image: quay.io/caugello/macmac-catalog:v0.2.7
+          image: quay.io/caugello/macmac-catalog:v0.2.8
           imagePullPolicy: Always
           volumeMounts:
             - name: cfg
