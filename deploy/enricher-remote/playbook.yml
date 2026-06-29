@@ -144,11 +144,15 @@
       changed_when: "'ALREADY_ENABLED' not in fw_ssh.stderr"
       notify: Reload firewalld
 
-    # Drop cockpit if the image pre-opened it — the enricher needs no web admin.
-    - name: Remove cockpit from firewalld (permanent, best-effort)
-      ansible.builtin.command: firewall-cmd --permanent --remove-service=cockpit
-      register: fw_cockpit
-      changed_when: "'NOT_ENABLED' not in fw_cockpit.stderr"
+    # Drop services the image pre-opened that the enricher does not need
+    # (web admin, multicast DNS). dhcpv6-client is left for IPv6 networking.
+    - name: Remove unneeded services from firewalld (permanent, best-effort)
+      ansible.builtin.command: firewall-cmd --permanent --remove-service={{ item }}
+      loop:
+        - cockpit
+        - mdns
+      register: fw_svc
+      changed_when: "'NOT_ENABLED' not in fw_svc.stderr"
       failed_when: false
       notify: Reload firewalld
 
