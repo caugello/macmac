@@ -5,6 +5,7 @@ import os
 import re
 import signal
 import time
+import urllib.parse
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any
@@ -69,6 +70,28 @@ CIRCUIT_BREAKER_MAX_PAUSE = (
     catalog_config.enricher.circuit_breaker_max_pause if catalog_config.enricher else 7200
 )
 PROXY_URL = catalog_config.enricher.proxy_url if catalog_config.enricher else None
+FORWARD_PROXY_URL = catalog_config.enricher.forward_proxy_url if catalog_config.enricher else None
+
+
+def _parse_forward_proxy(raw: str | None) -> dict[str, str] | None:
+    """Parse a forward-proxy URL into Playwright launch proxy kwargs.
+
+    Returns None when unset. Username/password are URL-decoded. A malformed
+    value must not crash import, so this stays a simple, defensive parse.
+    """
+    if not raw:
+        return None
+    parsed = urllib.parse.urlparse(raw)
+    proxy: dict[str, str] = {"server": f"{parsed.scheme}://{parsed.hostname}:{parsed.port}"}
+    if parsed.username:
+        proxy["username"] = urllib.parse.unquote(parsed.username)
+    if parsed.password:
+        proxy["password"] = urllib.parse.unquote(parsed.password)
+    return proxy
+
+
+# Per-worker static ISP/residential forward proxy for the LOCAL Chromium launch.
+FORWARD_PROXY = _parse_forward_proxy(FORWARD_PROXY_URL)
 
 PROXY_HOLD_SECONDS = 24 * 3600
 WAF_BLOCK_STATUSES = {403, 405, 456}
@@ -397,10 +420,17 @@ class BrowserPool:
                     await self._browser.close()
                 except Exception:
                     pass
-            self._browser = await self._playwright.chromium.launch(
-                headless=True, args=CHROMIUM_ARGS
-            )
-            logger.info("Launched local Chromium browser")
+            launch_kwargs: dict[str, Any] = {"headless": True, "args": CHROMIUM_ARGS}
+            if FORWARD_PROXY:
+                launch_kwargs["proxy"] = FORWARD_PROXY
+            self._browser = await self._playwright.chromium.launch(**launch_kwargs)
+            if FORWARD_PROXY:
+                logger.info(
+                    "Launched local Chromium browser with forward proxy %s",
+                    FORWARD_PROXY["server"],
+                )
+            else:
+                logger.info("Launched local Chromium browser without forward proxy")
             self._context = None
 
         if self._context is None:

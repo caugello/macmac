@@ -12,6 +12,7 @@ from services.config import (
     get_config_for_service_dependency,
     get_config_for_vendor,
     load_model,
+    parse_enricher,
     parse_query_params,
 )
 
@@ -129,6 +130,37 @@ def test_catalog_enricher_freshness_threshold_from_yaml():
 
     assert catalog.enricher is not None
     assert catalog.enricher.freshness_threshold_days == 14
+
+
+_MIN_ENRICHER_DATA = {
+    "batch_size": 5,
+    "delay_between_requests": 5,
+    "page_timeout": 15000,
+    "batch_pause": 60,
+    "openai_model": "gpt-4o-mini",
+}
+
+
+@pytest.mark.unit
+def test_enricher_forward_proxy_unset(monkeypatch):
+    """forward_proxy_url is None when ENRICHER_FORWARD_PROXY is unset."""
+    monkeypatch.delenv("ENRICHER_FORWARD_PROXY", raising=False)
+
+    enricher = parse_enricher(dict(_MIN_ENRICHER_DATA))
+
+    assert enricher is not None
+    assert enricher.forward_proxy_url is None
+
+
+@pytest.mark.unit
+def test_enricher_forward_proxy_from_env(monkeypatch):
+    """forward_proxy_url is read from the ENRICHER_FORWARD_PROXY env var."""
+    monkeypatch.setenv("ENRICHER_FORWARD_PROXY", "http://u:p@host:1234")
+
+    enricher = parse_enricher(dict(_MIN_ENRICHER_DATA))
+
+    assert enricher is not None
+    assert enricher.forward_proxy_url == "http://u:p@host:1234"
 
 
 @pytest.mark.unit

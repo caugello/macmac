@@ -11,6 +11,7 @@ from services.catalog.enricher.main import (
     CircuitBreaker,
     PermanentCrawlError,
     ProxyFallback,
+    _parse_forward_proxy,
     async_retry,
     extract_quantity_from_url,
     normalize_unit,
@@ -510,6 +511,54 @@ async def test_browser_pool_launches_locally_without_proxy():
     mock_chromium.connect_over_cdp.assert_not_awaited()
 
 
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_browser_pool_launches_locally_with_forward_proxy():
+    """When FORWARD_PROXY is set, the local launch passes it as a proxy kwarg."""
+    from services.catalog.enricher.main import BrowserPool
+
+    pool = BrowserPool()
+
+    mock_browser = MagicMock()
+    mock_browser.is_connected.return_value = True
+    mock_chromium = MagicMock()
+    mock_chromium.connect_over_cdp = AsyncMock()
+    mock_chromium.launch = AsyncMock(return_value=mock_browser)
+    mock_pw = MagicMock()
+    mock_pw.chromium = mock_chromium
+
+    mock_async_pw = MagicMock()
+    mock_async_pw.start = AsyncMock(return_value=mock_pw)
+    mock_async_pw_fn = MagicMock(return_value=mock_async_pw)
+    fake_pw_module = MagicMock(async_playwright=mock_async_pw_fn)
+
+    mock_context = MagicMock()
+
+    async def _set_context(self=pool):
+        self._context = mock_context
+
+    mock_fallback = MagicMock()
+    mock_fallback.use_proxy.return_value = False
+
+    forward_proxy = {"server": "http://host:1234", "username": "u", "password": "p"}
+
+    with patch.dict(
+        sys.modules,
+        {"playwright": MagicMock(), "playwright.async_api": fake_pw_module},
+    ):
+        with (
+            patch("services.catalog.enricher.main.proxy_fallback", mock_fallback),
+            patch("services.catalog.enricher.main.FORWARD_PROXY", forward_proxy),
+            patch.object(pool, "_warm_session", side_effect=_set_context),
+        ):
+            ctx = await pool.get_context()
+
+    assert ctx is mock_context
+    mock_chromium.launch.assert_awaited_once()
+    assert mock_chromium.launch.await_args.kwargs["proxy"] == forward_proxy
+    mock_chromium.connect_over_cdp.assert_not_awaited()
+
+
 # ===== UNIT TESTS - non-food products are published =====
 
 
@@ -888,3 +937,39 @@ def test_worker_location_defaults_to_central(monkeypatch):
     finally:
         # Restore the module to its env-driven state for other tests.
         importlib.reload(reloaded)
+
+
+# ===== UNIT TESTS - _parse_forward_proxy =====
+
+
+@pytest.mark.unit
+def test_parse_forward_proxy_none():
+    """A falsy value yields None (no forward proxy configured)."""
+    assert _parse_forward_proxy(None) is None
+    assert _parse_forward_proxy("") is None
+
+
+@pytest.mark.unit
+def test_parse_forward_proxy_with_credentials():
+    """A full URL is split into server + decoded username/password."""
+    assert _parse_forward_proxy("http://u:p@host:1234") == {
+        "server": "http://host:1234",
+        "username": "u",
+        "password": "p",
+    }
+
+
+@pytest.mark.unit
+def test_parse_forward_proxy_without_credentials():
+    """A URL with no creds yields only the server key."""
+    assert _parse_forward_proxy("http://host:1234") == {"server": "http://host:1234"}
+
+
+@pytest.mark.unit
+def test_parse_forward_proxy_decodes_credentials():
+    """URL-encoded username/password are decoded."""
+    assert _parse_forward_proxy("http://us%40er:p%3Ass@host:1234") == {
+        "server": "http://host:1234",
+        "username": "us@er",
+        "password": "p:ss",
+    }
