@@ -136,6 +136,7 @@ spec:
                   - catalog-api
                   - crawler
                   - reenrich
+                  - snitch
       ports:
         - protocol: TCP
           port: 5432
@@ -228,6 +229,7 @@ spec:
                   - reenrich
                   - crawler
                   - catalog-api
+                  - snitch
       ports:
         - protocol: TCP
           port: 5672
