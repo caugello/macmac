@@ -35,6 +35,7 @@ data:
         catalog_detail: 600
         meal_plans_list: 60
         meal_plans_detail: 120
+        my_list: 60
 
     rate_limiting:
       enabled: true
@@ -353,6 +354,14 @@ data:
           - name: crawler
             title: Crawler
             version: 0.2.1
+            url: "amqp://rabbitmq:5672/%2F"
+          - name: enricher
+            title: Enricher
+            version: 0.2.7
+            url: "amqp://rabbitmq:5672/%2F"
+          - name: snitch
+            title: Snitch
+            version: 0.2.7
             url: "amqp://rabbitmq:5672/%2F"
 
       meal_plans:
