@@ -5,6 +5,17 @@ All notable changes to MacMac are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.8] - 2026-06-29
+
+### Added
+
+- **Enricher:** Optional per-worker ISP/residential forward proxy for the local Chromium, configured via `ENRICHER_FORWARD_PROXY`, so datacenter VPS IPs blocked with a 456 can egress from a residential-classified IP; rate-limiting stays active in local mode and the Brightdata CDP fallback is unchanged (#438)
+
+### Fixed
+
+- **Catalog:** Treat HTTP 456 as a WAF/IP-reputation block instead of a permanent error — the enricher now records the block and retries via proxy, and the crawler gains a local-first, proxy-on-block fallback that reconnects over CDP for the remainder of the run (#437)
+- **Deploy:** Sync the base `macmac-config` ConfigMap with the root config.yaml — add `cache.ttl.my_list` and the catalog `enricher`/`snitch` dependencies so v0.2.7 workloads no longer crash on boot with `KeyError 'my_list'` or a missing snitch dependency (#436)
+
 ## [0.2.7] - 2026-06-29
 
 ### Added
