@@ -612,3 +612,13 @@ patches:
                 port: 5672
               - protocol: TCP
                 port: 5671
+
+# ------------------------------------------------------------
+# Image overrides
+# ------------------------------------------------------------
+# Crawler-only hotfix (PR #441 — ISP forward-proxy WAF fallback). The fix is on
+# main but predates the v0.2.8 image build, so pin the crawler to the main merge
+# SHA. All other images stay on :v0.2.8; the next version release re-unifies this.
+images:
+  - name: quay.io/caugello/macmac-crawler
+    newTag: df8617c9e7c454f5ef420fe5b43107cfa25fbce2
