@@ -344,6 +344,23 @@ patches:
                         memory: 192Mi
                       limits:
                         memory: 384Mi
+  - patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: snitch
+        namespace: macmac
+      spec:
+        template:
+          spec:
+            containers:
+              - name: snitch
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 192Mi
+                  limits:
+                    memory: 384Mi
   #
   # #400 — local-path storage: set spec.storageClassName:
   #        local-path on the 4 database PVCs.
@@ -589,6 +606,7 @@ patches:
                         - reenrich
                         - crawler
                         - catalog-api
+                        - snitch
             ports:
               - protocol: TCP
                 port: 5672

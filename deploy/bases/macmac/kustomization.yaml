@@ -19,6 +19,7 @@ resources:
   - apps/catalog-api.yaml
   - apps/auth-api.yaml
   - apps/meal-plans-api.yaml
+  - apps/snitch.yaml
   - apps/frontend.yaml
   - jobs/crawler.yaml
   - jobs/reenrich.yaml
