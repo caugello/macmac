@@ -427,8 +427,14 @@ patches:
   #        Secrets are created out-of-band with real generated values
   #        (see the "Secrets" section in README.md). Delete the placeholders from the
   #        overlay so `apply -k` never clobbers the live values.
-  #        rabbitmq-definitions is left in place (it is a non-functional
-  #        stub for future remote enrichers, not a live credential).
+  #        rabbitmq-definitions is also delete-patched: on k3s RabbitMQ has no
+  #        PVC, so its user DB is ephemeral and `load_definitions` is the only
+  #        durable source of users. The live Secret carries real password
+  #        hashes for the central `macmac` user and per-location enricher
+  #        users, so it is managed out-of-band like the others (the base ships
+  #        an empty-users stub). Without load_definitions seeding these, the
+  #        broker boots with zero users (it skips RABBITMQ_DEFAULT_USER when
+  #        definitions are present), breaking both app and enricher auth.
   #        macmac-app-secret and rabbitmq-tls are not defined in the
   #        base — only referenced — so they need no delete patch.
   - patch: |
@@ -465,6 +471,13 @@ patches:
       kind: Secret
       metadata:
         name: redis-secret
+        namespace: macmac
+  - patch: |
+      $patch: delete
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: rabbitmq-definitions
         namespace: macmac
   #
   # #406 — RabbitMQ secret-file readability on k3s. The base mounts the

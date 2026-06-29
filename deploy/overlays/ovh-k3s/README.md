@@ -84,7 +84,7 @@ block in `kustomization.yaml`) so a future `apply -k` cannot overwrite them.
 | `macmac-app-secret` | `JWT_SECRET_KEY`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD` | generated | no (referenced only) |
 | `rabbitmq-tls` | `ca.crt`, `tls.crt`, `tls.key` | generated (self-signed) | no (referenced only) |
 | `macmac-firebase-credentials` | `google-credentials.json` (the key name auth-api mounts at `GOOGLE_APPLICATION_CREDENTIALS`) | **external** (provided by operator) | no (referenced only) |
-| `rabbitmq-definitions` | `definitions.json` | base stub (non-functional) | yes — left in place |
+| `rabbitmq-definitions` | `definitions.json` (central `macmac` admin user + per-location `enricher-*` least-priv users, real password hashes) | generated out-of-band | placeholder (delete-patched) |
 
 Images are pulled from **public** Quay repositories, so no `macmac-pull-secret`
 is needed.
