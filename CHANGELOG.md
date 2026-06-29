@@ -5,6 +5,33 @@ All notable changes to MacMac are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] - 2026-06-29
+
+### Added
+
+- **Deployment:** Migrate from OpenShift to single-node k3s on an OVH VPS — kustomize base + `ovh-k3s` overlay (#397), `Route`→`Ingress` with cert-manager (#398), resource requests/limits on every workload (#399), `local-path` storage for all PVCs (#400), RabbitMQ amqps exposed via hostPort 5671 (#401), cert-manager + Let's Encrypt issuers (#404), and out-of-band secret management with base placeholders deleted (#405). Epic #396
+- **Deployment:** Ansible playbooks to bootstrap and harden the k3s host (#402, #403) and to deploy + harden remote enricher VPSes — podman quadlet service, firewalld deny-inbound-except-SSH, key-only SSH, fail2ban, unattended security updates (#351, #430, #431)
+- **Catalog:** New central `snitch` service that consumes the enrichment-results queue and persists items to the catalog DB, decoupling DB writes from the enricher (#286, #299, #300, #301, #319, #432)
+- **Enricher:** Publish enriched results to a results queue instead of writing the DB directly; DB libraries moved to an optional `db` extra so the enricher image is DB-free and deployable on untrusted remote workers (#286, #290, #301)
+- **Enricher:** CA-verified TLS for `amqps://` RabbitMQ connections (#349); tag logs and results with `WORKER_LOCATION` (#350); residential-proxy support via CDP with WAF-block fallback and a circuit breaker for anti-bot detection; bounded, prioritised per-run re-enqueue volume (#355)
+- **Frontend:** "Pantry Fresh" / Ivory Flux redesign across the app — design tokens (#367), shared primitives on a bento system (#368), pill navigation (#369), Login/Landing (#370), bento dashboard (#371), catalog list + cards (#377) and product detail (#378), recipe list/discovery (#372), detail (#373) and form (#374), meal-plan planner (#375), shopping-list modal (#376), My List FAB/sheet (#379), Groups page (#380), and the MacMac wordmark (#395); earlier Ivory Flux screens (#272, #313, #315)
+- **Meal Plans:** Surface "My List" items as shopping-list extras with server-side persistence and login sync (#331, #332, #334, #335), inline catalog search and a quick "Add items" affordance to add extras (#333, #365)
+- **Recipes:** Prep time, calories, difficulty, and images (#316, #328)
+- **Observability:** Enrichment observability — DLQ depth metrics, RabbitMQ management UI, and a `/catalog/stats` endpoint (#357)
+- **CI:** Integration test job backed by Postgres service containers (#323, #325)
+
+### Fixed
+
+- **Deploy:** RabbitMQ boots on k3s — `fsGroup` for 0640 secret mounts plus a `Recreate` strategy for the hostPort (#406); seed users via `load_definitions` since RabbitMQ has no PVC (#429); retarget ingress NetworkPolicies to Traefik and allow the ACME HTTP-01 solver (#411); order the sshd hardening drop-in first so it takes effect (#424); run the snitch from the catalog image instead of an unpublished one (#434)
+- **Catalog:** Persist missing nutrition as SQL `NULL` instead of JSON `'null'` (#363)
+- **Enricher:** Lock down SSRF on the nutrition-page crawl (#340, #348); handle hidden nutrition tables in collapsed accordions; use a fresh CDP session per crawl; skip the DB write when a crawl fails
+- **Recipes:** Clear stale `group_id` when a user leaves a group; use the cart icon for My List everywhere and stop the FAB overlap (#337)
+- **Frontend:** Clear critical vitest, esbuild, and js-yaml CVEs
+
+### Changed
+
+- **Deps:** Align Python constraints with the trusted-libraries index (#326, #336), bump vulnerable dependencies to clear HIGH CVEs, and roll up Dependabot groups (python-deps, frontend-container, actions, container); ignore frontend major upgrades pending migration (#307, #308)
+
 ## [0.2.6] - 2026-06-13
 
 ### Fixed
