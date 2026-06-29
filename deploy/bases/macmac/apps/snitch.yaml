@@ -25,7 +25,13 @@ spec:
             name: macmac-config
       containers:
         - name: snitch
-          image: quay.io/caugello/macmac-snitch:v0.2.6
+          # Reuse the catalog image: the Dockerfile `snitch` and `catalog`
+          # targets are identical (same runtime, same builder-catalog venv,
+          # same `COPY . .`), differing only in the default CMD — which the
+          # command below overrides anyway. No separate macmac-snitch image is
+          # built/published by CI, so this avoids an extra image to build,
+          # sign, and keep version-matched with catalog-api.
+          image: quay.io/caugello/macmac-catalog:v0.2.6
           imagePullPolicy: Always
           volumeMounts:
             - name: cfg
