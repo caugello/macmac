@@ -721,6 +721,15 @@ def test_proxy_fallback_switches_on_block():
 
 
 @pytest.mark.unit
+def test_waf_block_statuses_include_456():
+    """collectandgo.be's WAF returns HTTP 456; it must be treated as a block."""
+    from services.catalog.enricher.main import WAF_BLOCK_STATUSES
+
+    assert 456 in WAF_BLOCK_STATUSES
+    assert {403, 405}.issubset(WAF_BLOCK_STATUSES)
+
+
+@pytest.mark.unit
 def test_proxy_fallback_expires_after_hold():
     fallback = ProxyFallback("wss://proxy.example.com:9222", hold_seconds=100)
     fallback.record_block()

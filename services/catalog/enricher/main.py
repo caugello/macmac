@@ -71,7 +71,7 @@ CIRCUIT_BREAKER_MAX_PAUSE = (
 PROXY_URL = catalog_config.enricher.proxy_url if catalog_config.enricher else None
 
 PROXY_HOLD_SECONDS = 24 * 3600
-WAF_BLOCK_STATUSES = {403, 405}
+WAF_BLOCK_STATUSES = {403, 405, 456}
 
 
 class ProxyFallback:
