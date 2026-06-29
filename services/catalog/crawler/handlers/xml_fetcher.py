@@ -6,13 +6,18 @@ from collections.abc import Iterable
 from urllib.parse import unquote
 
 import defusedxml.ElementTree as ET
-from playwright.sync_api import sync_playwright
 
-from services.config import Vendor, get_config
+try:
+    from playwright.sync_api import sync_playwright
+except ImportError:  # playwright is an optional crawler/enricher extra (absent in CI)
+    sync_playwright = None  # type: ignore[assignment]
+
+from services.config import Vendor, get_config, get_config_for_service
 from services.shared.lib.url_validator import validate_url
 from services.shared.schemas.vendor import VendorCatalogItem, VendorXMLSource
 
 config = get_config()
+catalog_config = get_config_for_service("catalog")
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
@@ -23,6 +28,19 @@ HEADERS = {
 }
 
 DELAY_BETWEEN_REQUESTS = 3
+
+# Status codes returned by collectandgo.be's WAF when it blocks a datacenter IP.
+# 456 is their custom block code. Duplicated (not imported) from the enricher on
+# purpose: the two are separate services (sync Playwright here, async there).
+WAF_BLOCK_STATUSES = {403, 405, 456}
+
+# Brightdata CDP "scraping browser" endpoint, read the same way the enricher does.
+# When unset, the crawler runs local-only with no proxy fallback (unchanged behavior).
+PROXY_URL = catalog_config.enricher.proxy_url if catalog_config.enricher else None
+
+
+class WafBlocked(Exception):
+    """Raised when a fetch is rejected by the vendor WAF, to trigger proxy fallback."""
 
 
 def parse_vendor_catalog_item_xml(xml_content: str, vendor: Vendor) -> Iterable[VendorCatalogItem]:
@@ -83,6 +101,9 @@ def fetch_xml_playwright(url: str, page) -> str | None:
     try:
         validate_url(url)
         response = page.request.get(url)
+        if response.status in WAF_BLOCK_STATUSES:
+            print(f"WAF block fetching {url}: HTTP {response.status}")
+            raise WafBlocked(f"HTTP {response.status}")
         if response.status >= 400:
             print(f"Error fetching {url}: HTTP {response.status}")
             return None
@@ -98,35 +119,81 @@ def fetch_xml_playwright(url: str, page) -> str | None:
                 return body.decode("utf-8")
 
         return body.decode("utf-8")
+    except WafBlocked:
+        raise
     except Exception as e:
         print(f"Error fetching xml from {url}: {e}")
         return None
 
 
+def _launch_local(p):
+    """Launch a local headless Chromium browser."""
+    return p.chromium.launch(
+        headless=True,
+        args=[
+            "--disable-dev-shm-usage",
+            "--no-sandbox",
+            "--disable-blink-features=AutomationControlled",
+        ],
+    )
+
+
+def _new_page(browser, use_proxy: bool):
+    """Create a fresh context + page on the given browser.
+
+    APIRequestContext (used by page.request.get) is bound to the browser context,
+    so a page created on a CDP-connected browser egresses through that remote
+    browser (i.e. the Brightdata endpoint).
+    """
+    context = browser.new_context(
+        user_agent=HEADERS["User-Agent"],
+        locale="fr-BE",
+        timezone_id="Europe/Brussels",
+    )
+    page = context.new_page()
+    if not use_proxy:
+        page.add_init_script(
+            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
+        )
+    return page
+
+
 def fetch_products_for_vendor(vendor: Vendor) -> Iterable[VendorCatalogItem]:
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=True,
-                args=[
-                    "--disable-dev-shm-usage",
-                    "--no-sandbox",
-                    "--disable-blink-features=AutomationControlled",
-                ],
-            )
-            context = browser.new_context(
-                user_agent=HEADERS["User-Agent"],
-                locale="fr-BE",
-                timezone_id="Europe/Brussels",
-            )
-            page = context.new_page()
-            page.add_init_script(
-                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
-            )
+            browser = _launch_local(p)
+            page = _new_page(browser, use_proxy=False)
+            # In-run latch: once the WAF blocks us, route the rest of this crawl
+            # through the proxy. Held only for the duration of this short-lived Job;
+            # no cross-run persistence (unlike the enricher's 24h hold).
+            using_proxy = False
+
+            def fetch(url: str) -> str | None:
+                """Fetch via the current browser; on a WAF block, switch to the
+                Brightdata proxy (if configured) and retry once through it."""
+                nonlocal browser, page, using_proxy
+                try:
+                    return fetch_xml_playwright(url, page)
+                except WafBlocked:
+                    if using_proxy or not PROXY_URL:
+                        # Already proxied, or no proxy available — give up on this url.
+                        return None
+                    print("  → WAF block detected, switching to proxy")
+                    try:
+                        browser.close()
+                    except Exception:
+                        pass
+                    browser = p.chromium.connect_over_cdp(PROXY_URL)
+                    page = _new_page(browser, use_proxy=True)
+                    using_proxy = True
+                    try:
+                        return fetch_xml_playwright(url, page)
+                    except WafBlocked:
+                        return None
 
             print(f"  → Fetching sitemap: {vendor.url}")
             validate_url(vendor.url)
-            sitemap = fetch_xml_playwright(vendor.url, page)
+            sitemap = fetch(vendor.url)
             if not sitemap:
                 browser.close()
                 return []
@@ -140,7 +207,7 @@ def fetch_products_for_vendor(vendor: Vendor) -> Iterable[VendorCatalogItem]:
                     continue
 
                 time.sleep(DELAY_BETWEEN_REQUESTS)
-                products_xml = fetch_xml_playwright(source.url, page)
+                products_xml = fetch(source.url)
                 if not products_xml:
                     continue
 

@@ -48,6 +48,14 @@ spec:
                       key: RABBITMQ_PASSWORD
                 - name: RABBITMQ_URL
                   value: "amqp://$(RABBITMQ_USER):$(RABBITMQ_PASSWORD)@rabbitmq:5672/%2F"
+                # Brightdata CDP endpoint for the proxy fallback. Optional so the
+                # CronJob still boots before the key is applied out-of-band.
+                - name: BRIGHTDATA_PROXY_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: macmac-app-secret
+                      key: BRIGHTDATA_PROXY_URL
+                      optional: true
               command:
                 - python
                 - -m
