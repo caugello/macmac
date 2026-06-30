@@ -118,6 +118,27 @@ describe('RecipeDetail Page', () => {
       expect(screen.getByText('Pasta Carbonara')).toBeInTheDocument()
     })
 
+    it('should render the favorite control in the hero', () => {
+      render(<RecipeDetail />, { wrapper: createWrapper() })
+      expect(screen.getByRole('button', { name: 'Add to favorites' })).toBeInTheDocument()
+    })
+
+    it('should render the category pill in the hero when category is present', () => {
+      mockUseRecipe.mockReturnValue({
+        data: { ...mockRecipe, category: 'main' },
+        isLoading: false,
+        error: null,
+      })
+
+      render(<RecipeDetail />, { wrapper: createWrapper() })
+      expect(screen.getByText('Main')).toBeInTheDocument()
+    })
+
+    it('should not render a category pill when category is missing', () => {
+      render(<RecipeDetail />, { wrapper: createWrapper() })
+      expect(screen.queryByText('Uncategorized')).not.toBeInTheDocument()
+    })
+
     it('should render recipe description', () => {
       render(<RecipeDetail />, { wrapper: createWrapper() })
       expect(screen.getByText('Classic Italian pasta dish')).toBeInTheDocument()
@@ -199,13 +220,13 @@ describe('RecipeDetail Page', () => {
 
       render(<RecipeDetail />, { wrapper: createWrapper() })
       expect(screen.getByText('25 min')).toBeInTheDocument()
-      expect(screen.getByText('480 kcal')).toBeInTheDocument()
+      expect(screen.getByText('480 cal')).toBeInTheDocument()
       expect(screen.getByText('Medium')).toBeInTheDocument()
     })
 
     it('should not render prep time, calories or difficulty when missing', () => {
       render(<RecipeDetail />, { wrapper: createWrapper() })
-      expect(screen.queryByText(/kcal/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/cal/)).not.toBeInTheDocument()
       expect(screen.queryByText('Medium')).not.toBeInTheDocument()
     })
 

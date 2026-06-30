@@ -10,9 +10,8 @@ import { getCategoryMeta } from '@/lib/recipeCategory'
 
 interface QuickStat {
   icon: string
-  label: string
+  iconClass: string
   value: string
-  tone: 'white' | 'lime' | 'ink' | 'coral' | 'soft-purple'
 }
 
 export const RecipeDetail = () => {
@@ -82,53 +81,35 @@ export const RecipeDetail = () => {
   if (recipe.prep_time != null) {
     quickStats.push({
       icon: 'schedule',
-      label: 'Prep time',
+      iconClass: 'text-coral',
       value: formatPrepTime(recipe.prep_time),
-      tone: 'lime',
+    })
+  }
+  if (recipe.difficulty != null) {
+    quickStats.push({
+      icon: 'signal_cellular_alt',
+      iconClass: 'text-green',
+      value: getDifficultyLabel(recipe.difficulty),
     })
   }
   if (recipe.calories != null) {
     quickStats.push({
       icon: 'local_fire_department',
-      label: 'Calories',
-      value: `${recipe.calories} kcal`,
-      tone: 'coral',
-    })
-  }
-  if (recipe.difficulty != null) {
-    quickStats.push({
-      icon: 'bar_chart',
-      label: 'Difficulty',
-      value: getDifficultyLabel(recipe.difficulty),
-      tone: 'white',
+      iconClass: 'text-amber-500',
+      value: `${recipe.calories} cal`,
     })
   }
   if (recipe.servings != null) {
     quickStats.push({
       icon: 'group',
-      label: 'Servings',
+      iconClass: 'text-green',
       value: `${recipe.servings} serving${recipe.servings !== 1 ? 's' : ''}`,
-      tone: 'white',
-    })
-  }
-  quickStats.push({
-    icon: 'shopping_basket',
-    label: 'Ingredients',
-    value: `${recipe.ingredients.length} item${recipe.ingredients.length !== 1 ? 's' : ''}`,
-    tone: 'soft-purple',
-  })
-  if (recipe.steps && recipe.steps.length > 0) {
-    quickStats.push({
-      icon: 'format_list_numbered',
-      label: 'Steps',
-      value: `${recipe.steps.length} step${recipe.steps.length !== 1 ? 's' : ''}`,
-      tone: 'ink',
     })
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 md:px-12 pt-6 pb-32 space-y-8">
-      {/* Action bar */}
+    <div className="max-w-5xl mx-auto px-4 md:px-12 pt-6 pb-32 space-y-6">
+      {/* Slim action row */}
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" asChild>
           <Link to="/recipes">
@@ -137,7 +118,6 @@ export const RecipeDetail = () => {
           </Link>
         </Button>
         <div className="flex gap-2">
-          <FavoriteButton recipe={recipe} variant="detail" />
           <Button variant="outline" asChild>
             <Link to={`/recipes/${id}/edit`}>
               <Icon name="edit" size={16} className="mr-2" />
@@ -151,50 +131,58 @@ export const RecipeDetail = () => {
         </div>
       </div>
 
-      {/* Hero image (falls back to placeholder when no image) */}
-      <div className="aspect-video w-full rounded-bento overflow-hidden relative">
+      {/* Dark immersive hero: image (or lime placeholder) with overlaid
+          category pill, floating favorite control and the recipe title. */}
+      <div className="relative rounded-bento overflow-hidden bg-ink aspect-[16/7] min-h-[220px]">
         {recipe.image_url ? (
-          <img src={recipe.image_url} alt={recipe.title} className="w-full h-full object-cover" />
+          <img
+            src={recipe.image_url}
+            alt={recipe.title}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
         ) : (
-          <div className="w-full h-full bg-lime flex items-center justify-center">
+          <div className="absolute inset-0 bg-lime flex items-center justify-center">
             <Icon name="restaurant_menu" size={72} className="text-ink/30" />
           </div>
         )}
-      </div>
+        {/* Gradient scrim so the white title stays legible over any image. */}
+        <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-ink/20 to-transparent pointer-events-none" />
 
-      {/* Title and description */}
-      <div>
-        {recipe.category && (
-          <p className="text-label-md font-bold uppercase tracking-wider text-muted-foreground mb-2">
-            {getCategoryMeta(recipe.category).label}
-          </p>
-        )}
-        <h1 className="text-headline-lg-mobile md:text-headline-lg font-display font-bold text-ink mb-2">
+        <div className="absolute top-4 left-4 right-4 flex items-start justify-between gap-3">
+          {recipe.category && (
+            <span className="bg-lime text-ink rounded-full px-3 py-1.5 text-label-md font-bold uppercase tracking-wider">
+              {getCategoryMeta(recipe.category).label}
+            </span>
+          )}
+          <FavoriteButton recipe={recipe} variant="overlay" className="ml-auto" />
+        </div>
+
+        <h1 className="absolute left-5 right-5 bottom-5 text-headline-lg-mobile md:text-headline-lg font-display font-bold text-white leading-tight">
           {recipe.title}
         </h1>
-        {recipe.description && (
-          <p className="text-body-lg text-muted-foreground leading-relaxed max-w-2xl">
-            {recipe.description}
-          </p>
-        )}
       </div>
 
-      {/* Quick-stats bento row */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
-        {quickStats.map((stat) => (
-          <Card
-            key={stat.label}
-            tone={stat.tone}
-            className="p-4 flex flex-col gap-2 min-h-[96px] justify-between"
-          >
-            <Icon name={stat.icon} size={24} />
-            <div>
-              <p className="text-caption uppercase tracking-wider opacity-70">{stat.label}</p>
-              <p className="text-title-lg font-display font-bold leading-tight">{stat.value}</p>
+      {/* Compact quick-stats pill row */}
+      {quickStats.length > 0 && (
+        <div className="flex flex-wrap gap-2.5">
+          {quickStats.map((stat) => (
+            <div
+              key={stat.icon}
+              className="flex items-center gap-2 bg-white rounded-xl px-3.5 py-2.5 text-label-md font-bold text-ink"
+            >
+              <Icon name={stat.icon} size={18} className={stat.iconClass} />
+              {stat.value}
             </div>
-          </Card>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
+
+      {/* Description */}
+      {recipe.description && (
+        <p className="text-body-lg text-muted-foreground leading-relaxed max-w-2xl">
+          {recipe.description}
+        </p>
+      )}
 
       {/* Two-column layout: ingredients sidebar + steps */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] gap-4 lg:gap-8">
