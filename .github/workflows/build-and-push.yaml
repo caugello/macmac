@@ -45,6 +45,10 @@ jobs:
             context: .
             containerfile: ./Dockerfile
             target: catalog
+          - image: macmac-snitch
+            context: .
+            containerfile: ./Dockerfile
+            target: snitch
           - image: macmac-meal-plans
             context: .
             containerfile: ./Dockerfile
@@ -171,8 +175,10 @@ jobs:
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ steps.build-image.outputs.image }}:${{ github.sha }}
-          format: sarif
-          output: trivy-results.sarif
+          # JSON (not SARIF) so the gate below can read each finding's
+          # PublishedDate for the grace window. Converted to SARIF before upload.
+          format: json
+          output: trivy-results.json
           exit-code: "0"
           trivy-config: .trivy.yaml
           trivyignores: .trivyignore
@@ -180,16 +186,23 @@ jobs:
 
       - name: Retry Trivy scan on transient failure
         id: trivy-scan-retry
-        if: steps.trivy-scan.outcome == 'failure' && !hashFiles('trivy-results.sarif')
+        if: steps.trivy-scan.outcome == 'failure' && !hashFiles('trivy-results.json')
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ steps.build-image.outputs.image }}:${{ github.sha }}
-          format: sarif
-          output: trivy-results.sarif
+          format: json
+          output: trivy-results.json
           exit-code: "0"
           trivy-config: .trivy.yaml
           trivyignores: .trivyignore
           timeout: 10m
+
+      - name: Convert Trivy report to SARIF
+        if: always()
+        run: |
+          if [ ! -f trivy-results.json ]; then exit 0; fi
+          # setup-trivy (run by trivy-action above) left the binary on PATH.
+          trivy convert --format sarif --output trivy-results.sarif trivy-results.json
 
       - name: Fix Trivy SARIF URI scheme
         if: always()
@@ -216,24 +229,68 @@ jobs:
             echo "::error::Grype scan did not produce SARIF output — job may have been cancelled or scanner failed"
             missing=1
           fi
+          if [ ! -f trivy-results.json ]; then
+            echo "::error::Trivy scan did not produce JSON output — job may have been cancelled or scanner failed"
+            missing=1
+          fi
           if [ ! -f trivy-results.sarif ]; then
-            echo "::error::Trivy scan did not produce SARIF output — job may have been cancelled or scanner failed"
+            echo "::error::Trivy SARIF conversion produced no output — convert step failed"
             missing=1
           fi
           [ "$missing" -eq 0 ]
 
       - name: Fail on scan findings
         run: |
+          set -euo pipefail
+          # Grace window for freshly-disclosed CVEs: a HIGH/CRITICAL finding only
+          # blocks the build once its CVE has been public for more than GRACE_DAYS,
+          # giving the base image time to ship a fix. Avoids breaking every build
+          # the moment a CVE lands and accumulating .trivyignore entries we forget.
+          GRACE_DAYS=14
+          cutoff=$(( $(date -u +%s) - GRACE_DAYS * 86400 ))
+
           grype_sarif="${{ steps.grype-scan-retry.outputs.sarif || steps.grype-scan.outputs.sarif }}"
-          # Filter Grype SARIF to level=="error" (HIGH+CRITICAL only).
-          # Grype's SARIF carries ALL severities regardless of severity-cutoff;
-          # level=="error" maps to HIGH and CRITICAL per the SARIF spec.
+          # Grype is strict (no grace): .grype.yaml ignores unfixed rpm CVEs and the
+          # bundled Chromium, so anything Grype still reports has a fix available —
+          # patch it, don't wait. level=="error" maps to HIGH/CRITICAL per SARIF.
           grype_results=$(jq '[.runs[0].results[] | select(.level == "error")] | length' "$grype_sarif")
-          # Trivy SARIF is pre-filtered by .trivy.yaml to HIGH+CRITICAL only.
-          trivy_results=$(jq '.runs[0].results | length' trivy-results.sarif)
-          total=$((grype_results + trivy_results))
+
+          # Trivy also reports unfixed OS CVEs (where "wait for the base image" is the
+          # only remedy), so apply the grace window to it. trivy-results.json is
+          # severity-filtered to HIGH/CRITICAL by .trivy.yaml. A finding blocks if its
+          # PublishedDate is older than the window, or if it has no usable date.
+          # .trivyignore stays the permanent escape hatch for CVEs unfixed past it.
+          read -r trivy_block trivy_grace < <(jq -r --argjson cutoff "$cutoff" '
+            [ .Results[]?.Vulnerabilities[]?
+              | select(.Severity == "HIGH" or .Severity == "CRITICAL")
+              | { id: .VulnerabilityID, pub: (.PublishedDate // "") }
+              | .epoch = ( if (.pub | test("^[0-9]{4}-")) and ((.pub | startswith("0001")) | not)
+                           then (.pub | sub("\\.[0-9]+"; "") | sub("Z$"; "")
+                                 | strptime("%Y-%m-%dT%H:%M:%S") | mktime)
+                           else -1 end )
+            ] as $v
+            | ([ $v[] | select(.epoch < 0 or .epoch <= $cutoff) | .id ] | unique | length) as $block
+            | ([ $v[] | select(.epoch >= 0 and .epoch > $cutoff) | .id ] | unique | length) as $grace
+            | "\($block) \($grace)"' trivy-results.json)
+
+          if [ "$trivy_grace" -gt 0 ]; then
+            echo "::warning::$trivy_grace Trivy HIGH/CRITICAL finding(s) within the ${GRACE_DAYS}-day grace window — not blocking yet, fix before the window closes:"
+            jq -r --argjson cutoff "$cutoff" '
+              .Results[]?.Vulnerabilities[]?
+              | select(.Severity == "HIGH" or .Severity == "CRITICAL")
+              | { id: .VulnerabilityID, pkg: .PkgName, pub: (.PublishedDate // "") }
+              | .epoch = ( if (.pub | test("^[0-9]{4}-")) and ((.pub | startswith("0001")) | not)
+                           then (.pub | sub("\\.[0-9]+"; "") | sub("Z$"; "")
+                                 | strptime("%Y-%m-%dT%H:%M:%S") | mktime)
+                           else -1 end )
+              | select(.epoch >= 0 and .epoch > $cutoff)
+              | "  - \(.id) (\(.pkg), published \(.pub))"' trivy-results.json | sort -u
+
+          fi
+
+          total=$((grype_results + trivy_block))
           if [ "$total" -gt 0 ]; then
-            echo "::error::Scanners found $grype_results Grype + $trivy_results Trivy HIGH/CRITICAL vulnerabilities"
+            echo "::error::Scanners found $grype_results Grype + $trivy_block Trivy HIGH/CRITICAL vulnerabilities past the ${GRACE_DAYS}-day grace window"
             exit 1
           fi
 
