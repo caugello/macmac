@@ -9,6 +9,7 @@ from services.config import get_config
 from services.framework.logging import Span
 from services.framework.tracing import traced
 from services.shared.lib.cache import initialize_service_cache
+from services.shared.lib.catalog_taxonomy import TAXONOMY
 from services.shared.lib.crud_helpers import apply_pagination, apply_sorting, safe_commit
 from services.shared.schemas import catalog as rs
 
@@ -55,8 +56,9 @@ async def create_catalog_item(data: rs.CatalogItemCreate, db: Session):
             db.add(item)
         db.refresh(item)
 
-        # Invalidate list caches
+        # Invalidate list caches and the count-sensitive departments cache.
         cache.delete_pattern("catalog:list:*")
+        cache.delete("catalog:departments")
 
         return rs.CatalogItemOut.model_validate(item)
 
@@ -147,6 +149,50 @@ async def list_catalog_categories(db: Session) -> rs.CatalogCategoriesResponse:
             .all()
         )
         result = rs.CatalogCategoriesResponse(categories=[r[0] for r in rows])
+        cache.set_json(cache_key, result, ttl=config.cache.ttl.catalog_list)
+        return result
+
+
+@traced
+async def list_catalog_departments(db: Session) -> rs.CatalogDepartmentsResponse:
+    """Return the 2-level taxonomy with live per-category counts.
+
+    A single ``GROUP BY category`` over the catalog is folded into the static
+    taxonomy constant. All 8 departments / 36 categories are always returned in
+    taxonomy order (count 0 when no items) so the department rail stays stable.
+    Categories not present in the taxonomy (e.g. legacy values awaiting
+    re-enrichment) are ignored.
+    """
+    cache_key = "catalog:departments"
+    cached = cache.get_json(cache_key)
+    if cached:
+        return rs.CatalogDepartmentsResponse(**cached)
+
+    with Span("db_list_catalog_departments"):
+        rows = (
+            db.query(CatalogItem.category, func.count(CatalogItem.id))
+            .filter(CatalogItem.category.isnot(None))
+            .group_by(CatalogItem.category)
+            .all()
+        )
+        counts = {str(category): count for category, count in rows}
+
+        departments = []
+        for name, (icon, categories) in TAXONOMY.items():
+            category_models = [
+                rs.CatalogDepartmentCategory(name=category, count=counts.get(category, 0))
+                for category in categories
+            ]
+            departments.append(
+                rs.CatalogDepartment(
+                    name=name,
+                    icon=icon,
+                    count=sum(c.count for c in category_models),
+                    categories=category_models,
+                )
+            )
+
+        result = rs.CatalogDepartmentsResponse(departments=departments)
         cache.set_json(cache_key, result, ttl=config.cache.ttl.catalog_list)
         return result
 

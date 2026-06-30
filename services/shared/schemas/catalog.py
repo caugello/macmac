@@ -149,6 +149,36 @@ class CatalogCategoriesResponse(BaseModel):
     categories: list[str]
 
 
+class CatalogDepartmentCategory(BaseModel):
+    """A leaf category within a department, with its live item count."""
+
+    name: str
+    count: int
+
+
+class CatalogDepartment(BaseModel):
+    """A catalog department with its Material Symbols icon and categories.
+
+    ``count`` is the sum of the category counts. The full taxonomy is always
+    returned (categories with no items report ``count=0``) so the department
+    rail stays stable regardless of how the catalog is populated.
+    """
+
+    name: str
+    icon: str
+    count: int
+    categories: list[CatalogDepartmentCategory]
+
+
+class CatalogDepartmentsResponse(BaseModel):
+    """The full 2-level taxonomy with live per-category counts.
+
+    Always lists all 8 departments / 36 categories in taxonomy order.
+    """
+
+    departments: list[CatalogDepartment]
+
+
 class CatalogStatsResponse(BaseModel):
     """Enrichment-coverage counts for the catalog.
 
