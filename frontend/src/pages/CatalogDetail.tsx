@@ -118,11 +118,7 @@ export const CatalogDetail = () => {
 
           {item.price && (
             <p className="text-display-md font-display font-bold mt-4 text-ink">
-              {item.price.toFixed(2)}&nbsp;&euro;
-              <span className="text-body-md font-body font-normal text-muted-foreground">
-                {' '}
-                / unit
-              </span>
+              &euro;{item.price.toFixed(2)}
             </p>
           )}
 
@@ -147,21 +143,21 @@ export const CatalogDetail = () => {
 
           {/* Actions */}
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
-            <Button asChild className="flex-1">
-              <a href={item.product_url} target="_blank" rel="noopener noreferrer">
-                <Icon name="open_in_new" size={18} className="mr-2" />
-                View on Vendor Site
-              </a>
-            </Button>
             <Button
               type="button"
-              variant={inList ? 'accent' : 'outline'}
+              variant={inList ? 'outline' : 'accent'}
               onClick={handleToggleList}
               aria-pressed={inList}
               className="flex-1"
             >
               <Icon name="shopping_cart" size={18} filled={inList} className="mr-2" />
               {inList ? 'In My List' : 'Add to My List'}
+            </Button>
+            <Button asChild variant="outline" className="flex-1">
+              <a href={item.product_url} target="_blank" rel="noopener noreferrer">
+                <Icon name="open_in_new" size={18} className="mr-2" />
+                View on Vendor Site
+              </a>
             </Button>
           </div>
         </div>

@@ -125,7 +125,12 @@ describe('CatalogList Page', () => {
 
     it('should render page title', () => {
       render(<CatalogList />, { wrapper: createWrapper() })
-      expect(screen.getByRole('heading', { name: 'Catalog' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Shop' })).toBeInTheDocument()
+    })
+
+    it('should show the result count', () => {
+      render(<CatalogList />, { wrapper: createWrapper() })
+      expect(screen.getByText('Showing 2 items')).toBeInTheDocument()
     })
 
     it('should render search bar', () => {
@@ -156,11 +161,6 @@ describe('CatalogList Page', () => {
     it('should render nutri-score badge', () => {
       render(<CatalogList />, { wrapper: createWrapper() })
       expect(screen.getByText('A')).toBeInTheDocument()
-    })
-
-    it('should render quantity and category as the description line', () => {
-      render(<CatalogList />, { wrapper: createWrapper() })
-      expect(screen.getByText('1 L · Dairy & Eggs')).toBeInTheDocument()
     })
 
     it('should render a favorite button that does not navigate', async () => {

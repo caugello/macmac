@@ -40,11 +40,8 @@ export const CatalogList = () => {
   const header = (
     <header className="mb-6">
       <h1 className="text-headline-lg-mobile md:text-headline-lg font-display font-bold text-ink">
-        Catalog
+        Shop
       </h1>
-      <p className="text-body-lg text-muted-foreground mt-2 max-w-2xl">
-        Discover premium selections curated for your kitchen.
-      </p>
     </header>
   )
 
@@ -110,7 +107,17 @@ export const CatalogList = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-gutter mt-6 stagger-grid">
+          {/* Section header: active category + result count */}
+          <div className="flex items-baseline justify-between gap-4 mt-6 mb-3">
+            <h2 className="text-headline-md font-display font-bold text-ink truncate">
+              {activeCategory}
+            </h2>
+            <span className="text-caption text-muted-foreground whitespace-nowrap shrink-0">
+              Showing {data?.total ?? 0} {(data?.total ?? 0) === 1 ? 'item' : 'items'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-gutter stagger-grid">
             {data?.data.map((item) => (
               <CatalogProductCard key={item.id} item={item} />
             ))}
