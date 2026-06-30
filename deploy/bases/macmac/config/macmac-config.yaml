@@ -282,6 +282,20 @@ data:
             request_model: services.shared.schemas.recipe.BatchRecipeRequest
             response_model: services.shared.schemas.recipe.BatchRecipeResponse
             tags: [recipes]
+          - name: favorite_recipe
+            description: Mark a recipe as a favorite for the current user
+            method: post
+            path: /recipes/{recipe_id}/favorite
+            handler: services.recipes.crud.favorite_recipe
+            response_model: services.shared.schemas.recipe.FavoriteResponse
+            tags: [recipes]
+          - name: unfavorite_recipe
+            description: Remove the current user's favorite for a recipe
+            method: delete
+            path: /recipes/{recipe_id}/favorite
+            handler: services.recipes.crud.unfavorite_recipe
+            response_model: services.shared.schemas.recipe.FavoriteResponse
+            tags: [recipes]
 
       catalog:
         name: catalog
@@ -333,6 +347,22 @@ data:
             handler: services.catalog.crud.list_catalog_categories
             response_model: services.shared.schemas.catalog.CatalogCategoriesResponse
             description: List distinct catalog categories
+            tags: [catalog]
+          - name: list_catalog_departments
+            method: get
+            # Registered before /catalog/{item_id} so the static path is not
+            # captured by the path parameter.
+            path: /catalog/departments
+            handler: services.catalog.crud.list_catalog_departments
+            response_model: services.shared.schemas.catalog.CatalogDepartmentsResponse
+            description: Departments with per-category item counts
+            tags: [catalog]
+          - name: get_catalog_stats
+            method: get
+            path: /catalog/stats
+            handler: services.catalog.crud.get_catalog_stats
+            response_model: services.shared.schemas.catalog.CatalogStatsResponse
+            description: Enrichment-coverage stats for the catalog
             tags: [catalog]
           - name: get_catalog_item
             method: get
@@ -449,3 +479,45 @@ data:
             handler: services.meal_plans.crud.generate_shopping_list
             description: Generate shopping list for date range
             tags: [meal_plans]
+          - name: list_my_list
+            method: get
+            path: /my-list
+            response_model: services.shared.schemas.my_list.MyListResponse
+            handler: services.meal_plans.my_list_crud.list_my_list
+            description: List the current user's saved products
+            tags:
+              - my_list
+          - name: add_my_list_item
+            method: post
+            path: /my-list
+            request_model: services.shared.schemas.my_list.MyListItemCreate
+            response_model: services.shared.schemas.my_list.MyListItemOut
+            handler: services.meal_plans.my_list_crud.add_my_list_item
+            description: Add a product to the current user's list
+            tags:
+              - my_list
+          - name: merge_my_list
+            method: post
+            path: /my-list/merge
+            request_model: services.shared.schemas.my_list.MyListMergeRequest
+            response_model: services.shared.schemas.my_list.MyListResponse
+            handler: services.meal_plans.my_list_crud.merge_my_list
+            description: Merge locally-stored items into the server list (login sync)
+            tags:
+              - my_list
+          - name: clear_my_list
+            method: delete
+            path: /my-list
+            response_model: services.shared.schemas.generic.DeleteResponse
+            handler: services.meal_plans.my_list_crud.clear_my_list
+            description: Clear all products from the current user's list
+            tags:
+              - my_list
+          - name: remove_my_list_item
+            method: delete
+            path: /my-list/{catalog_item_id}
+            response_model: services.shared.schemas.generic.DeleteResponse
+            handler: services.meal_plans.my_list_crud.remove_my_list_item
+            description: Remove a product from the current user's list
+            tags:
+              - my_list
