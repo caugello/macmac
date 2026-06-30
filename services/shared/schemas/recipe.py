@@ -97,6 +97,7 @@ class RecipeOut(BaseModel):
     category: RecipeCategoryEnum | None = None
     ingredients: list[Ingredient]
     steps: list[str] | None
+    is_favorite: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -134,6 +135,13 @@ class RecipeCategoryCountsResponse(BaseModel):
     """
 
     counts: dict[str, int]
+
+
+class FavoriteResponse(BaseModel):
+    """Result of marking/unmarking a recipe as a favorite."""
+
+    recipe_id: UUID4
+    is_favorite: bool
 
 
 class BatchRecipeRequest(BaseModel):

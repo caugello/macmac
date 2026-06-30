@@ -3,6 +3,7 @@ import { useRecipe, useDeleteRecipe } from '@/hooks/useRecipes'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Icon } from '@/components/ui/icon'
+import { FavoriteButton } from '@/components/recipes/FavoriteButton'
 import { useToast } from '@/components/ui/use-toast'
 import { getDifficultyLabel, formatPrepTime } from '@/lib/recipeDifficulty'
 import { getCategoryMeta } from '@/lib/recipeCategory'
@@ -136,6 +137,7 @@ export const RecipeDetail = () => {
           </Link>
         </Button>
         <div className="flex gap-2">
+          <FavoriteButton recipe={recipe} variant="detail" />
           <Button variant="outline" asChild>
             <Link to={`/recipes/${id}/edit`}>
               <Icon name="edit" size={16} className="mr-2" />

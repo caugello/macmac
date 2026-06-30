@@ -83,8 +83,14 @@ export interface RecipeOut {
   category: RecipeCategoryEnum | null
   ingredients: IngredientOut[]
   steps: string[] | null
+  is_favorite: boolean
   created_at: string
   updated_at: string
+}
+
+export interface FavoriteResponse {
+  recipe_id: string
+  is_favorite: boolean
 }
 
 export interface RecipeListResponse {

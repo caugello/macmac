@@ -9,8 +9,10 @@ import {
   useCreateRecipe,
   useUpdateRecipe,
   useDeleteRecipe,
+  useToggleFavorite,
 } from './useRecipes'
 import { recipesApi } from '../api/recipes'
+import type { RecipeOut, RecipeListResponse } from '../lib/types'
 
 vi.mock('../api/recipes')
 
@@ -104,6 +106,7 @@ describe('useRecipe', () => {
       image_url: null,
       category: null,
       steps: null,
+      is_favorite: false,
       created_at: '',
       updated_at: '',
     }
@@ -143,6 +146,7 @@ describe('useCreateRecipe', () => {
       image_url: null,
       category: null,
       steps: null,
+      is_favorite: false,
       created_at: '',
       updated_at: '',
     }
@@ -178,6 +182,7 @@ describe('useUpdateRecipe', () => {
       image_url: null,
       category: null,
       steps: null,
+      is_favorite: false,
       created_at: '',
       updated_at: '',
     }
@@ -208,5 +213,105 @@ describe('useDeleteRecipe', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(recipesApi.delete).toHaveBeenCalledWith('1')
+  })
+})
+
+describe('useToggleFavorite', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  const makeRecipe = (overrides: Partial<RecipeOut> = {}): RecipeOut => ({
+    id: '1',
+    title: 'Cake',
+    normalized_title: 'cake',
+    description: null,
+    servings: null,
+    prep_time: null,
+    calories: null,
+    difficulty: null,
+    image_url: null,
+    category: null,
+    ingredients: [],
+    steps: null,
+    is_favorite: false,
+    created_at: '',
+    updated_at: '',
+    ...overrides,
+  })
+
+  const seededWrapper = () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    queryClient.setQueryData<RecipeOut>(['recipe', '1'], makeRecipe())
+    queryClient.setQueryData<RecipeListResponse>(['recipes', undefined], {
+      total: 1,
+      limit: 20,
+      offset: 0,
+      data: [makeRecipe()],
+    })
+    const Wrapper = ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    )
+    return { queryClient, Wrapper }
+  }
+
+  it('calls favorite when the recipe is not yet a favorite', async () => {
+    vi.mocked(recipesApi.favorite).mockResolvedValue({ recipe_id: '1', is_favorite: true })
+    const { Wrapper } = seededWrapper()
+
+    const { result } = renderHook(() => useToggleFavorite(), { wrapper: Wrapper })
+    result.current.mutate({ id: '1', isFavorite: false })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(recipesApi.favorite).toHaveBeenCalledWith('1')
+    expect(recipesApi.unfavorite).not.toHaveBeenCalled()
+  })
+
+  it('calls unfavorite when the recipe is already a favorite', async () => {
+    vi.mocked(recipesApi.unfavorite).mockResolvedValue({ recipe_id: '1', is_favorite: false })
+    const { Wrapper } = seededWrapper()
+
+    const { result } = renderHook(() => useToggleFavorite(), { wrapper: Wrapper })
+    result.current.mutate({ id: '1', isFavorite: true })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(recipesApi.unfavorite).toHaveBeenCalledWith('1')
+    expect(recipesApi.favorite).not.toHaveBeenCalled()
+  })
+
+  it('optimistically flips is_favorite in the detail and list caches', async () => {
+    let resolveFavorite: (v: { recipe_id: string; is_favorite: boolean }) => void = () => {}
+    vi.mocked(recipesApi.favorite).mockReturnValue(
+      new Promise((resolve) => {
+        resolveFavorite = resolve
+      })
+    )
+    const { queryClient, Wrapper } = seededWrapper()
+
+    const { result } = renderHook(() => useToggleFavorite(), { wrapper: Wrapper })
+    result.current.mutate({ id: '1', isFavorite: false })
+
+    // Optimistic update applied before the request resolves.
+    await waitFor(() => {
+      expect(queryClient.getQueryData<RecipeOut>(['recipe', '1'])?.is_favorite).toBe(true)
+    })
+    const list = queryClient.getQueryData<RecipeListResponse>(['recipes', undefined])
+    expect(list?.data[0].is_favorite).toBe(true)
+
+    resolveFavorite({ recipe_id: '1', is_favorite: true })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+  })
+
+  it('rolls back the optimistic update on error', async () => {
+    vi.mocked(recipesApi.favorite).mockRejectedValue(new Error('boom'))
+    const { queryClient, Wrapper } = seededWrapper()
+
+    const { result } = renderHook(() => useToggleFavorite(), { wrapper: Wrapper })
+    result.current.mutate({ id: '1', isFavorite: false })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(queryClient.getQueryData<RecipeOut>(['recipe', '1'])?.is_favorite).toBe(false)
   })
 })

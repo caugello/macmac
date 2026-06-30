@@ -6,6 +6,7 @@ import type {
   RecipeListResponse,
   RecipeCategoryCountsResponse,
   DeleteResponse,
+  FavoriteResponse,
 } from '../lib/types'
 
 export const recipesApi = {
@@ -34,4 +35,10 @@ export const recipesApi = {
 
   delete: (id: string) =>
     apiClient.delete<DeleteResponse>(`/recipes/${id}`).then((res) => res.data),
+
+  favorite: (id: string) =>
+    apiClient.post<FavoriteResponse>(`/recipes/${id}/favorite`).then((res) => res.data),
+
+  unfavorite: (id: string) =>
+    apiClient.delete<FavoriteResponse>(`/recipes/${id}/favorite`).then((res) => res.data),
 }

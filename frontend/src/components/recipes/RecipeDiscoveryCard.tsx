@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Card } from '@/components/ui/card'
 import { Icon } from '@/components/ui/icon'
 import { CategoryBadge } from '@/components/recipes/CategoryBadge'
+import { FavoriteButton } from '@/components/recipes/FavoriteButton'
 import { getDifficultyLabel, formatPrepTime } from '@/lib/recipeDifficulty'
 import type { RecipeOut } from '@/lib/types'
 
@@ -54,12 +55,7 @@ export const RecipeDiscoveryCard = ({ recipe }: RecipeDiscoveryCardProps) => {
             category={recipe.category}
             className="absolute top-3 left-3 backdrop-blur-sm"
           />
-          <span
-            className="absolute top-3 right-3 inline-flex items-center justify-center w-11 h-11 rounded-full bg-white/80 backdrop-blur-[20px] text-ink group-hover:bg-ink group-hover:text-cream transition-colors"
-            aria-hidden="true"
-          >
-            <Icon name="bookmark" size={20} />
-          </span>
+          <FavoriteButton recipe={recipe} className="absolute top-3 right-3" />
         </div>
 
         <div className="flex flex-col flex-1 p-4">

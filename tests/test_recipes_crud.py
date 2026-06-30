@@ -10,8 +10,10 @@ from services.recipes.crud import (
     category_counts,
     create_recipe,
     delete_recipe,
+    favorite_recipe,
     get_recipe,
     list_recipes,
+    unfavorite_recipe,
     update_recipe,
 )
 from services.shared.schemas.generic import UnitEnum
@@ -1321,3 +1323,161 @@ async def test_cleanup_stale_group_ids_noop_when_current(mock_db):
         await list_recipes(mock_db)
         for call in mock_cache.delete_pattern.call_args_list:
             assert call[0][0] != "recipes:*"
+
+
+# ---------------------------------------------------------------------------
+# Per-user recipe favorites
+# ---------------------------------------------------------------------------
+
+
+async def _create_simple_recipe(mock_db, title: str):
+    """Create a recipe with a single ingredient and return the RecipeOut."""
+    return await create_recipe(
+        RecipeCreate(
+            title=title,
+            ingredients=[
+                IngredientCreate(
+                    catalog_item_id=TEST_CATALOG_ITEM_FLOUR, qty=1.0, unit=UnitEnum.KILOGRAM
+                )
+            ],
+        ),
+        mock_db,
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_favorite_recipe_toggle(mock_db):
+    """Favoriting then unfavoriting flips is_favorite on the recipe."""
+    recipe = await _create_simple_recipe(mock_db, "Toggle Recipe")
+
+    # Initially not a favorite.
+    fetched = await get_recipe(recipe.id, mock_db)
+    assert fetched.is_favorite is False
+
+    fav = await favorite_recipe(recipe.id, mock_db)
+    assert fav.is_favorite is True
+    assert fav.recipe_id == recipe.id
+
+    fetched = await get_recipe(recipe.id, mock_db)
+    assert fetched.is_favorite is True
+
+    unfav = await unfavorite_recipe(recipe.id, mock_db)
+    assert unfav.is_favorite is False
+
+    fetched = await get_recipe(recipe.id, mock_db)
+    assert fetched.is_favorite is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_favorite_recipe_idempotent(mock_db):
+    """Favoriting twice is a no-op; unfavoriting twice is a no-op."""
+    recipe = await _create_simple_recipe(mock_db, "Idempotent Recipe")
+
+    await favorite_recipe(recipe.id, mock_db)
+    # Second favorite must not raise (unique constraint) and stays favorited.
+    result = await favorite_recipe(recipe.id, mock_db)
+    assert result.is_favorite is True
+
+    from services.recipes.models import RecipeFavorite
+
+    count = mock_db.query(RecipeFavorite).filter(RecipeFavorite.recipe_id == recipe.id).count()
+    assert count == 1
+
+    await unfavorite_recipe(recipe.id, mock_db)
+    # Second unfavorite must not raise and stays unfavorited.
+    result = await unfavorite_recipe(recipe.id, mock_db)
+    assert result.is_favorite is False
+
+    count = mock_db.query(RecipeFavorite).filter(RecipeFavorite.recipe_id == recipe.id).count()
+    assert count == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_favorite_recipe_not_found(mock_db):
+    """Favoriting a non-existent recipe raises 404."""
+    with pytest.raises(HTTPException) as exc_info:
+        await favorite_recipe(uuid.uuid4(), mock_db)
+    assert exc_info.value.status_code == 404
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_favorite_recipe_forbidden_when_not_visible(mock_db):
+    """A user cannot favorite a private recipe owned by someone else."""
+    from services.framework.user_context import set_user_context
+
+    owner_id = uuid.uuid4()
+    set_user_context(user_id=owner_id, username="owner", group_ids=[])
+    recipe = await _create_simple_recipe(mock_db, "Private Recipe")
+
+    # Switch to an unrelated user with no shared group.
+    other_id = uuid.uuid4()
+    set_user_context(user_id=other_id, username="other", group_ids=[])
+
+    with pytest.raises(HTTPException) as exc_info:
+        await favorite_recipe(recipe.id, mock_db)
+    assert exc_info.value.status_code == 403
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_favorite_per_user_isolation(mock_db):
+    """User A's favorite is invisible to user B on a group-shared recipe."""
+    from services.framework.user_context import set_user_context
+
+    shared_group = uuid.uuid4()
+    user_a = uuid.uuid4()
+    user_b = uuid.uuid4()
+
+    # User A creates a recipe shared with the common group.
+    set_user_context(user_id=user_a, username="user_a", group_ids=[shared_group])
+    recipe = await _create_simple_recipe(mock_db, "Shared Recipe")
+
+    # User A favorites it.
+    await favorite_recipe(recipe.id, mock_db)
+    a_view = await get_recipe(recipe.id, mock_db)
+    assert a_view.is_favorite is True
+
+    # User B (same group) sees the recipe but NOT as a favorite.
+    set_user_context(user_id=user_b, username="user_b", group_ids=[shared_group])
+    b_view = await get_recipe(recipe.id, mock_db)
+    assert b_view.is_favorite is False
+
+    b_list = await list_recipes(mock_db)
+    titles = {r.title: r.is_favorite for r in b_list["data"]}
+    assert titles["Shared Recipe"] is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_is_favorite_resolved_in_list(mock_db):
+    """is_favorite is resolved correctly per recipe in list output."""
+    fav_recipe = await _create_simple_recipe(mock_db, "Favorited In List")
+    await _create_simple_recipe(mock_db, "Not Favorited In List")
+
+    await favorite_recipe(fav_recipe.id, mock_db)
+
+    result = await list_recipes(mock_db)
+    by_title = {r.title: r.is_favorite for r in result["data"]}
+    assert by_title["Favorited In List"] is True
+    assert by_title["Not Favorited In List"] is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_favorite_invalidates_caches(mock_db):
+    """Favoriting and unfavoriting invalidate the detail and list caches."""
+    recipe = await _create_simple_recipe(mock_db, "Cache Recipe")
+
+    with patch("services.recipes.crud.cache") as mock_cache:
+        await favorite_recipe(recipe.id, mock_db)
+        mock_cache.delete.assert_any_call(f"recipe:{recipe.id}")
+        mock_cache.delete_pattern.assert_any_call("recipes:list:*")
+
+    with patch("services.recipes.crud.cache") as mock_cache:
+        await unfavorite_recipe(recipe.id, mock_db)
+        mock_cache.delete.assert_any_call(f"recipe:{recipe.id}")
+        mock_cache.delete_pattern.assert_any_call("recipes:list:*")

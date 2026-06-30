@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Card } from '@/components/ui/card'
 import { Icon } from '@/components/ui/icon'
 import { CategoryBadge } from '@/components/recipes/CategoryBadge'
+import { FavoriteButton } from '@/components/recipes/FavoriteButton'
 import { getDifficultyLabel, formatPrepTime } from '@/lib/recipeDifficulty'
 import type { RecipeOut } from '@/lib/types'
 
@@ -65,12 +66,7 @@ export const FeaturedRecipeCard = ({ recipe }: FeaturedRecipeCardProps) => {
           <div className="p-6 md:p-8 flex flex-col">
             <div className="flex items-start justify-between gap-4">
               <CategoryBadge category={recipe.category} />
-              <span
-                className="shrink-0 inline-flex items-center justify-center w-11 h-11 -mt-1 -mr-1 rounded-full text-cream/70 group-hover:text-lime transition-colors"
-                aria-hidden="true"
-              >
-                <Icon name="bookmark" size={24} />
-              </span>
+              <FavoriteButton recipe={recipe} className="shrink-0 -mt-1 -mr-1" />
             </div>
 
             <h2 className="mt-3 text-headline-md font-display font-bold text-cream line-clamp-2">
