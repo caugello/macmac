@@ -1,7 +1,9 @@
 import { render, screen } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect } from 'vitest'
 import { RecipeDiscoveryCard } from './RecipeDiscoveryCard'
+import { ToastProvider } from '@/components/ui/toast'
 import { RecipeDifficultyEnum, UnitEnum, type RecipeOut } from '@/lib/types'
 
 const baseRecipe: RecipeOut = {
@@ -19,16 +21,25 @@ const baseRecipe: RecipeOut = {
     { catalog_item_id: 'c1', catalog_item_name: 'Flour', qty: 200, unit: UnitEnum.GRAM },
   ],
   steps: ['Mix', 'Bake'],
+  is_favorite: false,
   created_at: '2024-01-01T00:00:00Z',
   updated_at: '2024-01-01T00:00:00Z',
 }
 
-const renderCard = (recipe: RecipeOut) =>
-  render(
-    <BrowserRouter>
-      <RecipeDiscoveryCard recipe={recipe} />
-    </BrowserRouter>
+const renderCard = (recipe: RecipeOut) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <ToastProvider>
+          <RecipeDiscoveryCard recipe={recipe} />
+        </ToastProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
   )
+}
 
 describe('RecipeDiscoveryCard', () => {
   it('renders prep time, calories and difficulty when present', () => {

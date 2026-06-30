@@ -1,4 +1,15 @@
-from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Index, Integer, String, func
+from sqlalchemy import (
+    JSON,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -75,4 +86,28 @@ class RecipeIngredient(UUIDPrimaryKeyMixin, Base):
     __table_args__ = (
         Index("ix_recipe_ingredient_recipe_id", "recipe_id"),
         Index("ix_recipe_ingredient_catalog_item_id", "catalog_item_id"),
+    )
+
+
+class RecipeFavorite(UUIDPrimaryKeyMixin, Base):
+    """
+    Per-user favorite marker for a recipe.
+
+    Recipes are group-shared, so favorites must live on a per-user join table
+    rather than a column on the recipe (a boolean there would be shared across
+    the whole group).
+    """
+
+    __tablename__ = "recipe_favorites"
+
+    user_id = Column(UUID(as_uuid=True), nullable=False)
+    recipe_id = Column(
+        UUID(as_uuid=True), ForeignKey("recipes.id", ondelete="CASCADE"), nullable=False
+    )
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "recipe_id", name="uq_recipe_favorite_user_recipe"),
+        Index("ix_recipe_favorite_user_id", "user_id"),
     )

@@ -339,6 +339,20 @@ services:
         request_model: services.shared.schemas.recipe.BatchRecipeRequest
         response_model: services.shared.schemas.recipe.BatchRecipeResponse
         tags: [recipes]
+      - name: favorite_recipe
+        description: Mark a recipe as a favorite for the current user
+        method: post
+        path: /recipes/{recipe_id}/favorite
+        handler: services.recipes.crud.favorite_recipe
+        response_model: services.shared.schemas.recipe.FavoriteResponse
+        tags: [recipes]
+      - name: unfavorite_recipe
+        description: Remove the current user's favorite for a recipe
+        method: delete
+        path: /recipes/{recipe_id}/favorite
+        handler: services.recipes.crud.unfavorite_recipe
+        response_model: services.shared.schemas.recipe.FavoriteResponse
+        tags: [recipes]
   catalog:
     name: catalog
     title: catalog API

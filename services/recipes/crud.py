@@ -22,13 +22,34 @@ from services.shared.schemas import recipe as rs
 from services.shared.schemas.generic import DeleteResponse
 from services.shared.schemas.ingredient import IngredientOut
 
-from .models import Recipe, RecipeIngredient
+from .models import Recipe, RecipeFavorite, RecipeIngredient
 
 # Load configuration
 config = get_config()
 
 # Initialize cache
 cache = initialize_service_cache("recipes")
+
+
+def _favorited_recipe_ids(db: Session, user_id, recipe_ids: list) -> set:
+    """
+    Return the subset of ``recipe_ids`` the given user has favorited.
+
+    Fetches all matching favorite rows in a single query so callers can resolve
+    ``is_favorite`` via set membership without an N+1.
+    """
+    if not recipe_ids:
+        return set()
+
+    rows = (
+        db.query(RecipeFavorite.recipe_id)
+        .filter(
+            RecipeFavorite.user_id == user_id,
+            RecipeFavorite.recipe_id.in_(recipe_ids),
+        )
+        .all()
+    )
+    return {row[0] for row in rows}
 
 
 async def batch_fetch_catalog_items(catalog_item_ids: list[UUID4]) -> dict[str, dict]:
@@ -276,6 +297,11 @@ async def list_recipes(
         )
         catalog_items = await batch_fetch_catalog_items(all_catalog_ids)
 
+        # Resolve per-caller favorites in a single query (no N+1).
+        favorited_ids = _favorited_recipe_ids(
+            db, user_ctx.user_id, [recipe.id for recipe in recipes]
+        )
+
         recipe_outs = []
         for recipe in recipes:
             ingredients_out = []
@@ -309,6 +335,7 @@ async def list_recipes(
                     category=recipe.category,
                     ingredients=ingredients_out,
                     steps=recipe.steps,
+                    is_favorite=recipe.id in favorited_ids,
                     created_at=recipe.created_at,
                     updated_at=recipe.updated_at,
                 )
@@ -375,15 +402,20 @@ async def get_recipe(recipe_id: UUID4, db: Session) -> rs.RecipeOut:
     Retrieves a single recipe by its ID with caching.
     Verifies user has access (owner or group member).
     """
-    require_user_context()
+    user_ctx = require_user_context()
 
-    # Try cache first — cached data includes user_id/group_id for auth check
+    # Try cache first — cached data includes user_id/group_id for auth check.
+    # is_favorite is per-caller so it is never trusted from the shared cache body;
+    # it is always resolved here for the current user.
     cache_key = f"recipe:{recipe_id}"
     cached = cache.get_json(cache_key)
     if cached:
         uid = cached.pop("_user_id", None)
         gid = cached.pop("_group_id", None)
         check_owner_or_group(UUID(uid) if uid else None, UUID(gid) if gid else None, "recipe")
+        cached["is_favorite"] = recipe_id in _favorited_recipe_ids(
+            db, user_ctx.user_id, [recipe_id]
+        )
         return rs.RecipeOut(**cached)
 
     with Span("db_query_recipe"):
@@ -415,6 +447,8 @@ async def get_recipe(recipe_id: UUID4, db: Session) -> rs.RecipeOut:
                 )
             )
 
+        is_favorite = recipe_id in _favorited_recipe_ids(db, user_ctx.user_id, [recipe_id])
+
         result = rs.RecipeOut(
             id=recipe.id,
             title=recipe.title,
@@ -428,12 +462,16 @@ async def get_recipe(recipe_id: UUID4, db: Session) -> rs.RecipeOut:
             category=recipe.category,
             ingredients=ingredients_out,
             steps=recipe.steps,
+            is_favorite=is_favorite,
             created_at=recipe.created_at,
             updated_at=recipe.updated_at,
         )
 
-        # Cache with ownership info for authorization on cache hits
+        # Cache with ownership info for authorization on cache hits. is_favorite is
+        # per-caller, so the shared cache body stores a neutral False and the real
+        # value is resolved per-request on read.
         cache_data = result.model_dump(mode="json")
+        cache_data["is_favorite"] = False
         cache_data["_user_id"] = str(recipe.user_id) if recipe.user_id else None
         cache_data["_group_id"] = str(recipe.group_id) if recipe.group_id else None
         cache.set_json(cache_key, cache_data, ttl=config.cache.ttl.recipes_detail)
@@ -567,6 +605,10 @@ async def batch_get_recipes(data: rs.BatchRecipeRequest, db: Session) -> rs.Batc
         )
         catalog_items = await batch_fetch_catalog_items(all_catalog_ids)
 
+        favorited_ids = _favorited_recipe_ids(
+            db, user_ctx.user_id, [recipe.id for recipe in recipes]
+        )
+
         result = {}
         for recipe in recipes:
             ingredients_out = []
@@ -599,8 +641,88 @@ async def batch_get_recipes(data: rs.BatchRecipeRequest, db: Session) -> rs.Batc
                 category=recipe.category,
                 ingredients=ingredients_out,
                 steps=recipe.steps,
+                is_favorite=recipe.id in favorited_ids,
                 created_at=recipe.created_at,
                 updated_at=recipe.updated_at,
             )
 
         return rs.BatchRecipeResponse(items=result)
+
+
+def _invalidate_favorite_caches(recipe_id: UUID4) -> None:
+    """
+    Drop caches whose ``is_favorite`` value depends on the current user's
+    favorites: the per-recipe detail entry and all per-user list pages.
+    """
+    cache.delete(f"recipe:{recipe_id}")
+    cache.delete_pattern("recipes:list:*")
+
+
+@traced
+async def favorite_recipe(recipe_id: UUID4, db: Session) -> rs.FavoriteResponse:
+    """
+    Mark a recipe as a favorite for the current user (idempotent).
+
+    Only recipes the caller can see (own or group-shared) may be favorited.
+    """
+    user_ctx = require_user_context()
+
+    with Span("db_favorite_recipe"):
+        recipe = db.query(Recipe).filter(Recipe.id == recipe_id).first()
+        if not recipe:
+            raise HTTPException(404, "Recipe not found")
+
+        # AUTHORIZATION CHECK: caller must be able to see the recipe
+        check_owner_or_group(recipe.user_id, recipe.group_id, "recipe")
+
+        existing = (
+            db.query(RecipeFavorite)
+            .filter(
+                RecipeFavorite.user_id == user_ctx.user_id,
+                RecipeFavorite.recipe_id == recipe_id,
+            )
+            .first()
+        )
+        if not existing:
+            db.add(RecipeFavorite(user_id=user_ctx.user_id, recipe_id=recipe_id))
+            try:
+                db.commit()
+            except IntegrityError:
+                # Concurrent insert won the race; the favorite already exists.
+                db.rollback()
+
+            _invalidate_favorite_caches(recipe_id)
+
+        return rs.FavoriteResponse(recipe_id=recipe_id, is_favorite=True)
+
+
+@traced
+async def unfavorite_recipe(recipe_id: UUID4, db: Session) -> rs.FavoriteResponse:
+    """
+    Remove the current user's favorite for a recipe (idempotent).
+
+    Only recipes the caller can see (own or group-shared) may be unfavorited.
+    """
+    user_ctx = require_user_context()
+
+    with Span("db_unfavorite_recipe"):
+        recipe = db.query(Recipe).filter(Recipe.id == recipe_id).first()
+        if not recipe:
+            raise HTTPException(404, "Recipe not found")
+
+        # AUTHORIZATION CHECK: caller must be able to see the recipe
+        check_owner_or_group(recipe.user_id, recipe.group_id, "recipe")
+
+        deleted = (
+            db.query(RecipeFavorite)
+            .filter(
+                RecipeFavorite.user_id == user_ctx.user_id,
+                RecipeFavorite.recipe_id == recipe_id,
+            )
+            .delete()
+        )
+        if deleted:
+            db.commit()
+            _invalidate_favorite_caches(recipe_id)
+
+        return rs.FavoriteResponse(recipe_id=recipe_id, is_favorite=False)

@@ -209,4 +209,28 @@ describe('recipesApi', () => {
       expect(result).toEqual(mockResponse.data)
     })
   })
+
+  describe('favorite', () => {
+    it('should call POST /recipes/:id/favorite', async () => {
+      const mockResponse = { data: { recipe_id: 'recipe-123', is_favorite: true } }
+      vi.mocked(apiClient.post).mockResolvedValue(mockResponse)
+
+      const result = await recipesApi.favorite('recipe-123')
+
+      expect(apiClient.post).toHaveBeenCalledWith('/recipes/recipe-123/favorite')
+      expect(result).toEqual(mockResponse.data)
+    })
+  })
+
+  describe('unfavorite', () => {
+    it('should call DELETE /recipes/:id/favorite', async () => {
+      const mockResponse = { data: { recipe_id: 'recipe-123', is_favorite: false } }
+      vi.mocked(apiClient.delete).mockResolvedValue(mockResponse)
+
+      const result = await recipesApi.unfavorite('recipe-123')
+
+      expect(apiClient.delete).toHaveBeenCalledWith('/recipes/recipe-123/favorite')
+      expect(result).toEqual(mockResponse.data)
+    })
+  })
 })
