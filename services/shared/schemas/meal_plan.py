@@ -111,6 +111,10 @@ class ShoppingListItem(BaseModel):
         None, description="Whole packages to buy: ceil(total_qty / package_size)"
     )
     last_enriched_at: datetime | None = None
+    is_unavailable: bool = Field(
+        False,
+        description="True when the catalog item is missing/deleted; excluded from the total",
+    )
 
 
 class ShoppingListResponse(BaseModel):

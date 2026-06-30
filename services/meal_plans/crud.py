@@ -610,15 +610,20 @@ async def generate_shopping_list(
                     )
                 )
             else:
+                # Catalog item is missing/deleted: surface it as unavailable
+                # rather than leaking a raw UUID, and keep it out of the total
+                # (line_total stays None). Grouped under its own bucket so the
+                # user can see something dropped.
                 shopping_items.append(
                     mp.ShoppingListItem(
                         catalog_item_id=catalog_item_id,
-                        catalog_item_name=f"Unknown ({catalog_item_id})",
+                        catalog_item_name="Product unavailable",
                         total_qty=totals["qty"],
                         unit=totals["unit"],
                         price=None,
                         line_total=None,
-                        category=None,
+                        category="Unavailable",
+                        is_unavailable=True,
                     )
                 )
 

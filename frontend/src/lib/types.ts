@@ -243,6 +243,7 @@ export interface ShoppingListItem {
   package_unit: string | null
   packages_needed: number | null
   last_enriched_at: string | null
+  is_unavailable: boolean
 }
 
 export interface ShoppingListResponse {
