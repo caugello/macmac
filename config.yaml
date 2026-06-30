@@ -1,7 +1,7 @@
 ---
 urlPrefix: /api/v1
 title: MacMac
-version: 0.2.8
+version: 0.2.9
 tmpDir: /tmp
 
 # Authentication & Security Configuration
@@ -93,7 +93,7 @@ services:
   auth:
     name: auth
     title: Authentication API
-    version: 0.2.8
+    version: 0.2.9
     url: "http://auth-api:8004"
     # Connection template — credentials come from env var {SERVICE}_DATABASE_URL
     db: "postgresql+pg8000://auth-db:5432/auth"
@@ -250,7 +250,7 @@ services:
   recipes:
     name: recipes
     title: Recipes API
-    version: 0.2.8
+    version: 0.2.9
     url: "http://recipes-api:8001"
     db: "postgresql+pg8000://recipes-db:5432/recipes"
     routes:
@@ -356,7 +356,7 @@ services:
   catalog:
     name: catalog
     title: catalog API
-    version: 0.2.8
+    version: 0.2.9
     url: "http://catalog-api:8002"
     db: "postgresql+pg8000://catalog-db:5432/catalog"
     enricher:
@@ -435,20 +435,20 @@ services:
     dependencies:
       - name: crawler
         title: Crawler
-        version: 0.2.8
+        version: 0.2.9
         url: "amqp://rabbitmq:5672/%2F"
       - name: enricher
         title: Enricher
-        version: 0.2.8
+        version: 0.2.9
         url: "amqp://rabbitmq:5672/%2F"
       - name: snitch
         title: Snitch
-        version: 0.2.8
+        version: 0.2.9
         url: "amqp://rabbitmq:5672/%2F"
   meal_plans:
     name: meal_plans
     title: Meal Plans API
-    version: 0.2.8
+    version: 0.2.9
     url: "http://meal-plans-api:8003"
     db: "postgresql+pg8000://meal-plans-db:5432/meal_plans"
     routes:
