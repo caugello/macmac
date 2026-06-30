@@ -27,17 +27,14 @@ export const MealPlansPage = () => {
   return (
     <div className="container mx-auto max-w-7xl px-4 md:px-12 pt-6 pb-32 space-y-6">
       {/* Intro header */}
-      <header className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+      <header className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1.5">
           <h1 className="text-headline-lg-mobile md:text-headline-lg font-display font-bold text-ink">
-            Plan Your Week
+            Planner
           </h1>
-          <p className="text-body-md text-on-surface-variant max-w-prose">
-            Curate your culinary journey. Select a day to schedule or review your meals.
-          </p>
           <p
             aria-live="polite"
-            className="text-caption text-on-surface-variant flex items-center gap-1.5 pt-1"
+            className="text-caption text-on-surface-variant flex items-center gap-1.5"
           >
             <Icon name="calendar_today" size={14} className="text-ink" />
             <span>

@@ -1,13 +1,25 @@
-import { startOfWeek, endOfWeek, format, isToday, parseISO } from 'date-fns'
-import { useRecipes } from '@/hooks/useRecipes'
+import { startOfWeek, endOfWeek, startOfToday, format, isToday, parseISO } from 'date-fns'
+import { useRecipes, useRecipe } from '@/hooks/useRecipes'
 import { useMealPlans } from '@/hooks/useMealPlans'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card } from '@/components/ui/card'
 import { GreetingHeader } from '@/components/dashboard/GreetingHeader'
 import { SmartSuggestionCard } from '@/components/dashboard/SmartSuggestionCard'
 import { getSmartSuggestion } from '@/components/dashboard/smartSuggestion'
-import { FeaturedRecipeCard } from '@/components/dashboard/FeaturedRecipeCard'
-import { DailyTrajectory } from '@/components/dashboard/DailyTrajectory'
+import { TonightCard } from '@/components/dashboard/TonightCard'
+import { WeekTrack } from '@/components/dashboard/WeekTrack'
+import { ComingUpCard } from '@/components/dashboard/ComingUpCard'
+import { StatTile } from '@/components/dashboard/StatTile'
+import { MealTypeEnum, type MealPlanOut } from '@/lib/types'
+
+const SLOT_RANK: Record<MealTypeEnum, number> = {
+  [MealTypeEnum.BREAKFAST]: 0,
+  [MealTypeEnum.LUNCH]: 1,
+  [MealTypeEnum.DINNER]: 2,
+}
+
+const sortMeals = (a: MealPlanOut, b: MealPlanOut) =>
+  a.date === b.date ? SLOT_RANK[a.meal_type] - SLOT_RANK[b.meal_type] : a.date.localeCompare(b.date)
 
 export const Dashboard = () => {
   const { user } = useAuth()
@@ -37,6 +49,16 @@ export const Dashboard = () => {
   const todayMeals = plannedMeals.filter((meal) => isToday(parseISO(meal.date)))
   const featuredRecipe = recipes[0]
 
+  // "Tonight" = today's dinner if planned, otherwise the newest recipe.
+  const todayDinner = todayMeals.find((m) => m.meal_type === MealTypeEnum.DINNER)
+  const { data: dinnerRecipe } = useRecipe(todayDinner?.recipe_id ?? '')
+  const tonightRecipe = dinnerRecipe ?? featuredRecipe
+  const tonightEyebrow = dinnerRecipe ? 'Tonight · Dinner' : 'Featured'
+
+  // "Coming up" = meals from today onward, in chronological order.
+  const today = startOfToday()
+  const upcoming = plannedMeals.filter((m) => parseISO(m.date) >= today).sort(sortMeals)
+
   const greetingName = user?.username || 'there'
   const dataReady = !recipesLoading && !mealPlansLoading
   const suggestion = getSmartSuggestion({ recipeTotal, plannedThisWeek: plannedCount })
@@ -45,75 +67,97 @@ export const Dashboard = () => {
     <div className="mx-auto max-w-5xl px-4 pb-32 pt-6 md:px-6">
       <GreetingHeader name={greetingName} todayCount={todayMeals.length} />
 
-      {/* Asymmetric bento grid: single column on mobile, multi-column on desktop. */}
-      <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {/* Featured recipe (newest real recipe) — large bento tile. */}
+      {/* Bento grid — single column on mobile, asymmetric 4-up on desktop (screen 01). */}
+      <div className="mt-7 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* Tonight hero. */}
         <div className="md:col-span-2 lg:row-span-2">
           {recipesError ? (
-            <section aria-label="Featured recipe" className="flex h-full flex-col gap-3">
-              <h2 className="px-1 font-display text-title-lg font-semibold text-ink">
-                Featured recipe
-              </h2>
-              <Card tone="white" className="flex-1 p-6">
-                <p className="font-body text-body-md text-coral">
-                  Couldn&apos;t load your recipes. Please try again.
-                </p>
-              </Card>
-            </section>
+            <Card tone="white" className="flex h-full min-h-[280px] items-center p-6">
+              <p className="font-body text-body-md text-coral">
+                Couldn&apos;t load your recipes. Please try again.
+              </p>
+            </Card>
           ) : recipesLoading ? (
-            <section aria-label="Featured recipe" className="flex h-full flex-col gap-3">
-              <h2 className="px-1 font-display text-title-lg font-semibold text-ink">
-                Featured recipe
-              </h2>
-              <Card tone="white" className="flex-1 overflow-hidden md:flex">
-                <div className="aspect-[16/9] min-h-[180px] skeleton-shimmer md:aspect-auto md:w-2/5" />
-                <div className="space-y-3 p-6 md:flex-1">
-                  <div className="h-6 w-2/3 rounded bg-cream skeleton-shimmer" />
-                  <div className="h-4 w-full rounded bg-cream skeleton-shimmer" />
-                  <div className="h-4 w-1/3 rounded bg-cream skeleton-shimmer" />
-                </div>
-              </Card>
-            </section>
-          ) : featuredRecipe ? (
-            <FeaturedRecipeCard recipe={featuredRecipe} />
-          ) : null}
+            <Card tone="ink" className="h-full min-h-[280px] skeleton-shimmer" />
+          ) : tonightRecipe ? (
+            <TonightCard recipe={tonightRecipe} eyebrow={tonightEyebrow} />
+          ) : (
+            <Card tone="ink" className="flex h-full min-h-[280px] flex-col justify-end gap-3 p-6">
+              <h2 className="font-display text-headline-md font-bold text-cream">No recipes yet</h2>
+              <p className="font-body text-body-md text-cream/70">
+                Add your first recipe to see tonight&apos;s pick here.
+              </p>
+            </Card>
+          )}
         </div>
 
-        {/* Smart suggestion (next best action from real account state). */}
+        {/* Your week track. */}
+        <div className="md:col-span-2">
+          {mealPlansError ? (
+            <Card tone="white" className="flex h-full min-h-[124px] items-center p-5">
+              <p className="font-body text-body-md text-coral">
+                Couldn&apos;t load your meal plan. Please try again.
+              </p>
+            </Card>
+          ) : mealPlansLoading ? (
+            <Card tone="white" className="h-full min-h-[124px] skeleton-shimmer" />
+          ) : (
+            <WeekTrack weekStart={weekStart} meals={plannedMeals} />
+          )}
+        </div>
+
+        {/* Smart suggestion (next best action). */}
         {dataReady && !recipesError && !mealPlansError && (
-          <div className="lg:col-span-1">
+          <div className="md:col-span-2">
             <SmartSuggestionCard suggestion={suggestion} />
           </div>
         )}
 
-        {/* Today's trajectory (real meals planned for today). */}
-        <div className="md:col-span-2 lg:col-span-1">
-          {mealPlansError ? (
-            <section aria-label="Today's trajectory" className="flex h-full flex-col gap-3">
-              <h2 className="px-1 font-display text-title-lg font-semibold text-ink">
-                Today&apos;s trajectory
-              </h2>
-              <Card tone="white" className="flex-1 p-6">
-                <p className="font-body text-body-md text-coral">
-                  Couldn&apos;t load your meal plan. Please try again.
-                </p>
-              </Card>
-            </section>
-          ) : mealPlansLoading ? (
-            <section aria-label="Today's trajectory" className="flex h-full flex-col gap-3">
-              <h2 className="px-1 font-display text-title-lg font-semibold text-ink">
-                Today&apos;s trajectory
-              </h2>
-              <Card tone="white" className="flex-1 space-y-3 p-6">
-                {[1, 2, 3].map((n) => (
-                  <div key={n} className="h-12 rounded-lg bg-cream skeleton-shimmer" />
-                ))}
-              </Card>
-            </section>
-          ) : (
-            <DailyTrajectory meals={todayMeals} />
-          )}
-        </div>
+        {/* Stat tiles. */}
+        <StatTile
+          tone="lime"
+          label="Recipes"
+          value={recipeTotal}
+          sub="in your library"
+          icon="menu_book"
+          to="/recipes"
+        />
+        <StatTile
+          tone="white"
+          label="This week"
+          value={plannedCount}
+          unit={plannedCount === 1 ? 'meal' : 'meals'}
+          sub="planned"
+          icon="calendar_month"
+          iconClassName="text-coral"
+          to="/meal-plans"
+        />
+        <StatTile
+          tone="soft-purple"
+          label="Today"
+          value={todayMeals.length}
+          unit={todayMeals.length === 1 ? 'meal' : 'meals'}
+          sub="on the menu"
+          icon="restaurant"
+          iconClassName="text-[#6B4BE6]"
+          to="/meal-plans"
+        />
+        <StatTile
+          tone="white"
+          label="Catalog"
+          value="Browse"
+          sub="real store prices"
+          icon="storefront"
+          iconClassName="text-green"
+          to="/catalog"
+        />
+
+        {/* Coming up this week. */}
+        {!mealPlansError && !mealPlansLoading && (
+          <div className="md:col-span-2 lg:col-span-4">
+            <ComingUpCard meals={upcoming} />
+          </div>
+        )}
       </div>
     </div>
   )

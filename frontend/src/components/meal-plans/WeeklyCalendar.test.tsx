@@ -95,14 +95,11 @@ describe('WeeklyCalendar Component', () => {
       expect(screen.getByText('Sun')).toBeInTheDocument()
     })
 
-    it('should render meal type labels for each day', () => {
+    it('should render one meal type label per row', () => {
       render(<WeeklyCalendar />)
-      const breakfastLabels = screen.getAllByText('breakfast')
-      const lunchLabels = screen.getAllByText('lunch')
-      const dinnerLabels = screen.getAllByText('dinner')
-      expect(breakfastLabels).toHaveLength(7)
-      expect(lunchLabels).toHaveLength(7)
-      expect(dinnerLabels).toHaveLength(7)
+      expect(screen.getAllByText('breakfast')).toHaveLength(1)
+      expect(screen.getAllByText('lunch')).toHaveLength(1)
+      expect(screen.getAllByText('dinner')).toHaveLength(1)
     })
 
     it('should render MealSlot components for each day/meal combination', () => {
@@ -188,21 +185,15 @@ describe('WeeklyCalendar Component', () => {
   })
 
   describe('today highlight', () => {
-    it('should render a single "Today" badge on the current day in week view', () => {
-      render(<WeeklyCalendar />)
-      expect(screen.getAllByText('Today')).toHaveLength(1)
-    })
-
-    it("should apply highlight styling to today's card", () => {
+    it('should mark exactly one day header as today in week view', () => {
       const { container } = render(<WeeklyCalendar />)
-      const highlighted = container.querySelectorAll('.ring-2.ring-ink.ambient-shadow')
-      expect(highlighted).toHaveLength(1)
+      expect(container.querySelectorAll('[data-today]')).toHaveLength(1)
     })
 
-    it('should not render a "Today" badge when today is outside the displayed week', () => {
-      render(<WeeklyCalendar />)
+    it('should not mark any header as today when today is outside the displayed week', () => {
+      const { container } = render(<WeeklyCalendar />)
       fireEvent.click(screen.getByText('chevron_right').closest('button')!)
-      expect(screen.queryByText('Today')).not.toBeInTheDocument()
+      expect(container.querySelectorAll('[data-today]')).toHaveLength(0)
     })
 
     it("should scroll today's card into view in week view", () => {
@@ -220,8 +211,8 @@ describe('WeeklyCalendar Component', () => {
       vi.setSystemTime(new Date('2024-01-01'))
       const scrollIntoView = vi.fn()
       Element.prototype.scrollIntoView = scrollIntoView
-      render(<WeeklyCalendar />)
-      expect(screen.getAllByText('Today')).toHaveLength(1)
+      const { container } = render(<WeeklyCalendar />)
+      expect(container.querySelectorAll('[data-today]')).toHaveLength(1)
       expect(scrollIntoView).not.toHaveBeenCalled()
     })
 
