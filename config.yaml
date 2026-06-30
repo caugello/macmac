@@ -410,6 +410,15 @@ services:
         response_model: services.shared.schemas.catalog.CatalogCategoriesResponse
         description: List distinct catalog categories
         tags: [catalog]
+      - name: list_catalog_departments
+        method: get
+        # Registered before /catalog/{item_id} so the static path is not
+        # captured by the path parameter.
+        path: /catalog/departments
+        handler: services.catalog.crud.list_catalog_departments
+        response_model: services.shared.schemas.catalog.CatalogDepartmentsResponse
+        description: Departments with per-category item counts
+        tags: [catalog]
       - name: get_catalog_stats
         method: get
         path: /catalog/stats

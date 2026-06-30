@@ -175,6 +175,23 @@ export interface CatalogCategoriesResponse {
   categories: string[]
 }
 
+export interface CatalogDepartmentCategory {
+  name: string
+  count: number
+}
+
+export interface CatalogDepartment {
+  name: string
+  /** Material Symbols icon name. */
+  icon: string
+  count: number
+  categories: CatalogDepartmentCategory[]
+}
+
+export interface CatalogDepartmentsResponse {
+  departments: CatalogDepartment[]
+}
+
 export interface DeleteResponse {
   success: boolean
 }

@@ -25,6 +25,14 @@ export const useCatalogCategories = () => {
   })
 }
 
+export const useCatalogDepartments = () => {
+  return useQuery({
+    queryKey: ['catalog-departments'],
+    queryFn: () => catalogApi.departments(),
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
 export const useCatalogItem = (id: string) => {
   return useQuery({
     queryKey: ['catalog-item', id],

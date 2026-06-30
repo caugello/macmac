@@ -2,7 +2,12 @@ import React from 'react'
 import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { useCatalog, useCatalogCategories, useCatalogItem } from './useCatalog'
+import {
+  useCatalog,
+  useCatalogCategories,
+  useCatalogDepartments,
+  useCatalogItem,
+} from './useCatalog'
 import { catalogApi } from '../api/catalog'
 
 vi.mock('../api/catalog')
@@ -61,6 +66,32 @@ describe('useCatalogCategories', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(catalogApi.categories).toHaveBeenCalled()
+    expect(result.current.data).toEqual(mockData)
+  })
+})
+
+describe('useCatalogDepartments', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should fetch catalog departments', async () => {
+    const mockData = {
+      departments: [
+        {
+          name: 'Produce',
+          icon: 'eco',
+          count: 5,
+          categories: [{ name: 'Leafy Greens', count: 5 }],
+        },
+      ],
+    }
+    vi.mocked(catalogApi.departments).mockResolvedValue(mockData)
+
+    const { result } = renderHook(() => useCatalogDepartments(), { wrapper: createWrapper() })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(catalogApi.departments).toHaveBeenCalled()
     expect(result.current.data).toEqual(mockData)
   })
 })

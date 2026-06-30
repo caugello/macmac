@@ -3,6 +3,7 @@ import type {
   CatalogItemOut,
   CatalogItemListResponse,
   CatalogCategoriesResponse,
+  CatalogDepartmentsResponse,
 } from '../lib/types'
 
 export const catalogApi = {
@@ -19,4 +20,7 @@ export const catalogApi = {
 
   categories: () =>
     apiClient.get<CatalogCategoriesResponse>('/catalog/categories').then((res) => res.data),
+
+  departments: () =>
+    apiClient.get<CatalogDepartmentsResponse>('/catalog/departments').then((res) => res.data),
 }

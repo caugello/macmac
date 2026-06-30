@@ -906,25 +906,42 @@ Extract structured product information and return a JSON object with these field
   "brand": "string or null - Brand name (e.g., BONI, Delhaize, Soubry, Lu, Lotus, Coca-Cola)",
   "canonical_name": "string or null - Clean product name without brand, quantity, or promotional text",
   "category": "string or null - Use ONE of these categories:
-    - Pasta & Rice
-    - Bread & Bakery
-    - Dairy & Eggs
-    - Meat & Poultry
+    - Leafy Greens
+    - Fresh Fruit
+    - Vegetables
+    - Fresh Herbs
+    - Salads & Prepared
+    - Organic
+    - Milk & Cream
+    - Cheese
+    - Yogurt & Desserts
+    - Butter & Margarine
+    - Eggs
+    - Beef & Pork
+    - Poultry
     - Fish & Seafood
-    - Fruits & Vegetables
-    - Frozen Foods
-    - Snacks & Chips
-    - Sweets & Chocolate
-    - Beverages
-    - Coffee & Tea
+    - Charcuterie & Deli
+    - Plant-Based
+    - Bread
+    - Pastries & Viennoiserie
+    - Cakes & Desserts
+    - Wraps & Tortillas
+    - Pasta & Rice
     - Sauces & Condiments
     - Oils & Vinegars
     - Canned & Jarred
     - Breakfast & Cereals
-    - Baby Food
-    - Pet Food
-    - Household & Cleaning
-    - Personal Care",
+    - Snacks & Sweets
+    - Frozen Meals
+    - Frozen Vegetables & Fruit
+    - Ice Cream & Desserts
+    - Water & Soft Drinks
+    - Juices
+    - Coffee & Tea
+    - Beer, Wine & Spirits
+    - Cleaning & Laundry
+    - Personal Care
+    - Baby & Pet",
   "net_quantity_value": "number or null - Numeric quantity (e.g., 375.0)",
   "net_quantity_unit": "string or null - MUST BE EXACTLY ONE OF: g, kg, ml, l, tsp, tbsp, pc, pinch, dash",
   "price": "number or null - Current price as decimal (e.g., 1.89, 0.99, 12.50)",
@@ -978,7 +995,7 @@ Example 2 - Raw: "BONI Zonnebloempitten 280g"
 {{
   "brand": "BONI",
   "canonical_name": "Zonnebloempitten",
-  "category": "Snacks & Chips",
+  "category": "Snacks & Sweets",
   "net_quantity_value": 280.0,
   "net_quantity_unit": "g",
   "price": 1.49,
@@ -991,7 +1008,7 @@ Example 3 - Raw: "Coca-Cola Regular 12x33cl"
 {{
   "brand": "Coca-Cola",
   "canonical_name": "Regular",
-  "category": "Beverages",
+  "category": "Water & Soft Drinks",
   "net_quantity_value": 330.0,
   "net_quantity_unit": "ml",
   "price": 5.99,
