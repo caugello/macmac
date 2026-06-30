@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Icon } from '@/components/ui/icon'
 import { useToast } from '@/components/ui/use-toast'
 import { getDifficultyLabel, formatPrepTime } from '@/lib/recipeDifficulty'
+import { getCategoryMeta } from '@/lib/recipeCategory'
 
 interface QuickStat {
   icon: string
@@ -161,6 +162,11 @@ export const RecipeDetail = () => {
 
       {/* Title and description */}
       <div>
+        {recipe.category && (
+          <p className="text-label-md font-bold uppercase tracking-wider text-muted-foreground mb-2">
+            {getCategoryMeta(recipe.category).label}
+          </p>
+        )}
         <h1 className="text-headline-lg-mobile md:text-headline-lg font-display font-bold text-ink mb-2">
           {recipe.title}
         </h1>
