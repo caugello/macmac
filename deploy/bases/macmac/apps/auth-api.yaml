@@ -28,7 +28,7 @@ spec:
             secretName: macmac-firebase-credentials
       initContainers:
         - name: migrate
-          image: quay.io/caugello/macmac-auth:v0.2.9
+          image: quay.io/caugello/macmac-auth:v0.2.10
           imagePullPolicy: Always
           volumeMounts:
             - name: cfg
@@ -61,7 +61,7 @@ spec:
               sys.exit(subprocess.call([sys.executable, "-m", "alembic", "-c", "services/auth/alembic.ini", "upgrade", "head"]))
       containers:
         - name: auth-api
-          image: quay.io/caugello/macmac-auth:v0.2.9
+          image: quay.io/caugello/macmac-auth:v0.2.10
           imagePullPolicy: Always
           ports:
             - containerPort: 8004
