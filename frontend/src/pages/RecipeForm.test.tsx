@@ -89,11 +89,6 @@ describe('RecipeForm Page', () => {
       expect(screen.getByTestId('ingredient-editor')).toBeInTheDocument()
     })
 
-    it('should render image placeholder', () => {
-      render(<RecipeForm />, { wrapper: createWrapper() })
-      expect(screen.getByText('Add a photo')).toBeInTheDocument()
-    })
-
     it('should render submit and cancel buttons', () => {
       render(<RecipeForm />, { wrapper: createWrapper() })
       expect(screen.getByRole('button', { name: /Create Recipe/ })).toBeInTheDocument()

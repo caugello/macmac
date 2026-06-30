@@ -4,7 +4,6 @@ import { useRecipes, useRecipeCategoryCounts } from '@/hooks/useRecipes'
 import { SearchBar } from '@/components/shared/SearchBar'
 import { Pagination } from '@/components/shared/Pagination'
 import { RecipeCategoryFilter } from '@/components/recipes/RecipeCategoryFilter'
-import { FeaturedRecipeCard } from '@/components/recipes/FeaturedRecipeCard'
 import { RecipeDiscoveryCard } from '@/components/recipes/RecipeDiscoveryCard'
 import { Card } from '@/components/ui/card'
 import { Icon } from '@/components/ui/icon'
@@ -43,29 +42,15 @@ export const RecipeList = () => {
     return (
       <div className="max-w-7xl mx-auto px-4 md:px-12 pt-6 pb-32">
         <h1 className="text-headline-lg-mobile md:text-headline-lg font-display font-bold text-ink mb-6">
-          Recipes
+          All recipes
         </h1>
         <p className="sr-only">Loading recipes...</p>
-        <Card tone="white" className="overflow-hidden mb-8">
-          <div className="grid md:grid-cols-2">
-            <div className="aspect-[16/10] md:aspect-auto md:min-h-[20rem] skeleton-shimmer" />
-            <div className="p-6 md:p-8 space-y-4">
-              <div className="h-5 w-1/3 rounded skeleton-shimmer" />
-              <div className="h-6 w-2/3 rounded skeleton-shimmer" />
-              <div className="h-4 w-full rounded skeleton-shimmer" />
-              <div className="h-4 w-4/5 rounded skeleton-shimmer" />
-            </div>
-          </div>
-        </Card>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          {[1, 2, 3].map((n) => (
-            <Card key={n} tone="white" className="overflow-hidden">
-              <div className="aspect-[4/3] skeleton-shimmer" />
-              <div className="p-4 space-y-3">
-                <div className="h-4 w-3/4 rounded skeleton-shimmer" />
-                <div className="h-3 w-full rounded skeleton-shimmer" />
-                <div className="h-3 w-1/2 rounded skeleton-shimmer" />
-              </div>
+          {[1, 2, 3, 4, 5, 6].map((n) => (
+            <Card key={n} tone="white" className="p-4 space-y-3">
+              <div className="h-4 w-16 rounded-full skeleton-shimmer" />
+              <div className="h-5 w-3/4 rounded skeleton-shimmer" />
+              <div className="h-3 w-1/2 rounded skeleton-shimmer" />
             </Card>
           ))}
         </div>
@@ -83,22 +68,17 @@ export const RecipeList = () => {
 
   const recipes = data?.data ?? []
   const isEmpty = recipes.length === 0
-  // Promote the first recipe to a hero card only on the unfiltered first page,
-  // so paging/search/category results render as a uniform grid.
-  const showFeatured =
-    page === 0 && !search && selectedCategories.length === 0 && recipes.length > 0
-  const featured = showFeatured ? recipes[0] : null
-  const gridRecipes = showFeatured ? recipes.slice(1) : recipes
+  const total = data?.total ?? 0
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-12 pt-6 pb-32">
       <header className="mb-6 flex items-start justify-between gap-4">
         <div className="space-y-1.5">
           <h1 className="text-headline-lg-mobile md:text-headline-lg font-display font-bold text-ink">
-            Recipes
+            All recipes
           </h1>
           <p className="text-body-lg text-muted-foreground">
-            Discover and cook from your collection.
+            {total} {total === 1 ? 'recipe' : 'recipes'} saved
           </p>
         </div>
         <Link
@@ -165,21 +145,13 @@ export const RecipeList = () => {
         </div>
       ) : (
         <>
-          {featured && (
-            <section aria-label="Featured recipe" className="mt-6">
-              <FeaturedRecipeCard recipe={featured} />
-            </section>
-          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mt-6 stagger-grid">
+            {recipes.map((recipe) => (
+              <RecipeDiscoveryCard key={recipe.id} recipe={recipe} />
+            ))}
+          </div>
 
-          {gridRecipes.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mt-6 stagger-grid">
-              {gridRecipes.map((recipe) => (
-                <RecipeDiscoveryCard key={recipe.id} recipe={recipe} />
-              ))}
-            </div>
-          )}
-
-          <Pagination total={data?.total || 0} limit={limit} page={page} onPageChange={setPage} />
+          <Pagination total={total} limit={limit} page={page} onPageChange={setPage} />
         </>
       )}
 

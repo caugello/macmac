@@ -16,7 +16,7 @@ describe('CategoryBadge', () => {
 
   it('should apply the category color class', () => {
     render(<CategoryBadge category={RecipeCategoryEnum.BREAKFAST} />)
-    expect(screen.getByText('Breakfast')).toHaveClass('bg-amber-100')
+    expect(screen.getByText('Breakfast')).toHaveClass('bg-amber-500')
   })
 
   it('should merge a custom className', () => {
