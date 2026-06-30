@@ -92,13 +92,22 @@ export const RecipeList = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-12 pt-6 pb-32">
-      <header className="mb-6 space-y-1.5">
-        <h1 className="text-headline-lg-mobile md:text-headline-lg font-display font-bold text-ink">
-          Recipes
-        </h1>
-        <p className="text-body-lg text-muted-foreground">
-          Discover and cook from your collection.
-        </p>
+      <header className="mb-6 flex items-start justify-between gap-4">
+        <div className="space-y-1.5">
+          <h1 className="text-headline-lg-mobile md:text-headline-lg font-display font-bold text-ink">
+            Recipes
+          </h1>
+          <p className="text-body-lg text-muted-foreground">
+            Discover and cook from your collection.
+          </p>
+        </div>
+        <Link
+          to="/recipes/new"
+          className="hidden md:inline-flex items-center gap-2 shrink-0 bg-ink text-cream px-5 h-12 rounded-full text-label-md font-semibold hover:-translate-y-px hover:ambient-shadow transition-all"
+        >
+          <Icon name="add" size={20} className="text-lime" />
+          New recipe
+        </Link>
       </header>
 
       {/* Search with tune/filter toggle */}

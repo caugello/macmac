@@ -1,8 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useCreateRecipe, useUpdateRecipe, useRecipe } from '@/hooks/useRecipes'
-import { RecipeCategoryEnum, type IngredientCreate, type CatalogItemOut } from '@/lib/types'
+import {
+  RecipeCategoryEnum,
+  RecipeDifficultyEnum,
+  type IngredientCreate,
+  type CatalogItemOut,
+} from '@/lib/types'
 import { RECIPE_CATEGORIES } from '@/lib/recipeCategory'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -23,8 +29,17 @@ export const RecipeForm = () => {
     (IngredientCreate & { _catalog_item?: CatalogItemOut })[]
   >([])
   const [servings, setServings] = useState<string>('')
+  const [prepTime, setPrepTime] = useState<string>('')
+  const [calories, setCalories] = useState<string>('')
+  const [difficulty, setDifficulty] = useState<RecipeDifficultyEnum | ''>('')
   const [category, setCategory] = useState<RecipeCategoryEnum | ''>('')
   const [stepsText, setStepsText] = useState('')
+
+  const DIFFICULTY_OPTIONS: { value: RecipeDifficultyEnum; label: string }[] = [
+    { value: RecipeDifficultyEnum.EASY, label: 'Easy' },
+    { value: RecipeDifficultyEnum.MEDIUM, label: 'Medium' },
+    { value: RecipeDifficultyEnum.HARD, label: 'Hard' },
+  ]
 
   const navigate = useNavigate()
   const createRecipe = useCreateRecipe()
@@ -49,6 +64,9 @@ export const RecipeForm = () => {
         }))
       )
       setServings(existingRecipe.servings != null ? String(existingRecipe.servings) : '')
+      setPrepTime(existingRecipe.prep_time != null ? String(existingRecipe.prep_time) : '')
+      setCalories(existingRecipe.calories != null ? String(existingRecipe.calories) : '')
+      setDifficulty(existingRecipe.difficulty ?? '')
       setCategory(existingRecipe.category ?? '')
       setStepsText(existingRecipe.steps?.join('\n') || '')
     }
@@ -76,19 +94,23 @@ export const RecipeForm = () => {
     )
 
     const parsedServings = servings ? parseInt(servings, 10) : undefined
+    const parsedPrepTime = prepTime ? parseInt(prepTime, 10) : undefined
+    const parsedCalories = calories ? parseInt(calories, 10) : undefined
 
     const recipeData = {
       title,
       description: description || undefined,
       servings: parsedServings && parsedServings >= 1 ? parsedServings : undefined,
+      prep_time: parsedPrepTime != null && parsedPrepTime >= 0 ? parsedPrepTime : undefined,
+      calories: parsedCalories != null && parsedCalories >= 0 ? parsedCalories : undefined,
       ingredients: cleanIngredients,
       steps: steps.length > 0 ? steps : undefined,
     }
 
     if (isEditMode && id) {
       updateRecipe.mutate(
-        // Send `null` (not `undefined`) so selecting "Uncategorized" clears an existing category.
-        { id, data: { ...recipeData, category: category || null } },
+        // Send `null` (not `undefined`) so clearing a field resets it on the server.
+        { id, data: { ...recipeData, category: category || null, difficulty: difficulty || null } },
         {
           onSuccess: () => {
             toast('Recipe updated', 'success')
@@ -102,7 +124,7 @@ export const RecipeForm = () => {
       )
     } else {
       createRecipe.mutate(
-        { ...recipeData, category: category || undefined },
+        { ...recipeData, category: category || undefined, difficulty: difficulty || undefined },
         {
           onSuccess: () => {
             toast('Recipe created', 'success')
@@ -196,6 +218,32 @@ export const RecipeForm = () => {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="prep_time">Prep time (min)</Label>
+                <Input
+                  id="prep_time"
+                  type="number"
+                  placeholder="e.g., 30"
+                  value={prepTime}
+                  onChange={(e) => setPrepTime(e.target.value)}
+                  min={0}
+                  max={1440}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="calories">Calories</Label>
+                <Input
+                  id="calories"
+                  type="number"
+                  placeholder="e.g., 600"
+                  value={calories}
+                  onChange={(e) => setCalories(e.target.value)}
+                  min={0}
+                  max={10000}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
                 <Select
                   id="category"
@@ -209,6 +257,31 @@ export const RecipeForm = () => {
                     </option>
                   ))}
                 </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Difficulty</Label>
+              <div role="group" aria-label="Difficulty" className="flex gap-2">
+                {DIFFICULTY_OPTIONS.map((opt) => {
+                  const active = difficulty === opt.value
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setDifficulty(active ? '' : opt.value)}
+                      aria-pressed={active}
+                      className={cn(
+                        'flex-1 h-12 rounded-full text-label-md font-semibold transition-colors',
+                        active
+                          ? 'bg-ink text-cream'
+                          : 'bg-white border border-border text-muted-foreground hover:bg-surface-container'
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           </div>
