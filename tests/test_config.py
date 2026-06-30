@@ -77,7 +77,7 @@ def test_get_config():
 
     assert isinstance(config, Config)
     assert config.title == "MacMac"
-    assert config.version == "0.2.9"
+    assert config.version == "0.2.10"
     assert config.urlPrefix == "/api/v1"
     assert "recipes" in config.services
     assert "catalog" in config.services
