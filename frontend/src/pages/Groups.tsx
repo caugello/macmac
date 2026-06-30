@@ -237,15 +237,15 @@ export const Groups: React.FC = () => {
         <div>
           <h1 className="text-headline-lg font-display font-bold text-ink">Groups</h1>
           <p className="text-on-surface-variant text-body-md max-w-lg">
-            Manage your family groups and share recipes &amp; meal plans
+            Shared with people you cook for
           </p>
         </div>
 
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button variant="accent" className="md:hidden">
+            <Button variant="accent">
               <Icon name="group_add" size={20} className="mr-2" />
-              Create Group
+              New group
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -284,8 +284,9 @@ export const Groups: React.FC = () => {
       {/* Pending invitations */}
       {pendingInvitations.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-headline-md font-display font-semibold text-ink mb-4">
-            Pending Invitations
+          <h2 className="text-headline-md font-display font-semibold text-ink mb-4 flex items-center gap-2">
+            <Icon name="mark_email_unread" size={24} className="text-ink" />
+            Invitations
           </h2>
           <div className="space-y-3">
             {pendingInvitations.map((invitation: Invitation) => (
@@ -469,7 +470,7 @@ export const Groups: React.FC = () => {
                                   className="text-on-surface-variant hover:text-coral flex-shrink-0"
                                   aria-label={`Remove ${member.username}`}
                                 >
-                                  <Icon name="person_remove" size={18} />
+                                  <Icon name="remove_circle_outline" size={18} />
                                 </Button>
                               )}
                             </div>
@@ -482,7 +483,8 @@ export const Groups: React.FC = () => {
 
                     {group.owner_id === user?.id && (
                       <div className="rounded-bento bg-cream p-4 mt-5">
-                        <p className="text-caption uppercase tracking-wider text-on-surface-variant mb-2">
+                        <p className="text-caption uppercase tracking-wider text-on-surface-variant mb-2 flex items-center gap-1.5">
+                          <Icon name="person_add" size={16} className="text-on-surface-variant" />
                           Invite by email
                         </p>
                         <div className="flex flex-col sm:flex-row gap-2">
@@ -506,7 +508,7 @@ export const Groups: React.FC = () => {
                             size="sm"
                             className="px-6 flex-shrink-0"
                           >
-                            Invite
+                            Send
                           </Button>
                         </div>
                       </div>
