@@ -77,15 +77,15 @@ describe('Groups Page', () => {
       mockListGroups.mockResolvedValue({ data: [], total: 0 })
       render(<Groups />, { wrapper: createWrapper() })
 
-      expect(await screen.findByText('Better together')).toBeInTheDocument()
-      expect(screen.getAllByText(/Create a group to share/).length).toBeGreaterThan(0)
+      expect(await screen.findByText('No groups yet')).toBeInTheDocument()
+      expect(screen.getByText(/Create a group to share/)).toBeInTheDocument()
     })
 
     it('should show create first group button', async () => {
       mockListGroups.mockResolvedValue({ data: [], total: 0 })
       render(<Groups />, { wrapper: createWrapper() })
 
-      expect(await screen.findByText('Create a group')).toBeInTheDocument()
+      expect(await screen.findByText('Create your first group')).toBeInTheDocument()
     })
   })
 
@@ -125,7 +125,21 @@ describe('Groups Page', () => {
 
     it('should show owner badge for owned groups', async () => {
       render(<Groups />, { wrapper: createWrapper() })
-      expect(await screen.findByText('Owner')).toBeInTheDocument()
+      // "Owner" appears as the group badge and on the owner's member row.
+      const ownerLabels = await screen.findAllByText('Owner')
+      expect(ownerLabels.length).toBeGreaterThan(0)
+    })
+
+    it('should show member badge for non-owned groups', async () => {
+      render(<Groups />, { wrapper: createWrapper() })
+      await screen.findByText('Cooking Club')
+      expect(screen.getByText('Member')).toBeInTheDocument()
+    })
+
+    it('should mark the current user member row with (you)', async () => {
+      render(<Groups />, { wrapper: createWrapper() })
+      await screen.findByText('Smith Family')
+      expect(screen.getByText('(you)')).toBeInTheDocument()
     })
 
     it('should show member count', async () => {
@@ -140,13 +154,6 @@ describe('Groups Page', () => {
       expect(screen.getByPlaceholderText('name@example.com')).toBeInTheDocument()
     })
 
-    it('should render sidebar create group form on desktop', async () => {
-      render(<Groups />, { wrapper: createWrapper() })
-      await screen.findByText('Smith Family')
-      expect(screen.getByRole('heading', { name: 'Create Group' })).toBeInTheDocument()
-      expect(screen.getByPlaceholderText('Smith Family')).toBeInTheDocument()
-    })
-
     it('should show delete button for owned groups', async () => {
       render(<Groups />, { wrapper: createWrapper() })
       await screen.findByText('Smith Family')
@@ -158,31 +165,40 @@ describe('Groups Page', () => {
       await screen.findByText('Cooking Club')
       expect(screen.getByText('Leave Group')).toBeInTheDocument()
     })
+
+    it('should render the Why groups promo panel', async () => {
+      render(<Groups />, { wrapper: createWrapper() })
+      await screen.findByText('Smith Family')
+      expect(screen.getByRole('heading', { name: 'Why groups?' })).toBeInTheDocument()
+    })
+
+    it('should render the Invitations panel', async () => {
+      render(<Groups />, { wrapper: createWrapper() })
+      await screen.findByText('Smith Family')
+      expect(screen.getByRole('heading', { name: 'Invitations' })).toBeInTheDocument()
+    })
   })
 
   describe('invitations', () => {
+    const pendingInvitation = {
+      id: 'inv-1',
+      group_id: 'g1',
+      group_name: 'Smith Family',
+      email: 'test@test.com',
+      invited_by: 'user-2',
+      inviter_name: 'Jane',
+      status: 'pending',
+      created_at: '2026-05-17T00:00:00Z',
+    }
+
     it('should show pending invitations', async () => {
       mockListGroups.mockResolvedValue({ data: [], total: 0 })
-      mockListInvitations.mockResolvedValue({
-        data: [
-          {
-            id: 'inv-1',
-            group_id: 'g1',
-            group_name: 'Smith Family',
-            email: 'test@test.com',
-            invited_by: 'user-2',
-            inviter_name: 'Jane',
-            status: 'pending',
-            created_at: '2026-05-17T00:00:00Z',
-          },
-        ],
-        total: 1,
-      })
+      mockListInvitations.mockResolvedValue({ data: [pendingInvitation], total: 1 })
       render(<Groups />, { wrapper: createWrapper() })
 
-      expect(await screen.findByText('Invitations')).toBeInTheDocument()
+      expect(await screen.findByRole('heading', { name: 'Invitations' })).toBeInTheDocument()
       expect(screen.getByText('Smith Family')).toBeInTheDocument()
-      expect(screen.getByText('Invited by Jane')).toBeInTheDocument()
+      expect(screen.getByText('from Jane')).toBeInTheDocument()
       expect(screen.getByText('Accept')).toBeInTheDocument()
       expect(screen.getByText('Decline')).toBeInTheDocument()
     })
@@ -190,21 +206,7 @@ describe('Groups Page', () => {
     it('should call respondToInvitation on accept', async () => {
       const user = userEvent.setup()
       mockListGroups.mockResolvedValue({ data: [], total: 0 })
-      mockListInvitations.mockResolvedValue({
-        data: [
-          {
-            id: 'inv-1',
-            group_id: 'g1',
-            group_name: 'Smith Family',
-            email: 'test@test.com',
-            invited_by: 'user-2',
-            inviter_name: 'Jane',
-            status: 'pending',
-            created_at: '2026-05-17T00:00:00Z',
-          },
-        ],
-        total: 1,
-      })
+      mockListInvitations.mockResolvedValue({ data: [pendingInvitation], total: 1 })
       mockRespondToInvitation.mockResolvedValue({ message: 'Invitation accepted' })
 
       render(<Groups />, { wrapper: createWrapper() })
@@ -212,6 +214,174 @@ describe('Groups Page', () => {
       await user.click(screen.getByText('Accept'))
 
       expect(mockRespondToInvitation).toHaveBeenCalledWith('inv-1', { action: 'accept' })
+    })
+
+    it('should call respondToInvitation on decline', async () => {
+      const user = userEvent.setup()
+      mockListGroups.mockResolvedValue({ data: [], total: 0 })
+      mockListInvitations.mockResolvedValue({ data: [pendingInvitation], total: 1 })
+      mockRespondToInvitation.mockResolvedValue({ message: 'Invitation declined' })
+
+      render(<Groups />, { wrapper: createWrapper() })
+      await screen.findByText('Decline')
+      await user.click(screen.getByText('Decline'))
+
+      expect(mockRespondToInvitation).toHaveBeenCalledWith('inv-1', { action: 'decline' })
+    })
+  })
+
+  describe('sent invitations (owner cancel)', () => {
+    const ownedGroup = {
+      data: [
+        {
+          id: 'g1',
+          name: 'Smith Family',
+          owner_id: 'user-1',
+          member_count: 1,
+          members: [{ id: 'user-1', username: 'testuser', email: 'test@test.com' }],
+        },
+      ],
+      total: 1,
+    }
+
+    const sentInvitation = {
+      id: 'sent-1',
+      group_id: 'g1',
+      group_name: 'Smith Family',
+      email: 'pending@test.com',
+      invited_by: 'user-1',
+      inviter_name: 'testuser',
+      status: 'pending',
+      created_at: '2026-05-17T00:00:00Z',
+    }
+
+    it('should show pending sent invitations with a cancel action', async () => {
+      mockListGroups.mockResolvedValue(ownedGroup)
+      mockListGroupInvitations.mockResolvedValue({ data: [sentInvitation], total: 1 })
+
+      render(<Groups />, { wrapper: createWrapper() })
+
+      expect(await screen.findByText('pending@test.com')).toBeInTheDocument()
+      expect(screen.getByLabelText('Cancel invitation to pending@test.com')).toBeInTheDocument()
+    })
+
+    it('should call cancelInvitation when cancel is clicked', async () => {
+      const user = userEvent.setup()
+      mockListGroups.mockResolvedValue(ownedGroup)
+      mockListGroupInvitations.mockResolvedValue({ data: [sentInvitation], total: 1 })
+      mockCancelInvitation.mockResolvedValue({ message: 'cancelled' })
+
+      render(<Groups />, { wrapper: createWrapper() })
+      await screen.findByText('pending@test.com')
+      await user.click(screen.getByLabelText('Cancel invitation to pending@test.com'))
+
+      expect(mockCancelInvitation).toHaveBeenCalledWith('g1', 'sent-1')
+    })
+  })
+
+  describe('invite member', () => {
+    const ownedGroup = {
+      data: [
+        {
+          id: 'g1',
+          name: 'Smith Family',
+          owner_id: 'user-1',
+          member_count: 1,
+          members: [{ id: 'user-1', username: 'testuser', email: 'test@test.com' }],
+        },
+      ],
+      total: 1,
+    }
+
+    it('should call inviteMember with the typed email', async () => {
+      const user = userEvent.setup()
+      mockListGroups.mockResolvedValue(ownedGroup)
+      mockInviteMember.mockResolvedValue({ message: 'invited' })
+
+      render(<Groups />, { wrapper: createWrapper() })
+      await screen.findByText('Smith Family')
+
+      const emailInput = screen.getByPlaceholderText('name@example.com')
+      await user.type(emailInput, 'friend@test.com')
+      await user.click(screen.getByRole('button', { name: 'Send' }))
+
+      expect(mockInviteMember).toHaveBeenCalledWith('g1', { email: 'friend@test.com' })
+    })
+  })
+
+  describe('remove member', () => {
+    const ownedGroup = {
+      data: [
+        {
+          id: 'g1',
+          name: 'Smith Family',
+          owner_id: 'user-1',
+          member_count: 2,
+          members: [
+            { id: 'user-1', username: 'testuser', email: 'test@test.com' },
+            { id: 'user-3', username: 'Alice', email: 'alice@test.com' },
+          ],
+        },
+      ],
+      total: 1,
+    }
+
+    it('should call removeMember for non-owner members', async () => {
+      const user = userEvent.setup()
+      mockListGroups.mockResolvedValue(ownedGroup)
+      mockRemoveMember.mockResolvedValue({ message: 'removed' })
+
+      render(<Groups />, { wrapper: createWrapper() })
+      await screen.findByText('Alice')
+      await user.click(screen.getByLabelText('Remove Alice'))
+
+      expect(mockRemoveMember).toHaveBeenCalledWith('g1', 'user-3')
+    })
+  })
+
+  describe('leave group', () => {
+    it('should call leaveGroup when confirmed', async () => {
+      const user = userEvent.setup()
+      mockListGroups.mockResolvedValue({
+        data: [
+          { id: 'g2', name: 'Cooking Club', owner_id: 'user-2', member_count: 5, members: [] },
+        ],
+        total: 1,
+      })
+      mockLeaveGroup.mockResolvedValue({ message: 'left' })
+
+      render(<Groups />, { wrapper: createWrapper() })
+      await screen.findByText('Cooking Club')
+      await user.click(screen.getByText('Leave Group'))
+      await user.click(await screen.findByRole('button', { name: 'Leave' }))
+
+      expect(mockLeaveGroup).toHaveBeenCalledWith('g2')
+    })
+  })
+
+  describe('delete group', () => {
+    it('should call deleteGroup when confirmed', async () => {
+      const user = userEvent.setup()
+      mockListGroups.mockResolvedValue({
+        data: [
+          {
+            id: 'g1',
+            name: 'Smith Family',
+            owner_id: 'user-1',
+            member_count: 1,
+            members: [{ id: 'user-1', username: 'testuser', email: 'test@test.com' }],
+          },
+        ],
+        total: 1,
+      })
+      mockDeleteGroup.mockResolvedValue({ message: 'deleted' })
+
+      render(<Groups />, { wrapper: createWrapper() })
+      await screen.findByText('Smith Family')
+      await user.click(screen.getByText('Delete Group'))
+      await user.click(await screen.findByRole('button', { name: 'Delete' }))
+
+      expect(mockDeleteGroup).toHaveBeenCalledWith('g1')
     })
   })
 
@@ -319,7 +489,7 @@ describe('Groups Page', () => {
   })
 
   describe('create group', () => {
-    it('should call createGroup on form submit', async () => {
+    it('should call createGroup from the header New group dialog', async () => {
       const user = userEvent.setup()
       mockListGroups.mockResolvedValue({ data: [], total: 0 })
       mockCreateGroup.mockResolvedValue({
@@ -331,9 +501,12 @@ describe('Groups Page', () => {
 
       render(<Groups />, { wrapper: createWrapper() })
 
-      await screen.findByText('Better together')
+      await screen.findByText('No groups yet')
 
-      const nameInput = screen.getByPlaceholderText('Smith Family')
+      // Open the create dialog from the header button.
+      await user.click(screen.getByRole('button', { name: /New group/ }))
+
+      const nameInput = await screen.findByPlaceholderText('Smith Family')
       const submitButton = screen
         .getAllByRole('button', { name: 'Create Group' })
         .find((el) => el.getAttribute('type') === 'submit')!
