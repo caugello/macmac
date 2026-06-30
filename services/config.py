@@ -63,7 +63,6 @@ class EnricherConfig:
     circuit_breaker_threshold: int = 10
     circuit_breaker_base_pause: int = 1800
     circuit_breaker_max_pause: int = 7200
-    proxy_url: str | None = None
     forward_proxy_url: str | None = None
     crawler_forward_proxy_url: str | None = None
     freshness_threshold_days: int = 14
@@ -310,7 +309,6 @@ def parse_enricher(enricher_data: dict | None) -> EnricherConfig | None:
         circuit_breaker_threshold=enricher_data.get("circuit_breaker_threshold", 10),
         circuit_breaker_base_pause=enricher_data.get("circuit_breaker_base_pause", 300),
         circuit_breaker_max_pause=enricher_data.get("circuit_breaker_max_pause", 3600),
-        proxy_url=os.getenv("BRIGHTDATA_PROXY_URL"),
         forward_proxy_url=os.getenv("ENRICHER_FORWARD_PROXY"),
         crawler_forward_proxy_url=os.getenv("CRAWLER_FORWARD_PROXY"),
         freshness_threshold_days=enricher_data.get("freshness_threshold_days", 14),

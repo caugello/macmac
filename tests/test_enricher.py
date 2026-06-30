@@ -2,7 +2,6 @@
 
 import socket
 import sys
-import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -10,7 +9,6 @@ import pytest
 from services.catalog.enricher.main import (
     CircuitBreaker,
     PermanentCrawlError,
-    ProxyFallback,
     _parse_forward_proxy,
     async_retry,
     extract_quantity_from_url,
@@ -429,48 +427,8 @@ async def test_browser_pool_close_is_idempotent():
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_browser_pool_uses_cdp_when_proxy_url_set():
-    """BrowserPool.get_context() connects via CDP when PROXY_URL is set."""
-    from services.catalog.enricher.main import BrowserPool
-
-    pool = BrowserPool()
-
-    mock_context = MagicMock()
-    mock_browser = MagicMock()
-    mock_browser.is_connected.return_value = True
-    mock_browser.new_context = AsyncMock(return_value=mock_context)
-    mock_chromium = MagicMock()
-    mock_chromium.connect_over_cdp = AsyncMock(return_value=mock_browser)
-    mock_chromium.launch = AsyncMock()
-    mock_pw = MagicMock()
-    mock_pw.chromium = mock_chromium
-
-    mock_async_pw = MagicMock()
-    mock_async_pw.start = AsyncMock(return_value=mock_pw)
-    mock_async_pw_fn = MagicMock(return_value=mock_async_pw)
-    fake_pw_module = MagicMock(async_playwright=mock_async_pw_fn)
-
-    mock_fallback = MagicMock()
-    mock_fallback.use_proxy.return_value = True
-    mock_fallback._proxy_url = "wss://proxy.example.com:9222"
-
-    with patch.dict(
-        sys.modules,
-        {"playwright": MagicMock(), "playwright.async_api": fake_pw_module},
-    ):
-        with patch("services.catalog.enricher.main.proxy_fallback", mock_fallback):
-            ctx = await pool.get_context()
-
-    assert ctx is mock_context
-    mock_chromium.connect_over_cdp.assert_awaited_once_with("wss://proxy.example.com:9222")
-    mock_chromium.launch.assert_not_awaited()
-    mock_browser.new_context.assert_awaited_once()
-
-
-@pytest.mark.unit
-@pytest.mark.asyncio
-async def test_browser_pool_launches_locally_without_proxy():
-    """BrowserPool.get_context() launches local Chromium when PROXY_URL is None."""
+async def test_browser_pool_launches_locally():
+    """BrowserPool.get_context() always launches a local Chromium browser."""
     from services.catalog.enricher.main import BrowserPool
 
     pool = BrowserPool()
@@ -493,17 +451,11 @@ async def test_browser_pool_launches_locally_without_proxy():
     async def _set_context(self=pool):
         self._context = mock_context
 
-    mock_fallback = MagicMock()
-    mock_fallback.use_proxy.return_value = False
-
     with patch.dict(
         sys.modules,
         {"playwright": MagicMock(), "playwright.async_api": fake_pw_module},
     ):
-        with (
-            patch("services.catalog.enricher.main.proxy_fallback", mock_fallback),
-            patch.object(pool, "_warm_session", side_effect=_set_context),
-        ):
+        with patch.object(pool, "_warm_session", side_effect=_set_context):
             ctx = await pool.get_context()
 
     assert ctx is mock_context
@@ -537,9 +489,6 @@ async def test_browser_pool_launches_locally_with_forward_proxy():
     async def _set_context(self=pool):
         self._context = mock_context
 
-    mock_fallback = MagicMock()
-    mock_fallback.use_proxy.return_value = False
-
     forward_proxy = {"server": "http://host:1234", "username": "u", "password": "p"}
 
     with patch.dict(
@@ -547,7 +496,6 @@ async def test_browser_pool_launches_locally_with_forward_proxy():
         {"playwright": MagicMock(), "playwright.async_api": fake_pw_module},
     ):
         with (
-            patch("services.catalog.enricher.main.proxy_fallback", mock_fallback),
             patch("services.catalog.enricher.main.FORWARD_PROXY", forward_proxy),
             patch.object(pool, "_warm_session", side_effect=_set_context),
         ):
@@ -745,28 +693,7 @@ async def test_circuit_breaker_pause_capped_at_max():
         mock_sleep.assert_awaited_with(200)
 
 
-# ===== UNIT TESTS - ProxyFallback =====
-
-
-@pytest.mark.unit
-def test_proxy_fallback_starts_local():
-    fallback = ProxyFallback("wss://proxy.example.com:9222", hold_seconds=100)
-    assert fallback.use_proxy() is False
-
-
-@pytest.mark.unit
-def test_proxy_fallback_no_proxy_url_always_local():
-    fallback = ProxyFallback(None, hold_seconds=100)
-    fallback.record_block()
-    assert fallback.use_proxy() is False
-
-
-@pytest.mark.unit
-def test_proxy_fallback_switches_on_block():
-    fallback = ProxyFallback("wss://proxy.example.com:9222", hold_seconds=100)
-    assert fallback.use_proxy() is False
-    fallback.record_block()
-    assert fallback.use_proxy() is True
+# ===== UNIT TESTS - WAF-block handling =====
 
 
 @pytest.mark.unit
@@ -778,14 +705,72 @@ def test_waf_block_statuses_include_456():
     assert {403, 405}.issubset(WAF_BLOCK_STATUSES)
 
 
+def _page_responding_with(status: int):
+    """Build a fake Playwright page+context whose goto() returns the given status."""
+    mock_response = MagicMock()
+    mock_response.status = status
+
+    mock_page = MagicMock()
+    mock_page.goto = AsyncMock(return_value=mock_response)
+    mock_page.add_init_script = AsyncMock()
+    mock_page.close = AsyncMock()
+
+    mock_context = MagicMock()
+    mock_context.new_page = AsyncMock(return_value=mock_page)
+    return mock_context
+
+
 @pytest.mark.unit
-def test_proxy_fallback_expires_after_hold():
-    fallback = ProxyFallback("wss://proxy.example.com:9222", hold_seconds=100)
-    fallback.record_block()
-    assert fallback.use_proxy() is True
-    # Simulate time passing
-    fallback._blocked_until = time.time() - 1
-    assert fallback.use_proxy() is False
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [403, 405, 456])
+async def test_crawl_product_page_waf_status_raises_retryable(status):
+    """A WAF-block status raises a retryable RuntimeError (no proxy switch, not permanent)
+    so async_retry retries and the CircuitBreaker eventually trips."""
+    from services.catalog.enricher import main as enricher
+
+    mock_context = _page_responding_with(status)
+
+    with patch.object(
+        enricher.browser_pool, "get_context", new=AsyncMock(return_value=mock_context)
+    ):
+        with pytest.raises(RuntimeError) as exc_info:
+            await enricher._crawl_product_page_once("https://shop.example.com/product")
+
+    assert not isinstance(exc_info.value, enricher.PermanentCrawlError)
+    assert str(status) in str(exc_info.value)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [429, 502, 503])
+async def test_crawl_product_page_transient_status_raises_retryable(status):
+    """Transient 429/502/503 statuses raise the same retryable RuntimeError."""
+    from services.catalog.enricher import main as enricher
+
+    mock_context = _page_responding_with(status)
+
+    with patch.object(
+        enricher.browser_pool, "get_context", new=AsyncMock(return_value=mock_context)
+    ):
+        with pytest.raises(RuntimeError) as exc_info:
+            await enricher._crawl_product_page_once("https://shop.example.com/product")
+
+    assert not isinstance(exc_info.value, enricher.PermanentCrawlError)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_crawl_product_page_404_raises_permanent():
+    """HTTP 404 stays a non-retryable PermanentCrawlError."""
+    from services.catalog.enricher import main as enricher
+
+    mock_context = _page_responding_with(404)
+
+    with patch.object(
+        enricher.browser_pool, "get_context", new=AsyncMock(return_value=mock_context)
+    ):
+        with pytest.raises(enricher.PermanentCrawlError):
+            await enricher._crawl_product_page_once("https://shop.example.com/product")
 
 
 # ===== UNIT TESTS - crawl_nutrition_page SSRF protection (SECURITY_AUDIT C-2) =====
