@@ -5,6 +5,16 @@ All notable changes to MacMac are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.10] - 2026-06-30
+
+### Added
+
+- **Catalog:** Two-level product taxonomy — 8 departments spanning 36 categories, with existing items remapped onto the new structure via a migration (#470)
+
+### Changed
+
+- **Enricher:** Replace the fixed batch-pause throttle with an adaptive request pacer that holds a steady, configurable per-worker request rate (`ENRICHER_TARGET_RATE_PER_MIN`, default 2.7/min) regardless of per-item processing time, so faster non-food items no longer outpace the rate ceiling (#471)
+
 ## [0.2.9] - 2026-06-30
 
 ### Added
