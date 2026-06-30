@@ -3,7 +3,11 @@ import { RecipeCategoryEnum } from './types'
 export interface RecipeCategoryMeta {
   value: RecipeCategoryEnum
   label: string
-  /** Full static Tailwind classes (kept static so JIT can detect them). */
+  /**
+   * Full static Tailwind classes (kept static so JIT can detect them). A solid
+   * coloured pill with white text, matching the Pantry Fresh "07 — Recipe
+   * Library" category badges.
+   */
   badgeClass: string
 }
 
@@ -12,37 +16,37 @@ export const RECIPE_CATEGORIES: RecipeCategoryMeta[] = [
   {
     value: RecipeCategoryEnum.BREAKFAST,
     label: 'Breakfast',
-    badgeClass: 'bg-amber-100 text-amber-800 border-amber-200',
+    badgeClass: 'bg-amber-500 text-white',
   },
   {
     value: RecipeCategoryEnum.MAIN,
     label: 'Main',
-    badgeClass: 'bg-primary/10 text-primary border-primary/20',
+    badgeClass: 'bg-coral text-white',
   },
   {
     value: RecipeCategoryEnum.DESSERT,
     label: 'Dessert',
-    badgeClass: 'bg-pink-100 text-pink-800 border-pink-200',
+    badgeClass: 'bg-pink-500 text-white',
   },
   {
     value: RecipeCategoryEnum.SNACK,
     label: 'Snack',
-    badgeClass: 'bg-orange-100 text-orange-800 border-orange-200',
+    badgeClass: 'bg-green text-white',
   },
   {
     value: RecipeCategoryEnum.APPETIZER,
     label: 'Appetizer',
-    badgeClass: 'bg-teal-100 text-teal-800 border-teal-200',
+    badgeClass: 'bg-teal-600 text-white',
   },
   {
     value: RecipeCategoryEnum.BEVERAGE,
     label: 'Beverage',
-    badgeClass: 'bg-amber-900/10 text-amber-900 border-amber-900/20',
+    badgeClass: 'bg-sky-600 text-white',
   },
   {
     value: RecipeCategoryEnum.OTHER,
     label: 'Other',
-    badgeClass: 'bg-gray-100 text-gray-700 border-gray-200',
+    badgeClass: 'bg-ink text-white',
   },
 ]
 
@@ -50,7 +54,7 @@ export const UNCATEGORIZED_META: RecipeCategoryMeta = {
   // `value` is unused for the null case but keeps the shape consistent.
   value: RecipeCategoryEnum.OTHER,
   label: 'Uncategorized',
-  badgeClass: 'bg-surface-container text-on-surface-variant border-outline-variant',
+  badgeClass: 'bg-stone-400 text-white',
 }
 
 const META_BY_VALUE = new Map(RECIPE_CATEGORIES.map((meta) => [meta.value, meta]))

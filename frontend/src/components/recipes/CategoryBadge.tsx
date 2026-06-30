@@ -12,7 +12,7 @@ export const CategoryBadge = ({ category, className }: CategoryBadgeProps) => {
   return (
     <span
       className={cn(
-        'inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-full border whitespace-nowrap',
+        'inline-flex items-center text-[10px] font-extrabold uppercase tracking-wide px-2.5 py-0.5 rounded-full whitespace-nowrap',
         meta.badgeClass,
         className
       )}

@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect } from 'vitest'
 import { RecipeDiscoveryCard } from './RecipeDiscoveryCard'
 import { ToastProvider } from '@/components/ui/toast'
-import { RecipeDifficultyEnum, UnitEnum, type RecipeOut } from '@/lib/types'
+import { RecipeCategoryEnum, UnitEnum, type RecipeOut } from '@/lib/types'
 
 const baseRecipe: RecipeOut = {
   id: '1',
@@ -42,36 +42,27 @@ const renderCard = (recipe: RecipeOut) => {
 }
 
 describe('RecipeDiscoveryCard', () => {
-  it('renders prep time, calories and difficulty when present', () => {
+  it('renders prep time and calories when present', () => {
     renderCard({
       ...baseRecipe,
       prep_time: 90,
       calories: 650,
-      difficulty: RecipeDifficultyEnum.HARD,
     })
 
     expect(screen.getByText('1 h 30 min')).toBeInTheDocument()
     expect(screen.getByText('650 kcal')).toBeInTheDocument()
-    expect(screen.getByText('Hard')).toBeInTheDocument()
   })
 
-  it('omits prep time, calories and difficulty when missing', () => {
+  it('omits prep time and calories when missing', () => {
     renderCard(baseRecipe)
 
     expect(screen.queryByText(/kcal/)).not.toBeInTheDocument()
-    expect(screen.queryByText('Hard')).not.toBeInTheDocument()
+    expect(screen.queryByText(/min/)).not.toBeInTheDocument()
   })
 
-  it('renders the recipe image when image_url is present', () => {
-    renderCard({ ...baseRecipe, image_url: 'https://example.com/cake.jpg' })
+  it('renders the category badge label', () => {
+    renderCard({ ...baseRecipe, category: RecipeCategoryEnum.MAIN })
 
-    const img = screen.getByAltText('Chocolate Cake')
-    expect(img).toHaveAttribute('src', 'https://example.com/cake.jpg')
-  })
-
-  it('falls back to the hue placeholder when image_url is missing', () => {
-    renderCard(baseRecipe)
-
-    expect(screen.queryByAltText('Chocolate Cake')).not.toBeInTheDocument()
+    expect(screen.getByText('Main')).toBeInTheDocument()
   })
 })

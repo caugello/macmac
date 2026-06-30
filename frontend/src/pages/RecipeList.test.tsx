@@ -108,7 +108,12 @@ describe('RecipeList Page', () => {
 
     it('should render page title', () => {
       render(<RecipeList />, { wrapper: createWrapper() })
-      expect(screen.getByRole('heading', { level: 1, name: 'Recipes' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { level: 1, name: 'All recipes' })).toBeInTheDocument()
+    })
+
+    it('should render the saved recipe count', () => {
+      render(<RecipeList />, { wrapper: createWrapper() })
+      expect(screen.getByText('2 recipes saved')).toBeInTheDocument()
     })
 
     it('should render create recipe button', () => {
@@ -121,70 +126,18 @@ describe('RecipeList Page', () => {
       expect(screen.getByPlaceholderText('Search recipes...')).toBeInTheDocument()
     })
 
-    it('should render the first recipe as a featured hero card', () => {
+    it('should render all recipes in a uniform grid', () => {
       render(<RecipeList />, { wrapper: createWrapper() })
-      const featured = screen.getByRole('heading', { level: 2, name: 'Pasta Carbonara' })
-      expect(featured).toBeInTheDocument()
-      // The featured region wraps the hero card.
-      expect(screen.getByRole('region', { name: /featured recipe/i })).toBeInTheDocument()
-    })
-
-    it('should render the remaining recipes in the grid', () => {
-      render(<RecipeList />, { wrapper: createWrapper() })
+      // No featured hero: every recipe is a level-3 card heading.
+      expect(screen.getByRole('heading', { level: 3, name: 'Pasta Carbonara' })).toBeInTheDocument()
       expect(screen.getByRole('heading', { level: 3, name: 'Chicken Curry' })).toBeInTheDocument()
+      expect(screen.queryByRole('region', { name: /featured recipe/i })).not.toBeInTheDocument()
     })
 
     it('should render recipe cards', () => {
       render(<RecipeList />, { wrapper: createWrapper() })
       expect(screen.getByText('Pasta Carbonara')).toBeInTheDocument()
       expect(screen.getByText('Chicken Curry')).toBeInTheDocument()
-    })
-
-    it('should render ingredient counts', () => {
-      render(<RecipeList />, { wrapper: createWrapper() })
-      expect(screen.getByText('2 ingredients')).toBeInTheDocument()
-      expect(screen.getByText('3 ingredients')).toBeInTheDocument()
-    })
-
-    it('should use singular for single ingredient', () => {
-      mockUseRecipes.mockReturnValue({
-        data: {
-          data: [
-            {
-              id: '1',
-              title: 'Simple Recipe',
-              ingredients: [{ name: 'salt' }],
-            },
-          ],
-          total: 1,
-        },
-        isLoading: false,
-        error: null,
-      })
-
-      render(<RecipeList />, { wrapper: createWrapper() })
-      expect(screen.getByText('1 ingredient')).toBeInTheDocument()
-    })
-
-    it('should render servings when provided and omit it otherwise', () => {
-      mockUseRecipes.mockReturnValue({
-        data: {
-          data: [
-            {
-              id: '1',
-              title: 'With Servings',
-              servings: 4,
-              ingredients: [{ name: 'salt' }],
-            },
-          ],
-          total: 1,
-        },
-        isLoading: false,
-        error: null,
-      })
-
-      render(<RecipeList />, { wrapper: createWrapper() })
-      expect(screen.getByText('4 servings')).toBeInTheDocument()
     })
 
     it('should link to recipe detail pages', () => {
@@ -252,8 +205,8 @@ describe('RecipeList Page', () => {
 
     it('should render category badges on recipe cards', () => {
       render(<RecipeList />, { wrapper: createWrapper() })
-      // The featured card (Pancakes) carries a "Breakfast" category badge even
-      // before the filter chips are revealed.
+      // The Pancakes card carries a "Breakfast" category badge even before the
+      // filter chips are revealed.
       expect(screen.getByText('Breakfast')).toBeInTheDocument()
     })
 

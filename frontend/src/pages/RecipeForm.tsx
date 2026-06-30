@@ -158,15 +158,6 @@ export const RecipeForm = () => {
         {isEditMode ? 'Edit Recipe' : 'Create Recipe'}
       </h1>
 
-      {/* Image placeholder */}
-      <button
-        type="button"
-        className="w-full aspect-square sm:aspect-video rounded-bento bg-lime flex flex-col items-center justify-center gap-2 cursor-pointer mb-8 transition-transform hover:-translate-y-px"
-      >
-        <Icon name="add_a_photo" size={48} className="text-ink/40" />
-        <span className="text-label-md font-semibold text-ink">Add a photo</span>
-      </button>
-
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* General Information */}
         <Card tone="white" className="p-6">
