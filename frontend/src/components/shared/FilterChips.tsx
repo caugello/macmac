@@ -9,9 +9,20 @@ interface FilterChipsProps {
   activeItem: string
   onItemChange: (item: string) => void
   className?: string
+  /**
+   * Classes applied to the active chip. Defaults to the shared ink-filled
+   * style; callers can override (e.g. the Catalog passes the lime variant).
+   */
+  activeClassName?: string
 }
 
-export const FilterChips = ({ items, activeItem, onItemChange, className }: FilterChipsProps) => {
+export const FilterChips = ({
+  items,
+  activeItem,
+  onItemChange,
+  className,
+  activeClassName = 'bg-primary text-primary-foreground',
+}: FilterChipsProps) => {
   const [expanded, setExpanded] = useState(false)
   const [overflows, setOverflows] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -36,7 +47,7 @@ export const FilterChips = ({ items, activeItem, onItemChange, className }: Filt
             className={cn(
               'h-9 px-4 inline-flex items-center rounded-full text-caption font-semibold tracking-wide whitespace-nowrap transition-colors',
               activeItem === item
-                ? 'bg-primary text-primary-foreground'
+                ? activeClassName
                 : 'bg-white text-muted-foreground border border-border hover:bg-surface-container'
             )}
           >

@@ -87,6 +87,7 @@ export const CatalogList = () => {
           items={categories}
           activeItem={activeCategory}
           onItemChange={handleCategoryChange}
+          activeClassName="bg-lime text-ink"
           className="mt-4"
         />
       )}
