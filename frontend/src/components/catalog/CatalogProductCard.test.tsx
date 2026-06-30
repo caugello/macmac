@@ -25,6 +25,8 @@ const item: CatalogItemOut = {
   promotion_until_date: null,
   image_url: null,
   last_enriched_at: null,
+  unit_price: 1.33,
+  unit_price_unit: 'l',
   created_at: '',
   updated_at: '',
 }
@@ -46,6 +48,11 @@ describe('CatalogProductCard cart toggle', () => {
   it('renders the product', () => {
     renderCard()
     expect(screen.getByText('Coca-Cola 1.5L')).toBeInTheDocument()
+  })
+
+  it('renders the unit price under the price', () => {
+    renderCard()
+    expect(screen.getByText('€1.33/l')).toBeInTheDocument()
   })
 
   it('starts not in the list', () => {

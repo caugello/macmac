@@ -152,6 +152,8 @@ export interface CatalogItemOut {
   promotion_until_date: string | null
   image_url: string | null
   last_enriched_at: string | null
+  unit_price: number | null
+  unit_price_unit: string | null
   created_at: string
   updated_at: string
 }

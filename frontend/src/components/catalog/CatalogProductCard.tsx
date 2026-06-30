@@ -79,9 +79,16 @@ export const CatalogProductCard = ({ item }: CatalogProductCardProps) => {
           {/* Price + add-to-list action */}
           <div className="mt-auto pt-3 flex items-end justify-between gap-2">
             {item.price != null ? (
-              <span className="text-headline-md font-display font-bold text-ink">
-                &euro;{item.price.toFixed(2)}
-              </span>
+              <div className="flex flex-col">
+                <span className="text-headline-md font-display font-bold text-ink">
+                  &euro;{item.price.toFixed(2)}
+                </span>
+                {item.unit_price != null && (
+                  <span className="text-caption text-muted-foreground">
+                    &euro;{item.unit_price.toFixed(2)}/{item.unit_price_unit ?? 'unit'}
+                  </span>
+                )}
+              </div>
             ) : (
               <span className="text-body-md text-muted-foreground">Price unavailable</span>
             )}

@@ -91,6 +91,8 @@ describe('useCatalogItem', () => {
       promotion_until_date: null,
       image_url: null,
       last_enriched_at: null,
+      unit_price: null,
+      unit_price_unit: null,
       created_at: '',
       updated_at: '',
     }

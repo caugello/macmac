@@ -1,8 +1,36 @@
 from datetime import date, datetime
 
-from pydantic import UUID4, BaseModel, ConfigDict, Field, field_validator
+from pydantic import UUID4, BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from services.shared.schemas.generic import UnitEnum
+
+
+def compute_unit_price(
+    price: float | None,
+    net_quantity_value: float | None,
+    net_quantity_unit: UnitEnum | None,
+) -> tuple[float | None, str | None]:
+    """Derive a normalized unit price and its reference unit.
+
+    Grams are reported per kilogram and millilitres per litre so the value is
+    comparable; every other unit is reported per the item's own unit. Returns
+    ``(None, None)`` when the inputs can't yield a meaningful unit price.
+    """
+    if price is None or net_quantity_value is None or net_quantity_value <= 0:
+        return None, None
+
+    reference: str | None
+    if net_quantity_unit == UnitEnum.GRAM:
+        ratio = price / net_quantity_value * 1000
+        reference = UnitEnum.KILOGRAM.value
+    elif net_quantity_unit == UnitEnum.MILLILITER:
+        ratio = price / net_quantity_value * 1000
+        reference = UnitEnum.LITER.value
+    else:
+        ratio = price / net_quantity_value
+        reference = net_quantity_unit.value if net_quantity_unit is not None else None
+
+    return round(ratio, 2), reference
 
 
 class NutritionInfo(BaseModel):
@@ -90,6 +118,18 @@ class CatalogItemOut(CatalogItemCreate):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def unit_price(self) -> float | None:
+        """Price normalized to the reference unit, or null when not derivable."""
+        return compute_unit_price(self.price, self.net_quantity_value, self.net_quantity_unit)[0]
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def unit_price_unit(self) -> str | None:
+        """Reference unit for :attr:`unit_price` (kg, l, or the item's unit)."""
+        return compute_unit_price(self.price, self.net_quantity_value, self.net_quantity_unit)[1]
 
 
 class CatalogItemListResponse(BaseModel):
