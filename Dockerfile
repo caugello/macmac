@@ -4,7 +4,7 @@
 # reproducible. To bump a base image, update its digest here after scanning.
 
 # ── Builder stage (hi/python builder — has shell, no dnf) ──
-FROM --platform=linux/amd64 registry.access.redhat.com/hi/python:3.12-builder@sha256:3d37bf07a9b663ac561e94dab30d771d0cb4a1dffbcd6aa4785af1d9b6bc5848 AS builder
+FROM --platform=linux/amd64 registry.access.redhat.com/hi/python:3.14-builder@sha256:d31b23ffd1b49355d66fc71cf3e79bae8351d8b36b4c1a29e24ae73178656c69 AS builder
 
 ARG UV_INDEX_RHTL_USERNAME=""
 ARG UV_INDEX_RHTL_PASSWORD=""
@@ -95,7 +95,7 @@ RUN --mount=type=secret,id=UV_INDEX_RHTL_USERNAME,required=false \
         --lockfile /build/uv.lock /opt/venv/lib/python3.12/site-packages
 
 # ── Runtime base (hi/python distroless — no shell) ─────────
-FROM --platform=linux/amd64 registry.access.redhat.com/hi/python:3.12@sha256:227cd08bc68a2fb2d79ed21d198c5dad0d130238feb4088881670296902c2754 AS runtime
+FROM --platform=linux/amd64 registry.access.redhat.com/hi/python:3.14@sha256:8ad975b0cff5c0801c7335fd0d31e6c95bdc1237117deb497363599b90740b55 AS runtime
 
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
@@ -145,7 +145,7 @@ EXPOSE 8004
 # ── Shared browser base (ubi9-minimal + system deps) ────────
 # System deps only. pip extras + Chromium install happen per-service:
 # Playwright's `install` reads a version manifest written by the pip package.
-FROM --platform=linux/amd64 registry.access.redhat.com/ubi9-minimal@sha256:1bc3c5c15720506a0cf48adfdf8b623dfe704377e007d7bbae8d14876392ca6a AS browser-base
+FROM --platform=linux/amd64 registry.access.redhat.com/ubi9-minimal@sha256:463cae32c6f6f5594b11a5c22de275016bd8545ce58a6373388e8b24f13fc15c AS browser-base
 
 USER root
 RUN microdnf update -y --nodocs --setopt=install_weak_deps=0 && \
