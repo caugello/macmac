@@ -5,6 +5,27 @@ All notable changes to MacMac are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.9] - 2026-06-30
+
+### Added
+
+- **Frontend:** Continue the "Pantry Fresh" redesign across the app — rebuild the Dashboard and Planner to the new wires (#453), align the recipe screens (#455), reskin the Recipe Library (#461) and Groups screen (#456, #465), reskin the Shop list, product card, and product detail (#454), and close the remaining shopping-list design gaps (#451)
+- **Recipes:** Per-user recipe favorites — mark recipes as favorites and filter the library by them (#460)
+- **Recipes:** Dark immersive hero with compact stats on the recipe detail screen (#466)
+- **Catalog:** Computed unit price (e.g. price per kg/L) on catalog items for easier price comparison (#459)
+- **Crawler:** Forward-proxy fallback when a sitemap fetch is blocked by the upstream site's anti-bot protection, so scraping can continue from an alternate egress (#441)
+- **CI:** Add the snitch image to the build matrix and a 14-day grace window for vulnerability-scan findings (#452)
+
+### Changed
+
+- **Meal Plans:** Polish the Shopping List UI to the Pantry Fresh design (#464)
+- **Catalog:** Polish the filter chips and product cards to match the latest design (#463)
+
+### Fixed
+
+- **Enricher:** Lower the per-worker request-rate ceiling and remove the paid proxy fallback in favor of a circuit-breaker backoff when the upstream site rate-limits, making egress costs predictable (#467)
+- **Deploy:** Pin the crawler image to its merge SHA for the anti-bot fallback fix (#442)
+
 ## [0.2.8] - 2026-06-29
 
 ### Added
