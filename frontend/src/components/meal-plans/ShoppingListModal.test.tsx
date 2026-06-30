@@ -240,9 +240,11 @@ describe('ShoppingListModal', () => {
       expect(screen.getByText('500 g')).toBeInTheDocument()
     })
 
-    it('should show a warning icon for stale prices', () => {
+    it('should show a warning icon and the day-count text for stale prices', () => {
       renderModal(true)
       expect(screen.getAllByText('warning').length).toBeGreaterThanOrEqual(1)
+      // Tomatoes was enriched 10 days ago (>= the 7-day stale threshold).
+      expect(screen.getByText(/price 10 days old/)).toBeInTheDocument()
     })
 
     it('should show per-category subtotals in the totals panel', () => {
