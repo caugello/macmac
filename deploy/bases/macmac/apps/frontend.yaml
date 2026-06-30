@@ -21,7 +21,7 @@ spec:
         - name: macmac-pull-secret
       containers:
         - name: frontend
-          image: quay.io/caugello/macmac-frontend:v0.2.8
+          image: quay.io/caugello/macmac-frontend:v0.2.9
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
