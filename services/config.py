@@ -53,11 +53,9 @@ class EnricherConfig:
     Represents enricher configuration for catalog service.
     """
 
-    batch_size: int
-    delay_between_requests: int
     page_timeout: int
-    batch_pause: int
     openai_model: str
+    target_rate_per_min: float = 2.7
     max_retries: int = 3
     retry_backoff: float = 2.0
     circuit_breaker_threshold: int = 10
@@ -299,11 +297,9 @@ def parse_enricher(enricher_data: dict | None) -> EnricherConfig | None:
     if not enricher_data:
         return None
     return EnricherConfig(
-        batch_size=enricher_data["batch_size"],
-        delay_between_requests=enricher_data["delay_between_requests"],
         page_timeout=enricher_data["page_timeout"],
-        batch_pause=enricher_data["batch_pause"],
         openai_model=enricher_data["openai_model"],
+        target_rate_per_min=enricher_data.get("target_rate_per_min", 2.7),
         max_retries=enricher_data.get("max_retries", 3),
         retry_backoff=enricher_data.get("retry_backoff", 2.0),
         circuit_breaker_threshold=enricher_data.get("circuit_breaker_threshold", 10),

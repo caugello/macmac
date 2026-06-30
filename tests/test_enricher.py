@@ -9,6 +9,7 @@ import pytest
 from services.catalog.enricher.main import (
     CircuitBreaker,
     PermanentCrawlError,
+    _pace_request,
     _parse_forward_proxy,
     async_retry,
     extract_quantity_from_url,
@@ -958,3 +959,51 @@ def test_parse_forward_proxy_decodes_credentials():
         "username": "us@er",
         "password": "p:ss",
     }
+
+
+# ===== UNIT TESTS - adaptive pacer (_pace_request) =====
+
+
+@pytest.mark.unit
+async def test_pace_request_first_item_does_not_sleep():
+    """The first request (last_request_time == 0.0) never paces."""
+    with (
+        patch("services.catalog.enricher.main.last_request_time", 0.0),
+        patch("services.catalog.enricher.main.MIN_REQUEST_INTERVAL", 22.0),
+        patch("services.catalog.enricher.main.time.time", return_value=1000.0),
+        patch("services.catalog.enricher.main.asyncio.sleep", new=AsyncMock()) as sleep,
+    ):
+        await _pace_request()
+
+    sleep.assert_not_called()
+
+
+@pytest.mark.unit
+async def test_pace_request_no_sleep_when_item_slower_than_interval():
+    """When the previous item consumed >= the interval, no pause happens."""
+    # prev start at t=1000, now t=1030 -> elapsed 30s >= 22s interval.
+    with (
+        patch("services.catalog.enricher.main.last_request_time", 1000.0),
+        patch("services.catalog.enricher.main.MIN_REQUEST_INTERVAL", 22.0),
+        patch("services.catalog.enricher.main.time.time", return_value=1030.0),
+        patch("services.catalog.enricher.main.asyncio.sleep", new=AsyncMock()) as sleep,
+    ):
+        await _pace_request()
+
+    sleep.assert_not_called()
+
+
+@pytest.mark.unit
+async def test_pace_request_sleeps_remaining_interval():
+    """When the previous item was faster than the interval, sleep the remainder."""
+    # prev start at t=1000, now t=1005 -> elapsed 5s, interval 22s -> sleep 17s.
+    with (
+        patch("services.catalog.enricher.main.last_request_time", 1000.0),
+        patch("services.catalog.enricher.main.MIN_REQUEST_INTERVAL", 22.0),
+        patch("services.catalog.enricher.main.time.time", return_value=1005.0),
+        patch("services.catalog.enricher.main.asyncio.sleep", new=AsyncMock()) as sleep,
+    ):
+        await _pace_request()
+
+    sleep.assert_awaited_once()
+    assert sleep.await_args.args[0] == pytest.approx(17.0)

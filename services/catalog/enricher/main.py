@@ -52,12 +52,16 @@ WORKER_LOCATION = os.getenv("WORKER_LOCATION", "central")
 
 # Enricher configuration from config.yaml
 OPENAI_MODEL = catalog_config.enricher.openai_model if catalog_config.enricher else "gpt-4o-mini"
-BATCH_SIZE = catalog_config.enricher.batch_size if catalog_config.enricher else 5
-DELAY_BETWEEN_REQUESTS = (
-    catalog_config.enricher.delay_between_requests if catalog_config.enricher else 5
-)
 PAGE_TIMEOUT = catalog_config.enricher.page_timeout if catalog_config.enricher else 15000
-BATCH_PAUSE = catalog_config.enricher.batch_pause if catalog_config.enricher else 60
+# Adaptive pacer target: hold the per-worker outbound request rate at this many
+# requests/min regardless of how long each item takes to enrich. Item processing
+# time varies with the mix (non-food items need less LLM work than food), so a
+# fixed per-item delay would let a non-food-heavy run exceed the ceiling. Pacing
+# on a minimum interval between request starts absorbs that variance.
+ENRICHER_TARGET_RATE_PER_MIN = (
+    catalog_config.enricher.target_rate_per_min if catalog_config.enricher else 2.7
+)
+MIN_REQUEST_INTERVAL = 60.0 / ENRICHER_TARGET_RATE_PER_MIN
 MAX_RETRIES = catalog_config.enricher.max_retries if catalog_config.enricher else 3
 RETRY_BACKOFF = catalog_config.enricher.retry_backoff if catalog_config.enricher else 2.0
 CIRCUIT_BREAKER_THRESHOLD = (
@@ -97,7 +101,29 @@ WAF_BLOCK_STATUSES = {403, 405, 456}
 
 # Global counters for rate limiting
 items_processed = 0
-batch_start_time = time.time()
+# Monotonic-ish wall-clock timestamp of the previous request start, used by the
+# adaptive pacer to enforce MIN_REQUEST_INTERVAL between request starts. Zero on
+# the first item yields a huge elapsed, so the first request is never paced.
+last_request_time = 0.0
+
+
+async def _pace_request() -> None:
+    """Adaptive pacer: hold a steady per-worker outbound request rate.
+
+    Sleeps only for the remainder of MIN_REQUEST_INTERVAL since the previous
+    request start, so the rate stays at the target regardless of how long each
+    item took to process (non-food items need less LLM work than food). The
+    first call sees last_request_time == 0.0, yielding a huge elapsed and no
+    sleep. Per-process, which is correct: each worker has its own egress IP.
+    """
+    global last_request_time
+    elapsed = time.time() - last_request_time
+    if elapsed < MIN_REQUEST_INTERVAL:
+        sleep_time = MIN_REQUEST_INTERVAL - elapsed
+        logger.info(f"Adaptive pause {sleep_time:.1f}s (prev item took {elapsed:.1f}s)")
+        await asyncio.sleep(sleep_time)
+    last_request_time = time.time()
+
 
 # Single persistent event loop shared across all RabbitMQ messages. The shared
 # Chromium browser is bound to this loop, so it must outlive individual messages
@@ -1136,24 +1162,11 @@ async def enrich_catalog_item(
     Enrich catalog item using Playwright + OpenAI LLM.
     Implements rate limiting to avoid WAF blocks.
     """
-    global items_processed, batch_start_time
+    global items_processed
 
     items_processed += 1
 
-    # Rate limiting: pause between batches
-    if items_processed % BATCH_SIZE == 0:
-        elapsed = time.time() - batch_start_time
-        if elapsed < BATCH_PAUSE:
-            sleep_time = BATCH_PAUSE - elapsed
-            logger.info(
-                f"Batch {items_processed // BATCH_SIZE} complete. Pausing {sleep_time:.1f}s..."
-            )
-            await asyncio.sleep(sleep_time)
-        batch_start_time = time.time()
-
-    # Delay between individual requests
-    if items_processed > 1:
-        await asyncio.sleep(DELAY_BETWEEN_REQUESTS)
+    await _pace_request()
 
     logger.info(f"[{items_processed}] Enriching: {raw_name} worker_location={WORKER_LOCATION}")
 
@@ -1362,7 +1375,8 @@ if __name__ == "__main__":
         f"Starting enricher with OpenAI model: {OPENAI_MODEL} worker_location={WORKER_LOCATION}"
     )
     logger.info(
-        f"Rate limits: {BATCH_SIZE} items/batch, {DELAY_BETWEEN_REQUESTS}s delay, {BATCH_PAUSE}s pause"
+        f"Rate limit: target {ENRICHER_TARGET_RATE_PER_MIN} req/min "
+        f"({MIN_REQUEST_INTERVAL:.1f}s min interval) per worker"
     )
 
     config = get_config_for_service_dependency("catalog", "enricher")

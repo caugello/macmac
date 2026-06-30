@@ -133,12 +133,27 @@ def test_catalog_enricher_freshness_threshold_from_yaml():
 
 
 _MIN_ENRICHER_DATA = {
-    "batch_size": 5,
-    "delay_between_requests": 5,
     "page_timeout": 15000,
-    "batch_pause": 60,
     "openai_model": "gpt-4o-mini",
 }
+
+
+@pytest.mark.unit
+def test_enricher_target_rate_defaults():
+    """target_rate_per_min falls back to 2.7 when absent from config data."""
+    enricher = parse_enricher(dict(_MIN_ENRICHER_DATA))
+
+    assert enricher is not None
+    assert enricher.target_rate_per_min == 2.7
+
+
+@pytest.mark.unit
+def test_enricher_target_rate_from_yaml():
+    """target_rate_per_min is read from config.yaml for the catalog enricher."""
+    catalog = get_config_for_service("catalog")
+
+    assert catalog.enricher is not None
+    assert catalog.enricher.target_rate_per_min == 2.7
 
 
 @pytest.mark.unit
