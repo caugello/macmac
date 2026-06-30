@@ -8,13 +8,23 @@ interface MealSlotProps {
   date: string
   mealType: MealTypeEnum
   mealPlan?: MealPlanOut
+  /** Desktop matrix cell: drop the thumbnail and tighten for narrow columns. */
+  compact?: boolean
+  /** Tonight's dinner: dark "TONIGHT" treatment (screen 02). */
+  highlight?: boolean
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved'
 
 const TRUNCATE_LENGTH = 50
 
-export const MealSlot = ({ date, mealType, mealPlan }: MealSlotProps) => {
+export const MealSlot = ({
+  date,
+  mealType,
+  mealPlan,
+  compact = false,
+  highlight = false,
+}: MealSlotProps) => {
   const [showSelector, setShowSelector] = useState(false)
   const [isEditingNotes, setIsEditingNotes] = useState(false)
   const [draft, setDraft] = useState('')
@@ -99,26 +109,43 @@ export const MealSlot = ({ date, mealType, mealPlan }: MealSlotProps) => {
   return (
     <>
       {mealPlan ? (
-        <div className="bg-cream rounded-bento border border-border p-3 group">
+        <div
+          className={`group rounded-bento border p-3 ${
+            highlight ? 'bg-ink border-transparent' : 'bg-cream border-border'
+          }`}
+        >
           <div className="flex items-center gap-3">
-            <div className="w-16 h-16 rounded-bento bg-lime flex items-center justify-center shrink-0 overflow-hidden">
-              <Icon name="restaurant_menu" size={24} className="text-ink/70" />
-            </div>
+            {!compact && (
+              <div className="w-14 h-14 rounded-bento bg-lime flex items-center justify-center shrink-0 overflow-hidden">
+                <Icon name="restaurant_menu" size={24} className="text-ink/70" />
+              </div>
+            )}
             <div className="flex-grow min-w-0">
-              <p className="text-label-md font-semibold text-ink truncate">
+              {highlight && (
+                <p className="text-[8.5px] font-extrabold uppercase tracking-wide text-lime mb-0.5">
+                  Tonight
+                </p>
+              )}
+              <p
+                className={`text-label-md font-semibold truncate ${
+                  highlight ? 'text-cream' : 'text-ink'
+                }`}
+              >
                 {mealPlan.recipe_title || 'Untitled'}
               </p>
             </div>
             <button
               onClick={handleDelete}
               aria-label="Remove meal"
-              className="p-1.5 rounded-full text-coral opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-coral/10 transition-opacity shrink-0"
+              className={`p-1.5 rounded-full opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity shrink-0 ${
+                highlight ? 'text-coral hover:bg-white/10' : 'text-coral hover:bg-coral/10'
+              }`}
             >
               <Icon name="close" size={18} />
             </button>
           </div>
 
-          <div className="mt-2">
+          <div className={compact ? 'mt-1.5' : 'mt-2'}>
             {isEditingNotes ? (
               <textarea
                 ref={textareaRef}
@@ -134,27 +161,44 @@ export const MealSlot = ({ date, mealType, mealPlan }: MealSlotProps) => {
             ) : (
               <button
                 onClick={openNotesEditor}
-                className="w-full text-left min-h-[44px] flex items-center px-1"
+                className={`w-full text-left flex items-center px-1 ${
+                  compact ? 'min-h-[28px]' : 'min-h-[44px]'
+                }`}
               >
                 {truncatedNotes ? (
-                  <span className="text-body-sm text-on-surface-variant">{truncatedNotes}</span>
+                  <span
+                    className={`text-body-sm ${highlight ? 'text-cream/70' : 'text-on-surface-variant'}`}
+                  >
+                    {truncatedNotes}
+                  </span>
                 ) : (
-                  <span className="text-body-sm text-on-surface-variant/60">Add notes...</span>
+                  <span
+                    className={`text-body-sm ${highlight ? 'text-cream/45' : 'text-on-surface-variant/60'}`}
+                  >
+                    Add notes...
+                  </span>
                 )}
               </button>
             )}
             {saveStatus === 'saved' && (
-              <p className="text-body-sm text-ink/70 mt-1 animate-fade">Saved</p>
+              <p
+                className={`text-body-sm mt-1 animate-fade ${highlight ? 'text-lime' : 'text-ink/70'}`}
+              >
+                Saved
+              </p>
             )}
           </div>
         </div>
       ) : (
         <button
           onClick={() => setShowSelector(true)}
-          className="w-full min-h-[44px] rounded-bento border-2 border-dashed border-border p-4 flex items-center justify-center gap-2 text-on-surface-variant hover:bg-cream hover:border-ink hover:text-ink transition-colors"
+          className={`w-full rounded-bento border-2 border-dashed border-border flex items-center justify-center gap-2 text-on-surface-variant hover:bg-cream hover:border-ink hover:text-ink transition-colors ${
+            compact ? 'min-h-[64px] p-2' : 'min-h-[44px] p-4'
+          }`}
         >
-          <Icon name="add_circle" size={20} />
-          <span className="text-caption">Add meal</span>
+          <Icon name="add" size={compact ? 22 : 20} />
+          {!compact && <span className="text-caption">Add meal</span>}
+          {compact && <span className="sr-only">Add meal</span>}
         </button>
       )}
 

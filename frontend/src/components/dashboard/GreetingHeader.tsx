@@ -1,3 +1,5 @@
+import { format } from 'date-fns'
+import { Link } from 'react-router-dom'
 import { Icon } from '@/components/ui/icon'
 
 interface GreetingHeaderProps {
@@ -14,29 +16,30 @@ const timeOfDayGreeting = (date: Date) => {
 }
 
 export const GreetingHeader = ({ name, todayCount }: GreetingHeaderProps) => {
-  const greeting = timeOfDayGreeting(new Date())
-  const taskLabel =
+  const now = new Date()
+  const greeting = timeOfDayGreeting(now)
+  const todayLabel =
     todayCount === 0
-      ? 'Nothing planned for today yet'
-      : `${todayCount} ${todayCount === 1 ? 'meal' : 'meals'} planned for today`
+      ? 'nothing planned yet'
+      : `${todayCount} ${todayCount === 1 ? 'meal' : 'meals'} today`
 
   return (
-    <header className="flex items-center justify-between gap-4">
-      <div className="space-y-1">
-        <p className="font-serif text-body-lg italic text-ink/50">
-          MacMac<span className="text-green">.</span>
-        </p>
-        <h1 className="font-display text-headline-lg-mobile md:text-headline-lg font-bold text-ink">
+    <header className="flex items-end justify-between gap-4">
+      <div>
+        <h1 className="font-display text-headline-lg-mobile font-bold leading-none tracking-tight text-ink md:text-headline-lg">
           {greeting}, {name}
         </h1>
-        <p className="font-body text-body-md text-ink/60 flex items-center gap-1.5">
-          <Icon name="event_available" size={18} className="text-green" />
-          {taskLabel}
+        <p className="mt-2 font-body text-body-md text-ink/55">
+          {format(now, 'EEEE, MMMM d')} · {todayLabel}
         </p>
       </div>
-      <div className="w-12 h-12 rounded-full bg-lime flex items-center justify-center shrink-0">
-        <Icon name="person" size={26} className="text-ink" filled />
-      </div>
+      <Link
+        to="/recipes/new"
+        className="hidden min-h-[44px] items-center gap-2 rounded-2xl bg-ink px-4 py-3 font-body text-label-md font-bold text-cream transition-transform hover:-translate-y-px sm:flex"
+      >
+        <Icon name="add" size={19} className="text-lime" />
+        New recipe
+      </Link>
     </header>
   )
 }

@@ -9,9 +9,11 @@ import * as useMealPlansHook from '@/hooks/useMealPlans'
 import * as AuthContext from '@/contexts/AuthContext'
 
 const mockUseRecipes = vi.fn()
+const mockUseRecipe = vi.fn()
 const mockUseMealPlans = vi.fn()
 
 vi.spyOn(useRecipesHook, 'useRecipes').mockImplementation(mockUseRecipes)
+vi.spyOn(useRecipesHook, 'useRecipe').mockImplementation(mockUseRecipe)
 vi.spyOn(useMealPlansHook, 'useMealPlans').mockImplementation(mockUseMealPlans)
 vi.spyOn(AuthContext, 'useAuth').mockReturnValue({
   user: {
@@ -28,7 +30,7 @@ vi.spyOn(AuthContext, 'useAuth').mockReturnValue({
   isLoading: false,
 })
 
-// Today's ISO date, so meal-plan fixtures land in "Today's trajectory".
+// Today's ISO date, so meal-plan fixtures land in "today" buckets.
 const TODAY = format(new Date(), 'yyyy-MM-dd')
 
 const createWrapper = () => {
@@ -46,11 +48,12 @@ const createWrapper = () => {
   return Wrapper
 }
 
-// The Dashboard matches the Stitch "Dashboard - Ivory Flux" composition:
-// greeting -> smart suggestion -> featured recipe -> today's trajectory.
+// The Dashboard matches the Pantry Fresh bento (screen 01):
+// greeting -> Tonight hero + Your week + Smart suggestion -> stat tiles -> Coming up.
 describe('Dashboard Page', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockUseRecipe.mockReturnValue({ data: undefined, isLoading: false, error: null })
   })
 
   describe('greeting', () => {
@@ -79,31 +82,19 @@ describe('Dashboard Page', () => {
   })
 
   describe('loading state', () => {
-    it('should render the Stitch section headings while data loads', () => {
+    beforeEach(() => {
       mockUseRecipes.mockReturnValue({ data: undefined, isLoading: true, error: null })
       mockUseMealPlans.mockReturnValue({ data: undefined, isLoading: true, error: null })
-
-      render(<Dashboard />, { wrapper: createWrapper() })
-      expect(screen.getByText('Featured recipe')).toBeInTheDocument()
-      expect(screen.getByText("Today's trajectory")).toBeInTheDocument()
-    })
-
-    it('should not render sections absent from the Stitch design', () => {
-      mockUseRecipes.mockReturnValue({ data: undefined, isLoading: true, error: null })
-      mockUseMealPlans.mockReturnValue({ data: undefined, isLoading: true, error: null })
-
-      render(<Dashboard />, { wrapper: createWrapper() })
-      expect(screen.queryByText('Recent recipes')).not.toBeInTheDocument()
-      expect(screen.queryByText("This week's plan")).not.toBeInTheDocument()
-      expect(screen.queryByText('Quick actions')).not.toBeInTheDocument()
     })
 
     it('should not render the smart suggestion while data loads', () => {
-      mockUseRecipes.mockReturnValue({ data: undefined, isLoading: true, error: null })
-      mockUseMealPlans.mockReturnValue({ data: undefined, isLoading: true, error: null })
-
       render(<Dashboard />, { wrapper: createWrapper() })
       expect(screen.queryByLabelText('Smart suggestion')).not.toBeInTheDocument()
+    })
+
+    it('should still greet the user while data loads', () => {
+      render(<Dashboard />, { wrapper: createWrapper() })
+      expect(screen.getByText(/Good (morning|afternoon|evening), Chris/)).toBeInTheDocument()
     })
   })
 
@@ -127,17 +118,14 @@ describe('Dashboard Page', () => {
       expect(suggestion).toHaveTextContent('Add your first recipe')
     })
 
-    it('should show empty trajectory slots for each meal', () => {
+    it('should prompt to plan when nothing is coming up', () => {
       render(<Dashboard />, { wrapper: createWrapper() })
-      const trajectory = screen.getByLabelText("Today's trajectory")
-      expect(trajectory).toHaveTextContent('Breakfast')
-      expect(trajectory).toHaveTextContent('Lunch')
-      expect(trajectory).toHaveTextContent('Dinner')
+      expect(screen.getByText(/Nothing left to cook this week/i)).toBeInTheDocument()
     })
   })
 
   describe('error state', () => {
-    it('should show meal plan and recipe errors', () => {
+    beforeEach(() => {
       mockUseRecipes.mockReturnValue({
         data: undefined,
         isLoading: false,
@@ -148,24 +136,15 @@ describe('Dashboard Page', () => {
         isLoading: false,
         error: new Error('boom'),
       })
+    })
 
+    it('should show meal plan and recipe errors', () => {
       render(<Dashboard />, { wrapper: createWrapper() })
-      expect(screen.getAllByText(/Couldn't load your meal plan/i).length).toBeGreaterThanOrEqual(1)
-      expect(screen.getAllByText(/Couldn't load your recipes/i).length).toBeGreaterThanOrEqual(1)
+      expect(screen.getByText(/Couldn't load your meal plan/i)).toBeInTheDocument()
+      expect(screen.getByText(/Couldn't load your recipes/i)).toBeInTheDocument()
     })
 
     it('should not render the smart suggestion when data errors', () => {
-      mockUseRecipes.mockReturnValue({
-        data: undefined,
-        isLoading: false,
-        error: new Error('boom'),
-      })
-      mockUseMealPlans.mockReturnValue({
-        data: undefined,
-        isLoading: false,
-        error: new Error('boom'),
-      })
-
       render(<Dashboard />, { wrapper: createWrapper() })
       expect(screen.queryByLabelText('Smart suggestion')).not.toBeInTheDocument()
     })
@@ -215,19 +194,41 @@ describe('Dashboard Page', () => {
       })
     })
 
-    it('should feature the newest recipe with real metadata', () => {
+    it("should feature tonight's dinner in the hero", () => {
+      mockUseRecipe.mockReturnValue({
+        data: {
+          id: 'r1',
+          title: 'Pasta Carbonara',
+          servings: 4,
+          ingredients: [{}, {}],
+        },
+        isLoading: false,
+        error: null,
+      })
       render(<Dashboard />, { wrapper: createWrapper() })
       const featured = screen.getByLabelText('Featured recipe')
       expect(featured).toHaveTextContent('Pasta Carbonara')
-      expect(featured).toHaveTextContent('4 servings')
-      expect(featured).toHaveTextContent('2 ingredients')
+      expect(featured).toHaveTextContent(/Tonight/i)
     })
 
-    it('should place today meals into the trajectory timeline', () => {
+    it("should fall back to the newest recipe when tonight's dinner recipe is unavailable", () => {
+      mockUseRecipe.mockReturnValue({ data: undefined, isLoading: false, error: null })
       render(<Dashboard />, { wrapper: createWrapper() })
-      const trajectory = screen.getByLabelText("Today's trajectory")
-      expect(trajectory).toHaveTextContent('Pancakes')
-      expect(trajectory).toHaveTextContent('Pasta Carbonara')
+      const featured = screen.getByLabelText('Featured recipe')
+      expect(featured).toHaveTextContent('Pasta Carbonara')
+    })
+
+    it('should list upcoming meals in the coming-up tile', () => {
+      render(<Dashboard />, { wrapper: createWrapper() })
+      expect(screen.getByText('Coming up this week')).toBeInTheDocument()
+      expect(screen.getByText('Pancakes')).toBeInTheDocument()
+    })
+
+    it('should show recipe and planned-meal stat counts', () => {
+      render(<Dashboard />, { wrapper: createWrapper() })
+      expect(screen.getByText('12')).toBeInTheDocument() // recipe library count
+      expect(screen.getByText('Recipes')).toBeInTheDocument()
+      expect(screen.getByText('This week')).toBeInTheDocument()
     })
 
     it('should suggest a shopping list when meals are planned', () => {
@@ -242,7 +243,7 @@ describe('Dashboard Page', () => {
       vi.clearAllMocks()
     })
 
-    it('should keep non-today meals out of the trajectory', () => {
+    it('should keep past meals out of the coming-up tile', () => {
       mockUseRecipes.mockReturnValue({
         data: { data: [], total: 5 },
         isLoading: false,
@@ -266,8 +267,7 @@ describe('Dashboard Page', () => {
       })
 
       render(<Dashboard />, { wrapper: createWrapper() })
-      const trajectory = screen.getByLabelText("Today's trajectory")
-      expect(trajectory).not.toHaveTextContent('Old Stew')
+      expect(screen.queryByText('Old Stew')).not.toBeInTheDocument()
     })
   })
 })

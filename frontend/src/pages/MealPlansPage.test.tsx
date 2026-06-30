@@ -60,10 +60,9 @@ beforeEach(() => {
 
 describe('MealPlansPage', () => {
   describe('rendering', () => {
-    it('should render page title and intro copy', () => {
+    it('should render the page title', () => {
       render(<MealPlansPage />, { wrapper: createWrapper() })
-      expect(screen.getByRole('heading', { name: 'Plan Your Week' })).toBeInTheDocument()
-      expect(screen.getByText(/Select a day to schedule or review your meals/i)).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Planner' })).toBeInTheDocument()
     })
 
     it('should render WeeklyCalendar component', () => {

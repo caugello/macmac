@@ -3,7 +3,6 @@ import { format, addWeeks, startOfWeek, addDays } from 'date-fns'
 import { useMealPlans } from '@/hooks/useMealPlans'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { MealSlot } from './MealSlot'
-import { Card } from '@/components/ui/card'
 import { Icon } from '@/components/ui/icon'
 import { MealTypeEnum, type MealPlanOut } from '@/lib/types'
 
@@ -11,68 +10,32 @@ type ViewMode = 'day' | 'week'
 
 const MEAL_TYPES = [MealTypeEnum.BREAKFAST, MealTypeEnum.LUNCH, MealTypeEnum.DINNER]
 
-const DayCard = ({
-  day,
-  isToday,
-  mealPlanMap,
-  cardRef,
-  className,
-}: {
-  day: Date
-  isToday: boolean
-  mealPlanMap: Map<string, MealPlanOut>
-  cardRef?: React.Ref<HTMLDivElement>
-  className?: string
-}) => {
-  const dateStr = format(day, 'yyyy-MM-dd')
-  return (
-    <Card
-      ref={cardRef}
-      tone="white"
-      className={`overflow-hidden ${
-        isToday ? 'ring-2 ring-ink ambient-shadow' : ''
-      } ${className ?? ''}`}
-    >
-      <div className="bg-cream px-4 py-3 border-b border-border flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div>
-            <span className="text-title-lg font-display font-semibold text-ink">
-              {format(day, 'EEE')}
-            </span>
-            <span className="text-caption text-on-surface-variant ml-2">
-              {format(day, 'MMM d')}
-            </span>
-          </div>
-          {isToday && (
-            <span className="text-caption font-semibold px-2.5 py-0.5 rounded-full bg-lime text-ink">
-              Today
-            </span>
-          )}
-        </div>
-        <button
-          aria-label="Day options"
-          className="p-2 -mr-1 rounded-full text-on-surface-variant hover:bg-cream hover:text-ink transition-colors"
-        >
-          <Icon name="more_vert" size={18} />
-        </button>
-      </div>
-      <div className="p-4 space-y-4">
-        {MEAL_TYPES.map((mealType) => (
-          <div key={mealType}>
-            <span className="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold block mb-2">
-              {mealType}
-            </span>
-            <MealSlot
-              date={dateStr}
-              mealType={mealType}
-              mealPlan={mealPlanMap.get(`${dateStr}-${mealType}`)}
-            />
-          </div>
-        ))}
-      </div>
-    </Card>
-  )
+// Slot accent dots, matching screen 02 (amber / green / coral).
+const SLOT_DOT: Record<MealTypeEnum, string> = {
+  [MealTypeEnum.BREAKFAST]: '#FFD96B',
+  [MealTypeEnum.LUNCH]: '#9BD117',
+  [MealTypeEnum.DINNER]: '#FF6A3D',
 }
+
+const GRID_COLS = '52px repeat(7, minmax(0, 1fr))'
+
+const NavButton = ({
+  label,
+  icon,
+  onClick,
+}: {
+  label: string
+  icon: string
+  onClick: () => void
+}) => (
+  <button
+    aria-label={label}
+    onClick={onClick}
+    className="w-9 h-9 flex items-center justify-center rounded-full bg-white border border-border text-ink hover:bg-cream transition-colors shrink-0"
+  >
+    <Icon name={icon} size={19} />
+  </button>
+)
 
 export const WeeklyCalendar = () => {
   const isDesktop = useMediaQuery('(min-width: 768px)')
@@ -97,11 +60,11 @@ export const WeeklyCalendar = () => {
 
   const todayStr = format(new Date(), 'yyyy-MM-dd')
   const todayIndex = weekDays.findIndex((day) => format(day, 'yyyy-MM-dd') === todayStr)
-  const todayCardRef = useRef<HTMLDivElement>(null)
+  const todayHeaderRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (viewMode !== 'week' || isLoading || todayIndex <= 0) return
-    todayCardRef.current?.scrollIntoView({
+    todayHeaderRef.current?.scrollIntoView({
       behavior: 'smooth',
       inline: 'center',
       block: 'nearest',
@@ -110,12 +73,12 @@ export const WeeklyCalendar = () => {
 
   const mealPlanMap = new Map<string, MealPlanOut>()
   data?.data.forEach((mp) => {
-    const key = `${mp.date}-${mp.meal_type}`
-    mealPlanMap.set(key, mp)
+    mealPlanMap.set(`${mp.date}-${mp.meal_type}`, mp)
   })
 
   const handlePrevWeek = () => setCurrentWeekStart(addWeeks(currentWeekStart, -1))
   const handleNextWeek = () => setCurrentWeekStart(addWeeks(currentWeekStart, 1))
+  const handleToday = () => setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))
 
   const handlePrevDay = () => {
     if (selectedDayIndex > 0) {
@@ -138,15 +101,8 @@ export const WeeklyCalendar = () => {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="h-10 w-64 mx-auto rounded-full skeleton-shimmer" />
-        <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 no-scrollbar md:grid md:grid-cols-2 lg:grid-cols-7 md:overflow-x-visible md:snap-none md:pb-0">
-          {[1, 2, 3].map((n) => (
-            <div
-              key={n}
-              className="min-w-[85vw] snap-center md:min-w-0 h-64 rounded-bento skeleton-shimmer"
-            />
-          ))}
-        </div>
+        <div className="h-10 w-64 rounded-full skeleton-shimmer" />
+        <div className="h-72 rounded-bento skeleton-shimmer" />
       </div>
     )
   }
@@ -158,7 +114,7 @@ export const WeeklyCalendar = () => {
   return (
     <div>
       {/* View toggle */}
-      <div className="flex justify-center mb-4">
+      <div className="flex justify-center mb-5">
         <div className="inline-flex rounded-full bg-white border border-border p-1 gap-1">
           <button
             onClick={() => setViewMode('day')}
@@ -179,69 +135,161 @@ export const WeeklyCalendar = () => {
         </div>
       </div>
 
-      {viewMode === 'day' ? (
+      {viewMode === 'week' ? (
         <>
-          {/* Day navigation */}
-          <div className="flex items-center justify-between mb-6">
-            <button
-              aria-label="Previous day"
-              onClick={handlePrevDay}
-              className="w-11 h-11 flex items-center justify-center rounded-full bg-white border border-border text-ink hover:bg-cream transition-colors"
-            >
-              <Icon name="chevron_left" size={20} />
-            </button>
-            <h2 className="text-headline-md font-display font-semibold text-ink text-center">
-              {format(selectedDay, 'EEEE, MMM d, yyyy')}
+          {/* Week toolbar */}
+          <div className="flex items-center gap-3 mb-5">
+            <NavButton label="Previous week" icon="chevron_left" onClick={handlePrevWeek} />
+            <h2 className="text-title-lg md:text-headline-md font-display font-bold text-ink">
+              {format(currentWeekStart, 'MMM d')} – {format(weekEnd, 'MMM d, yyyy')}
             </h2>
+            <NavButton label="Next week" icon="chevron_right" onClick={handleNextWeek} />
             <button
-              aria-label="Next day"
-              onClick={handleNextDay}
-              className="w-11 h-11 flex items-center justify-center rounded-full bg-white border border-border text-ink hover:bg-cream transition-colors"
+              onClick={handleToday}
+              className="ml-1 rounded-xl bg-white border border-border px-3.5 py-2 text-caption font-bold text-on-surface-variant hover:text-ink hover:bg-cream transition-colors"
             >
-              <Icon name="chevron_right" size={20} />
+              Today
             </button>
           </div>
 
-          <div className="max-w-lg mx-auto">
-            <DayCard day={selectedDay} isToday={isSelectedToday} mealPlanMap={mealPlanMap} />
+          {/* Matrix: meal rows × day columns (screen 02 desktop) */}
+          <div className="overflow-x-auto -mx-1 px-1 pb-1">
+            <div className="min-w-[720px]">
+              {/* Day headers */}
+              <div className="grid gap-2" style={{ gridTemplateColumns: GRID_COLS }}>
+                <div />
+                {weekDays.map((day) => {
+                  const isToday = format(day, 'yyyy-MM-dd') === todayStr
+                  return (
+                    <div
+                      key={day.toISOString()}
+                      ref={isToday ? todayHeaderRef : undefined}
+                      data-today={isToday || undefined}
+                      className={`text-center rounded-xl py-1.5 ${isToday ? 'bg-ink' : ''}`}
+                    >
+                      <div
+                        className={`text-[10px] font-bold uppercase tracking-wide ${
+                          isToday ? 'text-lime' : 'text-on-surface-variant'
+                        }`}
+                      >
+                        {format(day, 'EEE')}
+                      </div>
+                      <div
+                        className={`text-label-md font-display font-bold ${
+                          isToday ? 'text-white' : 'text-ink'
+                        }`}
+                      >
+                        {format(day, 'd')}
+                      </div>
+                      {isToday && <span className="sr-only">Today</span>}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Meal rows */}
+              {MEAL_TYPES.map((mealType) => (
+                <div
+                  key={mealType}
+                  className="grid gap-2 mt-2"
+                  style={{ gridTemplateColumns: GRID_COLS }}
+                >
+                  <div className="flex flex-col items-center justify-center gap-1.5">
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{ background: SLOT_DOT[mealType] }}
+                    />
+                    <span className="text-[9px] font-bold uppercase tracking-wide text-on-surface-variant [writing-mode:vertical-rl] rotate-180">
+                      {mealType}
+                    </span>
+                  </div>
+                  {weekDays.map((day) => {
+                    const dateStr = format(day, 'yyyy-MM-dd')
+                    return (
+                      <MealSlot
+                        key={`${dateStr}-${mealType}`}
+                        date={dateStr}
+                        mealType={mealType}
+                        mealPlan={mealPlanMap.get(`${dateStr}-${mealType}`)}
+                        compact
+                      />
+                    )
+                  })}
+                </div>
+              ))}
+            </div>
           </div>
         </>
       ) : (
         <>
-          {/* Week navigation */}
-          <div className="flex items-center justify-between mb-6">
-            <button
-              aria-label="Previous week"
-              onClick={handlePrevWeek}
-              className="w-11 h-11 flex items-center justify-center rounded-full bg-white border border-border text-ink hover:bg-cream transition-colors"
-            >
-              <Icon name="chevron_left" size={20} />
-            </button>
-            <h2 className="text-headline-md font-display font-semibold text-ink text-center">
-              {format(currentWeekStart, 'MMM d')} – {format(weekEnd, 'MMM d, yyyy')}
-            </h2>
-            <button
-              aria-label="Next week"
-              onClick={handleNextWeek}
-              className="w-11 h-11 flex items-center justify-center rounded-full bg-white border border-border text-ink hover:bg-cream transition-colors"
-            >
-              <Icon name="chevron_right" size={20} />
-            </button>
+          {/* Date strip (screen 02 mobile) */}
+          <div className="flex gap-1.5 mb-5">
+            {weekDays.map((day, i) => {
+              const isSelected = i === selectedDayIndex
+              return (
+                <button
+                  key={day.toISOString()}
+                  onClick={() => setSelectedDayIndex(i)}
+                  aria-label={format(day, 'EEEE, MMM d')}
+                  className="flex-1 flex flex-col items-center gap-1"
+                >
+                  <span
+                    className={`text-[10px] font-bold ${
+                      isSelected ? 'text-ink' : 'text-on-surface-variant'
+                    }`}
+                  >
+                    {format(day, 'EEEEE')}
+                  </span>
+                  <span
+                    className={`w-9 h-9 flex items-center justify-center rounded-full text-label-md font-bold transition-colors ${
+                      isSelected ? 'bg-ink text-cream' : 'text-ink'
+                    }`}
+                  >
+                    {format(day, 'd')}
+                  </span>
+                </button>
+              )
+            })}
           </div>
 
-          <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 no-scrollbar md:grid md:grid-cols-2 lg:grid-cols-7 md:overflow-x-visible md:snap-none md:pb-0 stagger-grid">
-            {weekDays.map((day) => {
-              const dateStr = format(day, 'yyyy-MM-dd')
-              const isToday = dateStr === todayStr
+          {/* Selected day */}
+          <div className="flex items-center justify-between mb-5">
+            <NavButton label="Previous day" icon="chevron_left" onClick={handlePrevDay} />
+            <div className="text-center">
+              <h2 className="text-headline-md font-display font-semibold text-ink">
+                {format(selectedDay, 'EEEE, MMM d, yyyy')}
+              </h2>
+              {isSelectedToday && (
+                <span className="inline-block mt-1 text-caption font-semibold px-2.5 py-0.5 rounded-full bg-lime text-ink">
+                  Today
+                </span>
+              )}
+            </div>
+            <NavButton label="Next day" icon="chevron_right" onClick={handleNextDay} />
+          </div>
+
+          <div className="max-w-lg mx-auto space-y-4">
+            {MEAL_TYPES.map((mealType) => {
+              const isTonightDinner = isSelectedToday && mealType === MealTypeEnum.DINNER
               return (
-                <DayCard
-                  key={day.toISOString()}
-                  day={day}
-                  isToday={isToday}
-                  mealPlanMap={mealPlanMap}
-                  cardRef={isToday ? todayCardRef : undefined}
-                  className="min-w-[85vw] snap-center md:min-w-0"
-                />
+                <div key={mealType}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{ background: SLOT_DOT[mealType] }}
+                    />
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">
+                      {mealType}
+                      {isTonightDinner && ' · Tonight'}
+                    </span>
+                  </div>
+                  <MealSlot
+                    date={selectedDateStr}
+                    mealType={mealType}
+                    mealPlan={mealPlanMap.get(`${selectedDateStr}-${mealType}`)}
+                    highlight={isTonightDinner}
+                  />
+                </div>
               )
             })}
           </div>
