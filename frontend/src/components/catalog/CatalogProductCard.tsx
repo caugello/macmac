@@ -14,10 +14,10 @@ interface CatalogProductCardProps {
 
 /**
  * Catalog product card in the Pantry Fresh bento system: a rounded white tile
- * with the product image, Nutri-Score badge, coral promotion badge, a brand
- * eyebrow, a display title and a prominent € price. An overlaid pill toggles
- * the item in My List. Bespoke to the Catalog list — not shared with Product
- * Detail.
+ * with the product image, Nutri-Score badge and coral promotion badge, then a
+ * brand eyebrow, a display title and a €-prefixed price sharing a row with a
+ * round lime add-to-list button. Bespoke to the Catalog list — not shared with
+ * Product Detail.
  */
 export const CatalogProductCard = ({ item }: CatalogProductCardProps) => {
   const { has, toggleItem } = useMyList()
@@ -35,13 +35,6 @@ export const CatalogProductCard = ({ item }: CatalogProductCardProps) => {
       nutriscore: item.nutriscore,
     })
   }
-
-  // Material line: quantity + category.
-  const quantity =
-    item.net_quantity_value != null && item.net_quantity_unit
-      ? `${item.net_quantity_value} ${item.net_quantity_unit}`
-      : null
-  const description = [quantity, item.category].filter(Boolean).join(' · ')
 
   return (
     <Link to={`/catalog/${item.id}`} className="group block h-full">
@@ -69,20 +62,6 @@ export const CatalogProductCard = ({ item }: CatalogProductCardProps) => {
               Promo
             </Badge>
           )}
-
-          {/* Add-to-list action — pill toggle, top-right floating glass. */}
-          <button
-            type="button"
-            onClick={handleToggle}
-            aria-label={inList ? 'Remove from My List' : 'Add to My List'}
-            aria-pressed={inList}
-            className={cn(
-              'absolute top-3 right-3 w-11 h-11 flex items-center justify-center rounded-full backdrop-blur-[20px] active:scale-90 transition-all',
-              inList ? 'bg-ink text-cream' : 'bg-white/80 text-ink hover:bg-ink hover:text-cream'
-            )}
-          >
-            <Icon name="shopping_cart" size={20} filled={inList} />
-          </button>
         </div>
 
         {/* Body */}
@@ -97,18 +76,28 @@ export const CatalogProductCard = ({ item }: CatalogProductCardProps) => {
             {name}
           </h3>
 
-          {description && (
-            <p className="text-body-md text-muted-foreground line-clamp-1 mt-1">{description}</p>
-          )}
-
-          <div className="mt-auto pt-3">
+          {/* Price + add-to-list action */}
+          <div className="mt-auto pt-3 flex items-end justify-between gap-2">
             {item.price != null ? (
               <span className="text-headline-md font-display font-bold text-ink">
-                {item.price.toFixed(2)}&nbsp;&euro;
+                &euro;{item.price.toFixed(2)}
               </span>
             ) : (
               <span className="text-body-md text-muted-foreground">Price unavailable</span>
             )}
+
+            <button
+              type="button"
+              onClick={handleToggle}
+              aria-label={inList ? 'Remove from My List' : 'Add to My List'}
+              aria-pressed={inList}
+              className={cn(
+                'w-9 h-9 shrink-0 flex items-center justify-center rounded-full active:scale-90 transition-all',
+                inList ? 'bg-ink text-cream' : 'bg-lime text-ink hover:brightness-105'
+              )}
+            >
+              <Icon name={inList ? 'check' : 'add'} size={20} filled />
+            </button>
           </div>
         </div>
       </Card>
