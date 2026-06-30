@@ -30,10 +30,12 @@ const getErrorMessage = (error: unknown): string => {
 
 const STALE_DAYS = 7
 
-const isPriceStale = (lastEnrichedAt: string | null): boolean => {
-  if (!lastEnrichedAt) return false
+// Returns the price age in days when it is stale (>= STALE_DAYS old), else
+// null. The day count drives the visible "price N days old" warning text.
+const stalePriceDays = (lastEnrichedAt: string | null): number | null => {
+  if (!lastEnrichedAt) return null
   const days = Math.floor((Date.now() - new Date(lastEnrichedAt).getTime()) / 86_400_000)
-  return days >= STALE_DAYS
+  return days >= STALE_DAYS ? days : null
 }
 
 // Coloured aisle dot per the Pantry Fresh design (screen 05). Unknown
@@ -185,7 +187,7 @@ export const ShoppingListModal = ({
       return (
         <div
           key={item.catalog_item_id}
-          className="flex items-center justify-between gap-3 p-3 bg-cream/60 rounded-2xl print:p-1 print:bg-transparent"
+          className="flex items-center justify-between gap-3 py-3 border-b border-[#F0EEE3] last:border-b-0 print:py-1 print:border-0"
         >
           <div className="flex items-center gap-2 min-w-0">
             <Icon name="error_outline" size={18} className="text-ink/40 shrink-0" />
@@ -199,11 +201,12 @@ export const ShoppingListModal = ({
 
     const isChecked = checked.has(item.catalog_item_id)
     const promoEnd = formatPromoEnd(item.promotion_until_date)
+    const staleDays = stalePriceDays(item.last_enriched_at)
 
     return (
       <div
         key={item.catalog_item_id}
-        className={`flex items-center gap-2 p-3 bg-cream rounded-2xl print:p-1 print:bg-transparent ${
+        className={`flex items-center gap-2 py-3 border-b border-[#F0EEE3] last:border-b-0 print:py-1 print:border-0 ${
           isChecked ? 'opacity-60' : ''
         }`}
       >
@@ -253,12 +256,10 @@ export const ShoppingListModal = ({
               · {promoEnd}
             </span>
           )}
-          {isPriceStale(item.last_enriched_at) && (
-            <span
-              className="ml-2 inline-flex items-center gap-1 text-coral text-xs print:hidden"
-              title="Price may be outdated"
-            >
+          {staleDays != null && (
+            <span className="ml-2 inline-flex items-center gap-1 text-[#D14F3A] text-caption font-bold print:hidden">
               <Icon name="warning" size={14} />
+              price {staleDays} days old
             </span>
           )}
         </div>
@@ -367,14 +368,14 @@ export const ShoppingListModal = ({
                 return (
                   <div
                     key={category}
-                    className="bg-white rounded-bento border border-border overflow-hidden print:border-0 print:bg-transparent"
+                    className="bg-white rounded-[18px] overflow-hidden print:border-0 print:bg-transparent"
                   >
                     <div className="flex items-center gap-2 px-4 md:px-6 py-3 border-b border-border print:border-0 print:px-0">
                       <span
                         className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: getCategoryColor(category) }}
                       />
-                      <h3 className="text-label-md text-ink uppercase tracking-wider font-display font-bold print:text-black">
+                      <h3 className="text-label-md text-ink tracking-normal font-display font-extrabold print:text-black">
                         {category || 'Other'}
                       </h3>
                       <span className="text-caption text-ink/45">{items.length} items</span>
@@ -384,13 +385,13 @@ export const ShoppingListModal = ({
                         </span>
                       )}
                     </div>
-                    <div className="p-3 md:p-4 space-y-2 print:p-0 print:space-y-0">
+                    <div className="px-4 md:px-6 print:px-0">
                       {visibleItems.map(renderItemRow)}
                       {hiddenCount > 0 && (
                         <button
                           type="button"
                           onClick={() => toggleExpanded(category)}
-                          className="w-full text-left text-caption text-ink/60 px-3 py-2 hover:text-ink print:hidden"
+                          className="w-full text-left text-caption text-ink/60 py-3 hover:text-ink print:hidden"
                         >
                           + {hiddenCount} more in {category}
                         </button>
@@ -403,7 +404,7 @@ export const ShoppingListModal = ({
 
             {/* Summary + Extras rail */}
             <aside className="space-y-4 mt-4 lg:mt-0 lg:flex-1 lg:sticky lg:top-2 self-start min-w-0 print:mt-4">
-              <div className="bg-white rounded-bento border border-border p-5 print:border-0 print:bg-transparent print:p-0">
+              <div className="bg-white rounded-[18px] p-5 print:border-0 print:bg-transparent print:p-0">
                 <h3 className="text-title-lg font-display font-bold text-ink mb-4 print:text-black">
                   Estimated total
                 </h3>
@@ -445,13 +446,13 @@ export const ShoppingListModal = ({
                 </button>
               </div>
 
-              <div className="bg-white rounded-bento border border-border overflow-hidden print:border-0 print:bg-transparent">
+              <div className="bg-white rounded-[18px] overflow-hidden print:border-0 print:bg-transparent">
                 <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-border print:border-0 print:px-0">
                   <div className="flex items-center gap-2">
                     <span className="w-8 h-8 inline-flex items-center justify-center rounded-full bg-yellow text-ink shrink-0 print:hidden">
                       <Icon name="add_shopping_cart" size={18} />
                     </span>
-                    <h3 className="text-label-md text-ink uppercase tracking-wider font-display font-bold print:text-black">
+                    <h3 className="text-label-md text-ink tracking-normal font-display font-extrabold print:text-black">
                       Extras
                     </h3>
                   </div>
@@ -461,11 +462,11 @@ export const ShoppingListModal = ({
                     </span>
                   )}
                 </div>
-                <div className="p-3 md:p-4 space-y-2 print:p-0 print:space-y-0">
+                <div className="px-4 md:px-6 print:px-0">
                   {/* Inline catalog search: add an extra to My List without
                       leaving the modal. The popover overlays (no layout shift)
                       and is hidden when printing. */}
-                  <div className="print:hidden">
+                  <div className="py-3 print:hidden">
                     <IngredientAutocomplete
                       onSelect={handleAddExtra}
                       placeholder="Add from catalog..."
@@ -473,10 +474,11 @@ export const ShoppingListModal = ({
                   </div>
                   {data.extras.map((item) => {
                     const promoEnd = formatPromoEnd(item.promotion_until_date)
+                    const staleDays = stalePriceDays(item.last_enriched_at)
                     return (
                       <div
                         key={item.catalog_item_id}
-                        className="flex items-center justify-between gap-3 p-3 bg-cream rounded-2xl print:p-1 print:bg-transparent"
+                        className="flex items-center justify-between gap-3 py-3 border-b border-[#F0EEE3] last:border-b-0 print:py-1 print:border-0"
                       >
                         <div className="flex items-center flex-wrap gap-y-1 min-w-0">
                           <span className="text-label-md font-display font-semibold text-ink print:text-black">
@@ -498,12 +500,10 @@ export const ShoppingListModal = ({
                               · {promoEnd}
                             </span>
                           )}
-                          {isPriceStale(item.last_enriched_at) && (
-                            <span
-                              className="ml-2 inline-flex items-center gap-1 text-coral text-xs print:hidden"
-                              title="Price may be outdated"
-                            >
+                          {staleDays != null && (
+                            <span className="ml-2 inline-flex items-center gap-1 text-[#D14F3A] text-caption font-bold print:hidden">
                               <Icon name="warning" size={14} />
+                              price {staleDays} days old
                             </span>
                           )}
                         </div>
