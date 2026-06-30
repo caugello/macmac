@@ -23,6 +23,22 @@ describe('FilterChips Component', () => {
       expect(activeButton.className).toContain('text-primary-foreground')
     })
 
+    it('should use a custom activeClassName on the active chip when provided', () => {
+      render(
+        <FilterChips
+          items={items}
+          activeItem="Fruits"
+          onItemChange={vi.fn()}
+          activeClassName="bg-lime text-ink"
+        />
+      )
+
+      const activeButton = screen.getByRole('button', { name: 'Fruits' })
+      expect(activeButton.className).toContain('bg-lime')
+      expect(activeButton.className).toContain('text-ink')
+      expect(activeButton.className).not.toContain('bg-primary')
+    })
+
     it('should style inactive chips differently', () => {
       render(<FilterChips items={items} activeItem="All" onItemChange={vi.fn()} />)
 

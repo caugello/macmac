@@ -40,7 +40,7 @@ export const CatalogProductCard = ({ item }: CatalogProductCardProps) => {
     <Link to={`/catalog/${item.id}`} className="group block h-full">
       <Card
         tone="white"
-        className="overflow-hidden flex flex-col h-full transition-shadow hover:shadow-lg"
+        className="overflow-hidden flex flex-col h-full transition-shadow hover:shadow-lg rounded-md md:rounded-[18px] border-0"
       >
         {/* Media */}
         <div className="aspect-square relative overflow-hidden bg-cream">
@@ -72,9 +72,7 @@ export const CatalogProductCard = ({ item }: CatalogProductCardProps) => {
             </span>
           )}
 
-          <h3 className="text-title-lg font-display font-bold leading-tight line-clamp-2">
-            {name}
-          </h3>
+          <h3 className="text-label-md font-body leading-tight line-clamp-2">{name}</h3>
 
           {/* Price + add-to-list action */}
           <div className="mt-auto pt-3 flex items-end justify-between gap-2">
