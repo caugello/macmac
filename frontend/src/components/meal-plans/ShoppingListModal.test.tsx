@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { ShoppingListModal } from './ShoppingListModal'
@@ -12,10 +12,29 @@ let mockIsPending = false
 let mockIsError = false
 let mockError: unknown = null
 
+// Minimal builder so tests only specify the fields they care about.
+const item = (over: Partial<ShoppingListItem>): ShoppingListItem => ({
+  catalog_item_id: 'x',
+  catalog_item_name: 'Item',
+  total_qty: 1,
+  unit: 'pc',
+  price: 1,
+  line_total: 1,
+  category: null,
+  is_on_promotion: false,
+  promotion_until_date: null,
+  package_size: null,
+  package_unit: null,
+  packages_needed: null,
+  last_enriched_at: null,
+  is_unavailable: false,
+  ...over,
+})
+
 function createMockData() {
   const items_by_category: Record<string, ShoppingListItem[]> = {
     Dairy: [
-      {
+      item({
         catalog_item_id: 'c1',
         catalog_item_name: 'Milk',
         total_qty: 2,
@@ -29,8 +48,8 @@ function createMockData() {
         package_unit: 'l',
         packages_needed: 2,
         last_enriched_at: new Date().toISOString(),
-      },
-      {
+      }),
+      item({
         catalog_item_id: 'c2',
         catalog_item_name: 'Butter',
         total_qty: 1,
@@ -38,16 +57,10 @@ function createMockData() {
         price: 2.0,
         line_total: 2.0,
         category: 'Dairy',
-        is_on_promotion: false,
-        promotion_until_date: null,
-        package_size: null,
-        package_unit: null,
-        packages_needed: null,
-        last_enriched_at: null,
-      },
+      }),
     ],
     Produce: [
-      {
+      item({
         catalog_item_id: 'c3',
         catalog_item_name: 'Tomatoes',
         total_qty: 500,
@@ -55,31 +68,17 @@ function createMockData() {
         price: null,
         line_total: null,
         category: 'Produce',
-        is_on_promotion: false,
-        promotion_until_date: null,
-        package_size: null,
-        package_unit: null,
-        packages_needed: null,
         last_enriched_at: new Date(Date.now() - 10 * 86_400_000).toISOString(),
-      },
+      }),
     ],
   }
   const extras: ShoppingListItem[] = [
-    {
+    item({
       catalog_item_id: 'e1',
       catalog_item_name: 'Toilet Paper',
-      total_qty: 1,
-      unit: 'pc',
       price: 4.5,
       line_total: 4.5,
-      category: null,
-      is_on_promotion: false,
-      promotion_until_date: null,
-      package_size: null,
-      package_unit: null,
-      packages_needed: null,
-      last_enriched_at: null,
-    },
+    }),
   ]
   return {
     items_by_category,
@@ -211,21 +210,27 @@ describe('ShoppingListModal', () => {
       expect(screen.getByText('Tomatoes')).toBeInTheDocument()
     })
 
-    it('should render totals', () => {
+    it('should render the item-count subtitle and the estimated total', () => {
       renderModal(true)
-      expect(screen.getByText('3')).toBeInTheDocument()
-      expect(screen.getByText('€5.00')).toBeInTheDocument()
+      expect(screen.getByText(/3 items/)).toBeInTheDocument()
+      // €5.00 appears in the subtitle, the Dairy subtotal, and the grand total.
+      expect(screen.getAllByText('€5.00').length).toBeGreaterThanOrEqual(2)
     })
 
     it('should show a dash when estimated_total is null', () => {
       mockData = { ...createMockData(), estimated_total: null }
       renderModal(true)
-      expect(screen.getByText('—')).toBeInTheDocument()
+      expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(1)
     })
 
     it('should show the promotion badge for items on promotion', () => {
       renderModal(true)
-      expect(screen.getByText('Promo')).toBeInTheDocument()
+      expect(screen.getByText('PROMO')).toBeInTheDocument()
+    })
+
+    it('should show the promotion end date next to the badge', () => {
+      renderModal(true)
+      expect(screen.getByText(/ends 31 Dec/)).toBeInTheDocument()
     })
 
     it('should show quantity and package info', () => {
@@ -238,6 +243,104 @@ describe('ShoppingListModal', () => {
     it('should show a warning icon for stale prices', () => {
       renderModal(true)
       expect(screen.getAllByText('warning').length).toBeGreaterThanOrEqual(1)
+    })
+
+    it('should show per-category subtotals in the totals panel', () => {
+      renderModal(true)
+      // Dairy = 3.00 + 2.00; appears as a category header subtotal and a
+      // summary-panel row.
+      expect(screen.getAllByText('€5.00').length).toBeGreaterThanOrEqual(2)
+      expect(screen.getByText('Dairy · 2')).toBeInTheDocument()
+    })
+  })
+
+  describe('date range selector', () => {
+    beforeEach(() => {
+      mockData = createMockData()
+    })
+
+    it('should regenerate with the chosen range when a date changes', () => {
+      renderModal(true)
+      mockMutate.mockClear()
+
+      fireEvent.change(screen.getByLabelText('End date'), {
+        target: { value: '2024-01-10' },
+      })
+
+      expect(mockMutate).toHaveBeenLastCalledWith({
+        start_date: '2024-01-01',
+        end_date: '2024-01-10',
+      })
+    })
+  })
+
+  describe('check-off / in cart', () => {
+    beforeEach(() => {
+      mockData = createMockData()
+    })
+
+    it('should mark a line as in cart and update the header indicator', async () => {
+      const user = userEvent.setup()
+      renderModal(true)
+
+      expect(screen.getByText('0 / 3 in cart')).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: /Mark Milk as in cart/ }))
+
+      expect(screen.getByText('1 / 3 in cart')).toBeInTheDocument()
+      expect(screen.getByText('· in cart')).toBeInTheDocument()
+    })
+  })
+
+  describe('unavailable items', () => {
+    it('should render missing items as "Product unavailable" under an Unavailable bucket', () => {
+      mockData = {
+        ...createMockData(),
+        items_by_category: {
+          ...createMockData().items_by_category,
+          Unavailable: [
+            item({
+              catalog_item_id: 'gone-uuid-123',
+              catalog_item_name: 'Product unavailable',
+              price: null,
+              line_total: null,
+              category: 'Unavailable',
+              is_unavailable: true,
+            }),
+          ],
+        },
+      }
+      renderModal(true)
+
+      expect(screen.getByText('Unavailable')).toBeInTheDocument()
+      expect(screen.getByText('Product unavailable')).toBeInTheDocument()
+      // The raw UUID must never leak to the UI.
+      expect(screen.queryByText(/gone-uuid-123/)).not.toBeInTheDocument()
+    })
+  })
+
+  describe('collapse long categories', () => {
+    it('should collapse past the threshold and expand on click', async () => {
+      const user = userEvent.setup()
+      const many = Array.from({ length: 7 }, (_, i) =>
+        item({
+          catalog_item_id: `p${i}`,
+          catalog_item_name: `Pantry Item ${i}`,
+          category: 'Pantry',
+          price: 1,
+          line_total: 1,
+        })
+      )
+      mockData = { ...createMockData(), items_by_category: { Pantry: many } }
+      renderModal(true)
+
+      // 5 shown, 2 hidden behind a toggle.
+      expect(screen.getByText('Pantry Item 4')).toBeInTheDocument()
+      expect(screen.queryByText('Pantry Item 6')).not.toBeInTheDocument()
+      expect(screen.getByText(/\+ 2 more in Pantry/)).toBeInTheDocument()
+
+      await user.click(screen.getByText(/\+ 2 more in Pantry/))
+      expect(screen.getByText('Pantry Item 6')).toBeInTheDocument()
     })
   })
 
@@ -270,7 +373,7 @@ describe('ShoppingListModal', () => {
     it('should render a Print button when data is present', () => {
       mockData = createMockData()
       renderModal(true)
-      expect(screen.getByRole('button', { name: /Print/ })).toBeInTheDocument()
+      expect(screen.getAllByRole('button', { name: /Print/ }).length).toBeGreaterThanOrEqual(1)
     })
 
     it('should include extras inside the printable region', () => {
@@ -289,7 +392,7 @@ describe('ShoppingListModal', () => {
       mockData = createMockData()
 
       renderModal(true)
-      await user.click(screen.getByRole('button', { name: /Print/ }))
+      await user.click(screen.getAllByRole('button', { name: /Print/ })[0])
 
       expect(printSpy).toHaveBeenCalledOnce()
       vi.unstubAllGlobals()
@@ -329,21 +432,12 @@ describe('ShoppingListModal', () => {
           ...createMockData(),
           extras: [
             ...createMockData().extras,
-            {
+            item({
               catalog_item_id: 'cat-99',
               catalog_item_name: 'Olive Oil',
-              total_qty: 1,
-              unit: 'pc',
               price: 6.5,
               line_total: 6.5,
-              category: null,
-              is_on_promotion: false,
-              promotion_until_date: null,
-              package_size: null,
-              package_unit: null,
-              packages_needed: null,
-              last_enriched_at: null,
-            },
+            }),
           ],
         }
       })

@@ -935,6 +935,72 @@ async def test_shopping_list_no_package_info(mock_meal_plans_db):
 
 @pytest.mark.asyncio
 @pytest.mark.unit
+async def test_shopping_list_missing_catalog_item(mock_meal_plans_db):
+    """A deleted/missing catalog item is surfaced as 'Product unavailable' under
+    the 'Unavailable' bucket, flagged, and kept out of the estimated total."""
+    await create_meal_plan(
+        MealPlanCreate(date=MONDAY, meal_type=MealTypeEnum.BREAKFAST, recipe_id=TEST_RECIPE_A),
+        mock_meal_plans_db,
+    )
+
+    present_id = "11111111-1111-4111-b111-111111111111"
+    missing_id = "22222222-2222-4222-b222-222222222222"
+
+    mock_recipes_response = MagicMock()
+    mock_recipes_response.json.return_value = {
+        "items": {
+            str(TEST_RECIPE_A): {
+                "title": "Test Recipe",
+                "ingredients": [
+                    {"catalog_item_id": present_id, "qty": 500.0, "unit": "g"},
+                    {"catalog_item_id": missing_id, "qty": 200.0, "unit": "g"},
+                ],
+            }
+        }
+    }
+
+    # Catalog batch only returns the present item; the missing one is omitted
+    # (e.g. deleted after the recipe referenced it).
+    mock_catalog_response = MagicMock()
+    mock_catalog_response.json.return_value = {
+        "items": {
+            present_id: {
+                "canonical_name": "Flour",
+                "raw_name": "flour",
+                "price": 2.50,
+                "net_quantity_value": 1000.0,
+                "net_quantity_unit": "g",
+                "category": "Baking",
+            }
+        }
+    }
+
+    async def mock_service_req(method, url, **kwargs):
+        if "/recipes/batch" in url:
+            return mock_recipes_response
+        if "/catalog/batch" in url:
+            return mock_catalog_response
+        raise ValueError(f"Unexpected URL: {url}")
+
+    with patch("services.meal_plans.crud.service_request", new=mock_service_req):
+        result = await generate_shopping_list(
+            ShoppingListRequest(start_date=MONDAY, end_date=MONDAY + timedelta(days=6)),
+            mock_meal_plans_db,
+        )
+
+    assert "Unavailable" in result.items_by_category
+    unavailable = result.items_by_category["Unavailable"][0]
+    assert unavailable.catalog_item_name == "Product unavailable"
+    assert unavailable.is_unavailable is True
+    assert unavailable.line_total is None
+    # The raw UUID must not leak into the displayed name.
+    assert missing_id not in unavailable.catalog_item_name
+    # Total reflects only the available item, not the missing one.
+    assert result.estimated_total == pytest.approx(2.50)
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
 async def test_shopping_list_same_recipe_multiple_meals(mock_meal_plans_db):
     """Same recipe scheduled 3 times should multiply ingredients by 3."""
     await create_meal_plan(
