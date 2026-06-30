@@ -360,10 +360,11 @@ services:
     url: "http://catalog-api:8002"
     db: "postgresql+pg8000://catalog-db:5432/catalog"
     enricher:
-      batch_size: 5
-      delay_between_requests: 5
       page_timeout: 15000
-      batch_pause: 120
+      # Adaptive pacer target: outbound requests/min held per worker (each
+      # worker has its own IP). The pacer sleeps the remainder of the derived
+      # minimum interval so the rate stays steady across food/non-food mixes.
+      target_rate_per_min: 2.7
       openai_model: "gpt-4o-mini"
       max_retries: 3
       retry_backoff: 2.0
