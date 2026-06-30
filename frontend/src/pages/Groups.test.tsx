@@ -180,7 +180,7 @@ describe('Groups Page', () => {
       })
       render(<Groups />, { wrapper: createWrapper() })
 
-      expect(await screen.findByText('Pending Invitations')).toBeInTheDocument()
+      expect(await screen.findByText('Invitations')).toBeInTheDocument()
       expect(screen.getByText('Smith Family')).toBeInTheDocument()
       expect(screen.getByText('Invited by Jane')).toBeInTheDocument()
       expect(screen.getByText('Accept')).toBeInTheDocument()
