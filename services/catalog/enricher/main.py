@@ -19,6 +19,7 @@ from services.shared.constant import (
     CATALOG_ENRICHMENT_RESULTS_QUEUE,
     CATALOG_PROCESS_ENTITY_QUEUE,
 )
+from services.shared.lib.catalog_taxonomy import format_categories_bullets
 from services.shared.lib.messaging_bus import MessagingBus
 from services.shared.lib.svg_sanitizer import sanitize_nutriscore_svg
 from services.shared.lib.url_validator import validate_url
@@ -932,42 +933,7 @@ Extract structured product information and return a JSON object with these field
   "brand": "string or null - Brand name (e.g., BONI, Delhaize, Soubry, Lu, Lotus, Coca-Cola)",
   "canonical_name": "string or null - Clean product name without brand, quantity, or promotional text",
   "category": "string or null - Use ONE of these categories:
-    - Leafy Greens
-    - Fresh Fruit
-    - Vegetables
-    - Fresh Herbs
-    - Salads & Prepared
-    - Organic
-    - Milk & Cream
-    - Cheese
-    - Yogurt & Desserts
-    - Butter & Margarine
-    - Eggs
-    - Beef & Pork
-    - Poultry
-    - Fish & Seafood
-    - Charcuterie & Deli
-    - Plant-Based
-    - Bread
-    - Pastries & Viennoiserie
-    - Cakes & Desserts
-    - Wraps & Tortillas
-    - Pasta & Rice
-    - Sauces & Condiments
-    - Oils & Vinegars
-    - Canned & Jarred
-    - Breakfast & Cereals
-    - Snacks & Sweets
-    - Frozen Meals
-    - Frozen Vegetables & Fruit
-    - Ice Cream & Desserts
-    - Water & Soft Drinks
-    - Juices
-    - Coffee & Tea
-    - Beer, Wine & Spirits
-    - Cleaning & Laundry
-    - Personal Care
-    - Baby & Pet",
+{format_categories_bullets()}",
   "net_quantity_value": "number or null - Numeric quantity (e.g., 375.0)",
   "net_quantity_unit": "string or null - MUST BE EXACTLY ONE OF: g, kg, ml, l, tsp, tbsp, pc, pinch, dash",
   "price": "number or null - Current price as decimal (e.g., 1.89, 0.99, 12.50)",

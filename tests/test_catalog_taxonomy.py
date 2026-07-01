@@ -10,6 +10,7 @@ from services.shared.lib.catalog_taxonomy import (
     CATEGORIES,
     CATEGORY_TO_DEPARTMENT,
     TAXONOMY,
+    format_categories_bullets,
 )
 from services.shared.schemas.catalog import CatalogItemCreate
 
@@ -221,3 +222,38 @@ def test_migration_lossy_merges():
     assert module.OLD_TO_NEW["Baby Food"] == "Baby & Pet"
     assert module.OLD_TO_NEW["Pet Food"] == "Baby & Pet"
     assert module._LOSSY_NEW_LABELS == {"Snacks & Sweets", "Baby & Pet"}
+
+
+# ===== Drift guard: format_categories_bullets shared by the enricher prompt =====
+
+
+@pytest.mark.unit
+def test_format_categories_bullets_matches_every_category():
+    lines = format_categories_bullets().split("\n")
+    assert lines == [f"    - {category}" for category in CATEGORIES]
+    assert len(lines) == 36
+
+
+@pytest.mark.unit
+def test_format_categories_bullets_respects_indent():
+    lines = format_categories_bullets(indent="  ").split("\n")
+    assert lines == [f"  - {category}" for category in CATEGORIES]
+
+
+@pytest.mark.unit
+def test_enricher_prompt_interpolates_the_helper():
+    # The enricher's extraction prompt must build its category list from the
+    # helper, not a hardcoded copy that can silently drift from the taxonomy.
+    source = pathlib.Path("services/catalog/enricher/main.py").read_text()
+    assert "{format_categories_bullets()}" in source
+    # No stray hardcoded bullet lines survived the drift-guard refactor.
+    for category in CATEGORIES:
+        assert f"    - {category}\n" not in source
+
+
+@pytest.mark.unit
+def test_rendered_enricher_bullets_cover_every_category():
+    # The rendered block (what the LLM actually sees) enumerates all 36 leaves.
+    rendered = format_categories_bullets()
+    for category in CATEGORIES:
+        assert f"    - {category}" in rendered
