@@ -1042,3 +1042,16 @@ def test_reconcile_category_none_passes_through():
     """A None category is preserved regardless of is_food."""
     assert _reconcile_category(None, is_food=True) is None
     assert _reconcile_category(None, is_food=False) is None
+
+
+@pytest.mark.unit
+def test_reconcile_category_keeps_alcohol_when_non_food():
+    """Alcohol is flagged non-food (nutrition skipped) but is a food Beverages
+    leaf, so is_food=False + "Beer, Wine & Spirits" must pass, not be nulled."""
+    assert _reconcile_category("Beer, Wine & Spirits", is_food=False) == "Beer, Wine & Spirits"
+
+
+@pytest.mark.unit
+def test_reconcile_category_keeps_alcohol_when_food():
+    """Alcohol also passes for a food-flagged row."""
+    assert _reconcile_category("Beer, Wine & Spirits", is_food=True) == "Beer, Wine & Spirits"

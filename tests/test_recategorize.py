@@ -229,6 +229,28 @@ def test_non_food_item_updates_within_scope(mock_catalog_db, monkeypatch):
 
 
 @pytest.mark.unit
+def test_non_food_item_accepts_alcohol_leaf(mock_catalog_db, monkeypatch):
+    # Alcohol is flagged non-food (nutrition skipped) yet is a food Beverages
+    # leaf, so a non-food row IS offered it and an alcohol reply updates the row.
+    import services.catalog.enricher.recategorize as recategorize
+
+    monkeypatch.setattr(recategorize, "OPENAI_API_KEY", "sk-test")
+    _make_item(
+        mock_catalog_db,
+        raw_name="gin",
+        is_food=False,
+        category="Personal Care",
+    )
+
+    rc = _run_with(mock_catalog_db, _mock_openai('{"category": "Beer, Wine & Spirits"}'))
+    assert rc == 0
+
+    mock_catalog_db.expire_all()
+    row = mock_catalog_db.query(CatalogItem).filter_by(raw_name="gin").one()
+    assert row.category == "Beer, Wine & Spirits"
+
+
+@pytest.mark.unit
 def test_food_item_rejects_household_leaf(mock_catalog_db, monkeypatch):
     # A food row is only offered food leaves; a Household reply is rejected.
     import services.catalog.enricher.recategorize as recategorize

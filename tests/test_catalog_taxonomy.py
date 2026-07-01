@@ -7,11 +7,13 @@ import pytest
 
 from services.catalog.crud import create_catalog_item, list_catalog_departments
 from services.shared.lib.catalog_taxonomy import (
+    ALCOHOL_CATEGORY,
     CATEGORIES,
     CATEGORY_TO_DEPARTMENT,
     FOOD_CATEGORIES,
     NON_FOOD_CATEGORIES,
     TAXONOMY,
+    allowed_categories,
     format_categories_bullets,
 )
 from services.shared.schemas.catalog import CatalogItemCreate
@@ -99,6 +101,33 @@ def test_food_and_non_food_partition_categories_exactly():
 def test_food_categories_preserve_taxonomy_order():
     # Food leaves keep their original relative order from CATEGORIES.
     assert FOOD_CATEGORIES == [c for c in CATEGORIES if c not in set(NON_FOOD_CATEGORIES)]
+
+
+# ===== allowed_categories boundary (shared by guardrail + backfill) =====
+
+
+@pytest.mark.unit
+def test_alcohol_category_is_a_food_leaf():
+    # Alcohol must be a real food leaf — allowed_categories relies on it being
+    # a member of FOOD_CATEGORIES/CATEGORIES, not a redefined string.
+    assert ALCOHOL_CATEGORY == "Beer, Wine & Spirits"
+    assert ALCOHOL_CATEGORY in FOOD_CATEGORIES
+    assert ALCOHOL_CATEGORY in CATEGORIES
+
+
+@pytest.mark.unit
+def test_allowed_categories_food_is_the_food_leaves():
+    assert allowed_categories(True) == FOOD_CATEGORIES
+
+
+@pytest.mark.unit
+def test_allowed_categories_non_food_adds_alcohol():
+    # Non-food rows get the Household leaves PLUS alcohol, and nothing else.
+    assert allowed_categories(False) == [*NON_FOOD_CATEGORIES, "Beer, Wine & Spirits"]
+    # No other food leaf leaks into the non-food set.
+    for category in FOOD_CATEGORIES:
+        if category != ALCOHOL_CATEGORY:
+            assert category not in allowed_categories(False)
 
 
 # ===== Departments handler =====

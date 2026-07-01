@@ -20,8 +20,7 @@ from services.shared.constant import (
     CATALOG_PROCESS_ENTITY_QUEUE,
 )
 from services.shared.lib.catalog_taxonomy import (
-    FOOD_CATEGORIES,
-    NON_FOOD_CATEGORIES,
+    allowed_categories,
     format_categories_bullets,
 )
 from services.shared.lib.messaging_bus import MessagingBus
@@ -891,15 +890,17 @@ def _reconcile_category(category: str | None, is_food: bool) -> str | None:
 
     The extraction returns ``is_food`` and ``category`` independently, so it can
     emit an out-of-scope pair (e.g. ``is_food=False`` + ``"Milk & Cream"``).
-    ``is_food`` is the trusted axis: if the category does not belong to the
-    matching scope we return ``None`` (a null category is safe and gets revisited
-    by re-enrichment/backfill) rather than asserting a wrong department. A
-    ``None`` or already in-scope category passes through unchanged.
+    ``is_food`` is the trusted axis: if the category is not among the leaves
+    allowed for that flag we return ``None`` (a null category is safe and gets
+    revisited by re-enrichment/backfill) rather than asserting a wrong
+    department. The allowed set comes from the shared ``allowed_categories``
+    helper, so alcohol ("Beer, Wine & Spirits") — flagged non-food yet a food
+    Beverages leaf — passes with either ``is_food`` value. A ``None`` or already
+    in-scope category passes through unchanged.
     """
     if category is None:
         return None
-    in_scope = category in (NON_FOOD_CATEGORIES if not is_food else FOOD_CATEGORIES)
-    return category if in_scope else None
+    return category if category in allowed_categories(is_food) else None
 
 
 async def extract_with_llm(
