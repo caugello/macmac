@@ -5,6 +5,22 @@ All notable changes to MacMac are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.11] - 2026-07-01
+
+### Added
+
+- **Catalog:** Three new Pantry categories — Baking & Cooking, Soups & Broths, and Herbs & Spices — giving baking and cooking ingredients, soups and broths, and dried herbs and spices a proper home in the taxonomy (#478, #479)
+- **Catalog:** A zero-egress category re-classification backfill that re-derives product categories from already-stored product text, scoped by the food/non-food boundary so items never cross departments (#475, #476)
+
+### Changed
+
+- **Enricher:** Reconcile the extracted category against the item's food/non-food determination, so a product can no longer be filed into a department that contradicts its nature — alcohol excepted (#477)
+
+### Fixed
+
+- **Deploy:** Mirror missing API routes into the cluster ConfigMap so newly added endpoints resolve in production (#474)
+- **CI:** Ignore an unfixed base-image OS CVE with no upstream patch that was blocking the enricher and crawler image builds (#480)
+
 ## [0.2.10] - 2026-06-30
 
 ### Added
