@@ -62,6 +62,7 @@ TAXONOMY: dict[str, tuple[str, list[str]]] = {
             "Canned & Jarred",
             "Breakfast & Cereals",
             "Snacks & Sweets",
+            "Baking & Cooking",
         ],
     ),
     "Frozen": (
@@ -91,7 +92,7 @@ TAXONOMY: dict[str, tuple[str, list[str]]] = {
     ),
 }
 
-# Flat, ordered list of every leaf category (36 total).
+# Flat, ordered list of every leaf category (37 total).
 CATEGORIES: list[str] = [
     category for _icon, categories in TAXONOMY.values() for category in categories
 ]
