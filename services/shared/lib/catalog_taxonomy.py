@@ -105,6 +105,26 @@ FOOD_CATEGORIES: list[str] = [
     category for category in CATEGORIES if category not in set(NON_FOOD_CATEGORIES)
 ]
 
+# Alcohol is the one food leaf a row may hold with is_food=False: the enricher
+# flags alcohol non-food (it skips nutrition crawling) yet "Beer, Wine & Spirits"
+# lives under the food Beverages department. It is a real food leaf already —
+# verify membership here, never redefine the leaf.
+ALCOHOL_CATEGORY = "Beer, Wine & Spirits"
+assert ALCOHOL_CATEGORY in FOOD_CATEGORIES
+
+
+def allowed_categories(is_food: bool) -> list[str]:
+    """Leaf categories a row may be assigned, given its is_food flag.
+
+    Non-food items may only be Household leaves — plus alcohol, the one food
+    leaf the enricher flags non-food. Shared by the enricher guardrail and the
+    re-categorization backfill so the food/non-food boundary can never drift.
+    """
+    if is_food:
+        return FOOD_CATEGORIES
+    return [*NON_FOOD_CATEGORIES, ALCOHOL_CATEGORY]
+
+
 # Reverse lookup: leaf category -> department.
 CATEGORY_TO_DEPARTMENT: dict[str, str] = {
     category: department

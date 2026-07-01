@@ -37,8 +37,7 @@ from services.catalog.db import SessionLocal
 from services.catalog.models import CatalogItem
 from services.framework.logging import setup_logging
 from services.shared.lib.catalog_taxonomy import (
-    FOOD_CATEGORIES,
-    NON_FOOD_CATEGORIES,
+    allowed_categories,
     format_categories_bullets,
 )
 from services.shared.lib.db import get_db
@@ -58,12 +57,6 @@ LLM_CONCURRENCY = 8
 # Commit cadence: flush accumulated category updates to the DB every N rows so a
 # long run makes durable, resumable progress instead of one giant final commit.
 COMMIT_BATCH_SIZE = 100
-
-# Scoped valid-leaf sets for O(1) membership validation of LLM output. Each item
-# is classified against only the leaves matching its food/non-food nature, so a
-# non-food row can never be moved INTO a food department (or vice-versa).
-FOOD_CATEGORY_SET = set(FOOD_CATEGORIES)
-NON_FOOD_CATEGORY_SET = set(NON_FOOD_CATEGORIES)
 
 
 def _get_max_items() -> int | None:
@@ -175,8 +168,14 @@ async def _run() -> int:
 
     dry_run = _is_dry_run()
     max_items = _get_max_items()
-    food_prompt = _build_system_prompt(FOOD_CATEGORIES)
-    non_food_prompt = _build_system_prompt(NON_FOOD_CATEGORIES)
+    # Candidate leaves come from the shared allowed_categories() boundary, so the
+    # backfill and the enricher guardrail agree: alcohol ("Beer, Wine & Spirits"),
+    # flagged non-food yet a food Beverages leaf, is reachable from either
+    # is_food value while cosmetics still cannot reach other food leaves.
+    food_prompt = _build_system_prompt(allowed_categories(True))
+    non_food_prompt = _build_system_prompt(allowed_categories(False))
+    food_set = set(allowed_categories(True))
+    non_food_set = set(allowed_categories(False))
 
     scanned = 0
     updated = 0
@@ -203,11 +202,12 @@ async def _run() -> int:
 
             async def classify(item: CatalogItem):
                 # Scope the candidate leaves by the item's food/non-food nature so
-                # a non-food row can never land in a food department (or reverse).
+                # a non-food row can never land in a food department (or reverse),
+                # except alcohol which allowed_categories() permits either way.
                 if item.is_food:
-                    prompt, allowed = food_prompt, FOOD_CATEGORY_SET
+                    prompt, allowed = food_prompt, food_set
                 else:
-                    prompt, allowed = non_food_prompt, NON_FOOD_CATEGORY_SET
+                    prompt, allowed = non_food_prompt, non_food_set
                 async with semaphore:
                     return item, await _classify_one(client, item, prompt, allowed)
 
