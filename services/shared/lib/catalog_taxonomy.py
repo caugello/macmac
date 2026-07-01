@@ -102,3 +102,13 @@ CATEGORY_TO_DEPARTMENT: dict[str, str] = {
     for department, (_icon, categories) in TAXONOMY.items()
     for category in categories
 }
+
+
+def format_categories_bullets(indent: str = "    ") -> str:
+    """Render :data:`CATEGORIES` as an indented bullet list, one per line.
+
+    Used to build the category enumeration in LLM prompts (the enricher's
+    extraction prompt and the recategorize backfill) from a single source of
+    truth, so the prompt list can never silently drift from the taxonomy.
+    """
+    return "\n".join(f"{indent}- {category}" for category in CATEGORIES)
