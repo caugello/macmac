@@ -75,6 +75,16 @@ def _is_dry_run() -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _make_client():
+    """Construct the LLM client. ``openai`` is imported lazily here (mirroring
+    the enricher's main.py) so the module has no hard dependency on the
+    enricher-only ``openai`` extra — tests patch this seam instead of importing
+    the real package."""
+    from openai import AsyncOpenAI
+
+    return AsyncOpenAI(api_key=OPENAI_API_KEY)
+
+
 def _build_system_prompt() -> str:
     """Classify-only system prompt built from the taxonomy (single source of
     truth, shared with the enricher via ``format_categories_bullets``)."""
@@ -148,8 +158,6 @@ async def _run() -> int:
         logger.error("OPENAI_API_KEY not set; aborting")
         return 1
 
-    from openai import AsyncOpenAI
-
     dry_run = _is_dry_run()
     max_items = _get_max_items()
     system_prompt = _build_system_prompt()
@@ -159,7 +167,7 @@ async def _run() -> int:
     unchanged = 0
     skipped_invalid = 0
 
-    client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+    client = _make_client()
     semaphore = asyncio.Semaphore(LLM_CONCURRENCY)
 
     try:

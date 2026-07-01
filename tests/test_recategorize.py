@@ -51,12 +51,17 @@ def _mock_openai(content):
 
 
 def _run_with(mock_catalog_db, client):
-    """Run recategorize._run() with SessionLocal + AsyncOpenAI patched."""
+    """Run recategorize._run() with SessionLocal + the LLM client seam patched.
+
+    Patching ``recategorize._make_client`` (not ``openai.AsyncOpenAI``) keeps the
+    real ``openai`` package out of the test path, so these tests run in the CI
+    ``test`` extra where openai is not installed.
+    """
     from services.catalog.enricher import recategorize
 
     with (
         patch.object(recategorize, "SessionLocal", return_value=mock_catalog_db),
-        patch("openai.AsyncOpenAI", return_value=client),
+        patch.object(recategorize, "_make_client", return_value=client),
     ):
         return recategorize.main_run()
 
