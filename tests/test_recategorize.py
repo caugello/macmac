@@ -184,24 +184,113 @@ def test_empty_response_skips_row(mock_catalog_db, monkeypatch):
     assert row.category == "Vegetables"
 
 
+@pytest.mark.unit
+def test_non_food_item_rejects_food_leaf(mock_catalog_db, monkeypatch):
+    # A non-food row is only offered Household leaves; a FOOD-leaf reply is
+    # out-of-scope and must NOT update the row (counted skipped_invalid).
+    import services.catalog.enricher.recategorize as recategorize
+
+    monkeypatch.setattr(recategorize, "OPENAI_API_KEY", "sk-test")
+    _make_item(
+        mock_catalog_db,
+        raw_name="after-sun body milk",
+        is_food=False,
+        category="Personal Care",
+    )
+
+    rc = _run_with(mock_catalog_db, _mock_openai('{"category": "Milk & Cream"}'))
+    assert rc == 0
+
+    mock_catalog_db.expire_all()
+    row = mock_catalog_db.query(CatalogItem).filter_by(raw_name="after-sun body milk").one()
+    # Non-food item stays put — never moved into a food department.
+    assert row.category == "Personal Care"
+
+
+@pytest.mark.unit
+def test_non_food_item_updates_within_scope(mock_catalog_db, monkeypatch):
+    # A within-scope Household reply updates the non-food row.
+    import services.catalog.enricher.recategorize as recategorize
+
+    monkeypatch.setattr(recategorize, "OPENAI_API_KEY", "sk-test")
+    _make_item(
+        mock_catalog_db,
+        raw_name="dish soap",
+        is_food=False,
+        category="Personal Care",
+    )
+
+    rc = _run_with(mock_catalog_db, _mock_openai('{"category": "Cleaning & Laundry"}'))
+    assert rc == 0
+
+    mock_catalog_db.expire_all()
+    row = mock_catalog_db.query(CatalogItem).filter_by(raw_name="dish soap").one()
+    assert row.category == "Cleaning & Laundry"
+
+
+@pytest.mark.unit
+def test_food_item_rejects_household_leaf(mock_catalog_db, monkeypatch):
+    # A food row is only offered food leaves; a Household reply is rejected.
+    import services.catalog.enricher.recategorize as recategorize
+
+    monkeypatch.setattr(recategorize, "OPENAI_API_KEY", "sk-test")
+    _make_item(
+        mock_catalog_db,
+        raw_name="cooking oil",
+        is_food=True,
+        category="Oils & Vinegars",
+    )
+
+    rc = _run_with(mock_catalog_db, _mock_openai('{"category": "Baby & Pet"}'))
+    assert rc == 0
+
+    mock_catalog_db.expire_all()
+    row = mock_catalog_db.query(CatalogItem).filter_by(raw_name="cooking oil").one()
+    # Food item stays put — never moved into the non-food department.
+    assert row.category == "Oils & Vinegars"
+
+
 # ===== Parser + env helpers (no DB / no network) =====
 
 
 @pytest.mark.unit
 def test_parse_category_accepts_json_object():
     from services.catalog.enricher.recategorize import _parse_category
+    from services.shared.lib.catalog_taxonomy import FOOD_CATEGORIES
 
-    assert _parse_category('{"category": "Cheese"}') == "Cheese"
+    allowed = set(FOOD_CATEGORIES)
+    assert _parse_category('{"category": "Cheese"}', allowed) == "Cheese"
 
 
 @pytest.mark.unit
 def test_parse_category_rejects_invalid_leaf():
     from services.catalog.enricher.recategorize import _parse_category
+    from services.shared.lib.catalog_taxonomy import FOOD_CATEGORIES
 
-    assert _parse_category('{"category": "Bogus"}') is None
-    assert _parse_category("Bogus") is None
-    assert _parse_category("") is None
-    assert _parse_category(None) is None
+    allowed = set(FOOD_CATEGORIES)
+    assert _parse_category('{"category": "Bogus"}', allowed) is None
+    assert _parse_category("Bogus", allowed) is None
+    assert _parse_category("", allowed) is None
+    assert _parse_category(None, allowed) is None
+
+
+@pytest.mark.unit
+def test_parse_category_scope_aware():
+    # A leaf valid in the taxonomy but outside the item's scope is rejected.
+    from services.catalog.enricher.recategorize import _parse_category
+    from services.shared.lib.catalog_taxonomy import (
+        FOOD_CATEGORIES,
+        NON_FOOD_CATEGORIES,
+    )
+
+    food = set(FOOD_CATEGORIES)
+    non_food = set(NON_FOOD_CATEGORIES)
+    # Household leaf offered to a food item -> rejected; accepted for non-food.
+    assert _parse_category('{"category": "Personal Care"}', food) is None
+    assert _parse_category('{"category": "Personal Care"}', non_food) == "Personal Care"
+    # Food leaf offered to a non-food item -> rejected; accepted for food.
+    assert _parse_category('{"category": "Milk & Cream"}', non_food) is None
+    assert _parse_category('{"category": "Milk & Cream"}', food) == "Milk & Cream"
 
 
 @pytest.mark.unit
