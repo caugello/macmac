@@ -24,7 +24,7 @@ EXPECTED_DEPARTMENT_SIZES = {
     "Dairy & Eggs": 5,
     "Meat & Fish": 5,
     "Bakery": 4,
-    "Pantry": 7,
+    "Pantry": 9,
     "Frozen": 3,
     "Beverages": 4,
     "Household": 3,
@@ -42,7 +42,7 @@ def test_taxonomy_has_eight_departments():
 
 @pytest.mark.unit
 def test_taxonomy_has_thirty_six_categories():
-    assert len(CATEGORIES) == 37
+    assert len(CATEGORIES) == 39
 
 
 @pytest.mark.unit
@@ -65,7 +65,7 @@ def test_every_department_has_an_icon():
 @pytest.mark.unit
 def test_reverse_lookup_covers_every_category():
     assert set(CATEGORY_TO_DEPARTMENT) == set(CATEGORIES)
-    assert len(CATEGORY_TO_DEPARTMENT) == 37
+    assert len(CATEGORY_TO_DEPARTMENT) == 39
 
 
 @pytest.mark.unit
@@ -155,7 +155,7 @@ async def test_departments_returns_full_taxonomy_when_empty(mock_catalog_db):
 
     assert len(result.departments) == 8
     total_categories = sum(len(d.categories) for d in result.departments)
-    assert total_categories == 37
+    assert total_categories == 39
     # Every count is zero on an empty catalog.
     assert all(d.count == 0 for d in result.departments)
     assert all(c.count == 0 for d in result.departments for c in d.categories)
@@ -284,7 +284,7 @@ def test_migration_lossy_merges():
 def test_format_categories_bullets_matches_every_category():
     lines = format_categories_bullets().split("\n")
     assert lines == [f"    - {category}" for category in CATEGORIES]
-    assert len(lines) == 37
+    assert len(lines) == 39
 
 
 @pytest.mark.unit
