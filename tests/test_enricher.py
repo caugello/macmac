@@ -11,6 +11,7 @@ from services.catalog.enricher.main import (
     PermanentCrawlError,
     _pace_request,
     _parse_forward_proxy,
+    _reconcile_category,
     async_retry,
     extract_quantity_from_url,
     normalize_unit,
@@ -1007,3 +1008,37 @@ async def test_pace_request_sleeps_remaining_interval():
 
     sleep.assert_awaited_once()
     assert sleep.await_args.args[0] == pytest.approx(17.0)
+
+
+# ===== UNIT TESTS - _reconcile_category (food/non-food guardrail) =====
+
+
+@pytest.mark.unit
+def test_reconcile_category_drops_food_leaf_when_non_food():
+    """is_food=False with a food-scope category is dropped to None."""
+    assert _reconcile_category("Milk & Cream", is_food=False) is None
+
+
+@pytest.mark.unit
+def test_reconcile_category_drops_household_leaf_when_food():
+    """is_food=True with a non-food (Household) category is dropped to None."""
+    assert _reconcile_category("Personal Care", is_food=True) is None
+
+
+@pytest.mark.unit
+def test_reconcile_category_keeps_in_scope_non_food():
+    """is_food=False with a non-food category passes through unchanged."""
+    assert _reconcile_category("Personal Care", is_food=False) == "Personal Care"
+
+
+@pytest.mark.unit
+def test_reconcile_category_keeps_in_scope_food():
+    """is_food=True with a food category passes through unchanged."""
+    assert _reconcile_category("Milk & Cream", is_food=True) == "Milk & Cream"
+
+
+@pytest.mark.unit
+def test_reconcile_category_none_passes_through():
+    """A None category is preserved regardless of is_food."""
+    assert _reconcile_category(None, is_food=True) is None
+    assert _reconcile_category(None, is_food=False) is None

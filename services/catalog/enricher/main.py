@@ -19,7 +19,11 @@ from services.shared.constant import (
     CATALOG_ENRICHMENT_RESULTS_QUEUE,
     CATALOG_PROCESS_ENTITY_QUEUE,
 )
-from services.shared.lib.catalog_taxonomy import format_categories_bullets
+from services.shared.lib.catalog_taxonomy import (
+    FOOD_CATEGORIES,
+    NON_FOOD_CATEGORIES,
+    format_categories_bullets,
+)
 from services.shared.lib.messaging_bus import MessagingBus
 from services.shared.lib.svg_sanitizer import sanitize_nutriscore_svg
 from services.shared.lib.url_validator import validate_url
@@ -882,6 +886,22 @@ def preprocess_html(html_content: str) -> str:
     return result[:150000]
 
 
+def _reconcile_category(category: str | None, is_food: bool) -> str | None:
+    """Drop a category whose food/non-food scope contradicts ``is_food``.
+
+    The extraction returns ``is_food`` and ``category`` independently, so it can
+    emit an out-of-scope pair (e.g. ``is_food=False`` + ``"Milk & Cream"``).
+    ``is_food`` is the trusted axis: if the category does not belong to the
+    matching scope we return ``None`` (a null category is safe and gets revisited
+    by re-enrichment/backfill) rather than asserting a wrong department. A
+    ``None`` or already in-scope category passes through unchanged.
+    """
+    if category is None:
+        return None
+    in_scope = category in (NON_FOOD_CATEGORIES if not is_food else FOOD_CATEGORIES)
+    return category if in_scope else None
+
+
 async def extract_with_llm(
     raw_name: str,
     product_url: str,
@@ -1201,6 +1221,15 @@ async def enrich_catalog_item(
     canonical_name = extracted_data.get("canonical_name") or raw_name
     brand = extracted_data.get("brand")
     category = extracted_data.get("category")
+
+    # Guardrail: the LLM picks is_food and category independently, so it can
+    # emit an out-of-scope pair. Trust is_food and drop a contradicting category.
+    reconciled_category = _reconcile_category(category, is_food)
+    if reconciled_category is None and category is not None:
+        logger.warning(
+            f"Dropping out-of-scope category '{category}' for '{raw_name}' (is_food={is_food})"
+        )
+    category = reconciled_category
 
     net_quantity_value = extracted_data.get("net_quantity_value") or url_qty
     net_quantity_unit = extracted_data.get("net_quantity_unit") or url_unit
