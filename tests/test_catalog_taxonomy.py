@@ -9,6 +9,8 @@ from services.catalog.crud import create_catalog_item, list_catalog_departments
 from services.shared.lib.catalog_taxonomy import (
     CATEGORIES,
     CATEGORY_TO_DEPARTMENT,
+    FOOD_CATEGORIES,
+    NON_FOOD_CATEGORIES,
     TAXONOMY,
     format_categories_bullets,
 )
@@ -75,6 +77,28 @@ def test_reverse_lookup_maps_to_owning_department():
 def test_beer_wine_spirits_is_one_category():
     # The comma must not split this into separate categories.
     assert "Beer, Wine & Spirits" in CATEGORIES
+
+
+# ===== Food / non-food split (derived from the Household department) =====
+
+
+@pytest.mark.unit
+def test_non_food_categories_are_the_household_department():
+    assert NON_FOOD_CATEGORIES == TAXONOMY["Household"][1]
+
+
+@pytest.mark.unit
+def test_food_and_non_food_partition_categories_exactly():
+    # No overlap, and together they reconstruct the full ordered leaf set.
+    assert set(FOOD_CATEGORIES).isdisjoint(NON_FOOD_CATEGORIES)
+    assert set(FOOD_CATEGORIES) | set(NON_FOOD_CATEGORIES) == set(CATEGORIES)
+    assert len(FOOD_CATEGORIES) + len(NON_FOOD_CATEGORIES) == len(CATEGORIES)
+
+
+@pytest.mark.unit
+def test_food_categories_preserve_taxonomy_order():
+    # Food leaves keep their original relative order from CATEGORIES.
+    assert FOOD_CATEGORIES == [c for c in CATEGORIES if c not in set(NON_FOOD_CATEGORIES)]
 
 
 # ===== Departments handler =====
@@ -238,6 +262,27 @@ def test_format_categories_bullets_matches_every_category():
 def test_format_categories_bullets_respects_indent():
     lines = format_categories_bullets(indent="  ").split("\n")
     assert lines == [f"  - {category}" for category in CATEGORIES]
+
+
+@pytest.mark.unit
+def test_format_categories_bullets_default_is_byte_identical_full_list():
+    # Default (no arg) must render the full 36-leaf list exactly — the enricher
+    # prompt depends on this. Byte-identical to passing CATEGORIES explicitly.
+    assert format_categories_bullets() == format_categories_bullets(CATEGORIES)
+    assert format_categories_bullets() == "\n".join(f"    - {category}" for category in CATEGORIES)
+
+
+@pytest.mark.unit
+def test_format_categories_bullets_renders_only_the_subset():
+    food = format_categories_bullets(FOOD_CATEGORIES)
+    assert food == "\n".join(f"    - {category}" for category in FOOD_CATEGORIES)
+    # A non-food leaf never appears in the food-scoped bullets, and vice-versa.
+    for category in NON_FOOD_CATEGORIES:
+        assert f"- {category}" not in food
+    non_food = format_categories_bullets(NON_FOOD_CATEGORIES)
+    assert non_food == "\n".join(f"    - {category}" for category in NON_FOOD_CATEGORIES)
+    for category in FOOD_CATEGORIES:
+        assert f"- {category}" not in non_food
 
 
 @pytest.mark.unit

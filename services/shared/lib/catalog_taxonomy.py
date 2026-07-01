@@ -96,6 +96,15 @@ CATEGORIES: list[str] = [
     category for _icon, categories in TAXONOMY.values() for category in categories
 ]
 
+# The single non-food department. Its categories are the non-food leaves; every
+# other leaf is food. Derived from TAXONOMY so the split can never drift.
+NON_FOOD_CATEGORIES: list[str] = TAXONOMY["Household"][1]
+
+# Food leaves = every category not owned by the non-food department, in order.
+FOOD_CATEGORIES: list[str] = [
+    category for category in CATEGORIES if category not in set(NON_FOOD_CATEGORIES)
+]
+
 # Reverse lookup: leaf category -> department.
 CATEGORY_TO_DEPARTMENT: dict[str, str] = {
     category: department
@@ -104,11 +113,17 @@ CATEGORY_TO_DEPARTMENT: dict[str, str] = {
 }
 
 
-def format_categories_bullets(indent: str = "    ") -> str:
-    """Render :data:`CATEGORIES` as an indented bullet list, one per line.
+def format_categories_bullets(categories: list[str] | None = None, indent: str = "    ") -> str:
+    """Render a category list as an indented bullet list, one per line.
 
     Used to build the category enumeration in LLM prompts (the enricher's
     extraction prompt and the recategorize backfill) from a single source of
     truth, so the prompt list can never silently drift from the taxonomy.
+
+    ``categories`` defaults to the full :data:`CATEGORIES` list, so existing
+    callers keep their byte-identical output. Pass a subset (e.g.
+    :data:`FOOD_CATEGORIES`) to scope the rendered bullets.
     """
-    return "\n".join(f"{indent}- {category}" for category in CATEGORIES)
+    if categories is None:
+        categories = CATEGORIES
+    return "\n".join(f"{indent}- {category}" for category in categories)

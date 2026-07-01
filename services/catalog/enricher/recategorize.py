@@ -36,7 +36,11 @@ import sys
 from services.catalog.db import SessionLocal
 from services.catalog.models import CatalogItem
 from services.framework.logging import setup_logging
-from services.shared.lib.catalog_taxonomy import CATEGORIES, format_categories_bullets
+from services.shared.lib.catalog_taxonomy import (
+    FOOD_CATEGORIES,
+    NON_FOOD_CATEGORIES,
+    format_categories_bullets,
+)
 from services.shared.lib.db import get_db
 
 logger = setup_logging()
@@ -55,8 +59,11 @@ LLM_CONCURRENCY = 8
 # long run makes durable, resumable progress instead of one giant final commit.
 COMMIT_BATCH_SIZE = 100
 
-# Valid leaf categories, as a set for O(1) membership validation of LLM output.
-VALID_CATEGORIES = set(CATEGORIES)
+# Scoped valid-leaf sets for O(1) membership validation of LLM output. Each item
+# is classified against only the leaves matching its food/non-food nature, so a
+# non-food row can never be moved INTO a food department (or vice-versa).
+FOOD_CATEGORY_SET = set(FOOD_CATEGORIES)
+NON_FOOD_CATEGORY_SET = set(NON_FOOD_CATEGORIES)
 
 
 def _get_max_items() -> int | None:
@@ -85,16 +92,20 @@ def _make_client():
     return AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 
-def _build_system_prompt() -> str:
-    """Classify-only system prompt built from the taxonomy (single source of
-    truth, shared with the enricher via ``format_categories_bullets``)."""
+def _build_system_prompt(categories: list[str]) -> str:
+    """Classify-only system prompt built from a scoped category list (single
+    source of truth, shared with the enricher via ``format_categories_bullets``).
+
+    ``categories`` is the food OR non-food subset, so an item is only ever
+    offered leaves matching its ``is_food`` nature.
+    """
     return (
         "You are a grocery product classifier. Choose EXACTLY ONE category for "
         "the product from the list below. Reply with a JSON object of the form "
         '{"category": "<one of the categories>"} and nothing else. The value '
         "MUST be copied verbatim from the list.\n\n"
         "Categories:\n"
-        f"{format_categories_bullets()}"
+        f"{format_categories_bullets(categories)}"
     )
 
 
@@ -112,10 +123,11 @@ def _build_user_content(item: CatalogItem) -> str:
     return "\n".join(f"{label}: {value}" for label, value in parts)
 
 
-def _parse_category(content: str | None) -> str | None:
+def _parse_category(content: str | None, allowed: set[str]) -> str | None:
     """Extract a category string from the LLM response, tolerating either a bare
     category or a ``{"category": "..."}`` JSON object. Returns None if the value
-    is empty or not a valid leaf category."""
+    is empty or not in ``allowed`` (the item's scoped food/non-food leaf set), so
+    a cross-scope reply is rejected the same as an out-of-taxonomy one."""
     if not content:
         return None
     text = content.strip()
@@ -134,13 +146,16 @@ def _parse_category(content: str | None) -> str | None:
         # Not JSON — treat the whole response as a bare category label.
         category = text
 
-    if category and category in VALID_CATEGORIES:
+    if category and category in allowed:
         return category
     return None
 
 
-async def _classify_one(client, item: CatalogItem, system_prompt: str) -> str | None:
-    """Classify a single item. Returns a valid leaf category or None."""
+async def _classify_one(
+    client, item: CatalogItem, system_prompt: str, allowed: set[str]
+) -> str | None:
+    """Classify a single item against its scoped leaf set. Returns a valid leaf
+    category or None."""
     resp = await client.chat.completions.create(
         model=OPENAI_MODEL,
         messages=[
@@ -150,7 +165,7 @@ async def _classify_one(client, item: CatalogItem, system_prompt: str) -> str | 
         temperature=0.0,
         response_format={"type": "json_object"},
     )
-    return _parse_category(resp.choices[0].message.content)
+    return _parse_category(resp.choices[0].message.content, allowed)
 
 
 async def _run() -> int:
@@ -160,7 +175,8 @@ async def _run() -> int:
 
     dry_run = _is_dry_run()
     max_items = _get_max_items()
-    system_prompt = _build_system_prompt()
+    food_prompt = _build_system_prompt(FOOD_CATEGORIES)
+    non_food_prompt = _build_system_prompt(NON_FOOD_CATEGORIES)
 
     scanned = 0
     updated = 0
@@ -186,8 +202,14 @@ async def _run() -> int:
             )
 
             async def classify(item: CatalogItem):
+                # Scope the candidate leaves by the item's food/non-food nature so
+                # a non-food row can never land in a food department (or reverse).
+                if item.is_food:
+                    prompt, allowed = food_prompt, FOOD_CATEGORY_SET
+                else:
+                    prompt, allowed = non_food_prompt, NON_FOOD_CATEGORY_SET
                 async with semaphore:
-                    return item, await _classify_one(client, item, system_prompt)
+                    return item, await _classify_one(client, item, prompt, allowed)
 
             pending_writes = 0
             for coro in asyncio.as_completed([classify(item) for item in items]):
