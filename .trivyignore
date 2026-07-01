@@ -9,3 +9,10 @@ CVE-2026-22020
 # Affects enricher/crawler only. Not exploitable: app code doesn't call PKCS7_verify.
 # Remove when Red Hat publishes a patched ubi9-minimal image.
 CVE-2026-45447
+
+# python3-pip-wheel 21.3.1-2.el9_8 — unfixed upstream, no patched RPM yet.
+# Affects enricher/crawler only. Not exploitable: CVE is in pip's
+# console_scripts/gui_scripts entry-point path handling; images install deps via
+# uv at build time and never run pip on untrusted input at runtime.
+# Remove when Red Hat ships a fixed python3-pip-wheel for RHEL 9.
+CVE-2026-8643
