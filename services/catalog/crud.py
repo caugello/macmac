@@ -43,6 +43,8 @@ async def create_catalog_item(data: rs.CatalogItemCreate, db: Session):
             product_url=data.product_url,
             is_food=data.is_food,
             price=data.price,
+            unit_price=data.unit_price,
+            unit_price_unit=data.unit_price_unit,
             currency=data.currency,
             category=data.category,
             nutrition=data.nutrition,

@@ -1,11 +1,12 @@
-"""Tests for the computed unit price on CatalogItemOut."""
+"""Tests for the derived/stored unit price on CatalogItemOut."""
 
 import uuid
 from datetime import UTC, datetime
 
 import pytest
 
-from services.shared.schemas.catalog import CatalogItemOut
+from services.shared.schemas.catalog import CatalogItemOut, unit_price_conflicts
+from services.shared.schemas.generic import UnitEnum
 
 
 def _build_item(**overrides) -> CatalogItemOut:
@@ -77,3 +78,54 @@ def test_unit_price_null_when_quantity_zero():
     item = _build_item(price=2.0, net_quantity_value=0.0, net_quantity_unit="g")
     assert item.unit_price is None
     assert item.unit_price_unit is None
+
+
+@pytest.mark.unit
+def test_stored_unit_price_wins_over_derivation():
+    """A scraped ground-truth unit price is kept, not overwritten by derivation."""
+    item = _build_item(
+        price=2.0,
+        net_quantity_value=500.0,
+        net_quantity_unit="g",
+        unit_price=8.5,
+        unit_price_unit="kg",
+    )
+    assert item.unit_price == 8.5
+    assert item.unit_price_unit == "kg"
+
+
+@pytest.mark.unit
+def test_stored_unit_price_survives_without_price_or_quantity():
+    """Variable-weight goods keep their €/kg with no pack price or quantity."""
+    item = _build_item(
+        price=None,
+        net_quantity_value=None,
+        unit_price=8.5,
+        unit_price_unit="kg",
+    )
+    assert item.unit_price == 8.5
+    assert item.unit_price_unit == "kg"
+
+
+@pytest.mark.unit
+def test_unit_price_conflicts_flags_gross_mismatch():
+    """A €8.50/kg ground truth contradicts an 8.50 price paired with 4.84 kg."""
+    assert unit_price_conflicts(8.5, 4.84, UnitEnum.KILOGRAM, 8.5, "kg") is True
+
+
+@pytest.mark.unit
+def test_unit_price_conflicts_allows_consistent_pack():
+    """A 500 g pack at €2.00 is consistent with a €4.00/kg unit price."""
+    assert unit_price_conflicts(2.0, 500.0, UnitEnum.GRAM, 4.0, "kg") is False
+
+
+@pytest.mark.unit
+def test_unit_price_conflicts_false_without_ground_truth():
+    """No scraped unit price means nothing to contradict."""
+    assert unit_price_conflicts(8.5, 4.84, UnitEnum.KILOGRAM, None, None) is False
+
+
+@pytest.mark.unit
+def test_unit_price_conflicts_false_on_unit_mismatch():
+    """Different reference units aren't comparable, so no conflict is asserted."""
+    assert unit_price_conflicts(2.0, 4.0, UnitEnum.PIECE, 8.5, "kg") is False
