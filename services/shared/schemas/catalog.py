@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from pydantic import UUID4, BaseModel, ConfigDict, Field, computed_field, field_validator
+from pydantic import UUID4, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from services.shared.schemas.generic import UnitEnum
 
@@ -31,6 +31,30 @@ def compute_unit_price(
         reference = net_quantity_unit.value if net_quantity_unit is not None else None
 
     return round(ratio, 2), reference
+
+
+def unit_price_conflicts(
+    price: float | None,
+    net_quantity_value: float | None,
+    net_quantity_unit: UnitEnum | None,
+    unit_price: float | None,
+    unit_price_unit: str | None,
+) -> bool:
+    """Whether ``price / quantity`` grossly contradicts a scraped ``unit_price``.
+
+    Variable-weight goods list a €/kg figure that the LLM can mistake for the
+    pack price, pairing it with an invented weight. When the derived unit price
+    diverges from the scraped ground truth by more than 2x (in the same
+    reference unit), the pack price/quantity are untrustworthy. Returns ``False``
+    when there isn't enough comparable data to judge.
+    """
+    if unit_price is None or unit_price <= 0:
+        return False
+    derived, derived_unit = compute_unit_price(price, net_quantity_value, net_quantity_unit)
+    if derived is None or derived_unit != unit_price_unit:
+        return False
+    ratio = derived / unit_price
+    return ratio < 0.5 or ratio > 2.0
 
 
 class NutritionInfo(BaseModel):
@@ -67,6 +91,8 @@ class CatalogItemCreate(BaseModel):
 
     # Enhanced fields from LLM extraction
     price: float | None = None
+    unit_price: float | None = None
+    unit_price_unit: str | None = Field(None, max_length=10)
     currency: str | None = Field("EUR", max_length=3)
     category: str | None = Field(None, max_length=100)
     nutrition: dict | None = None
@@ -107,6 +133,20 @@ class CatalogItemCreate(BaseModel):
             raise ValueError("URL must use http or https scheme")
         return v
 
+    @model_validator(mode="after")
+    def derive_unit_price(self):
+        """Fill ``unit_price`` from ``price``/``net_quantity`` when not supplied.
+
+        A scraped ground-truth ``unit_price`` (variable-weight goods) always
+        wins; otherwise the value is derived so fixed packs and pre-existing rows
+        (NULL column) still expose a unit price on read.
+        """
+        if self.unit_price is None:
+            self.unit_price, self.unit_price_unit = compute_unit_price(
+                self.price, self.net_quantity_value, self.net_quantity_unit
+            )
+        return self
+
 
 class CatalogItemOut(CatalogItemCreate):
     """
@@ -118,18 +158,6 @@ class CatalogItemOut(CatalogItemCreate):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def unit_price(self) -> float | None:
-        """Price normalized to the reference unit, or null when not derivable."""
-        return compute_unit_price(self.price, self.net_quantity_value, self.net_quantity_unit)[0]
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def unit_price_unit(self) -> str | None:
-        """Reference unit for :attr:`unit_price` (kg, l, or the item's unit)."""
-        return compute_unit_price(self.price, self.net_quantity_value, self.net_quantity_unit)[1]
 
 
 class CatalogItemListResponse(BaseModel):

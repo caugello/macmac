@@ -15,6 +15,7 @@ from services.catalog.enricher.main import (
     async_retry,
     extract_quantity_from_url,
     normalize_unit,
+    parse_scraped_price,
 )
 from services.shared.schemas.catalog import CatalogItemCreate
 
@@ -1055,3 +1056,30 @@ def test_reconcile_category_keeps_alcohol_when_non_food():
 def test_reconcile_category_keeps_alcohol_when_food():
     """Alcohol also passes for a food-flagged row."""
     assert _reconcile_category("Beer, Wine & Spirits", is_food=True) == "Beer, Wine & Spirits"
+
+
+# ===== UNIT TESTS - parse_scraped_price =====
+
+
+@pytest.mark.unit
+def test_parse_scraped_price_per_kilo():
+    """A /kg suffix marks the value as a per-unit price."""
+    assert parse_scraped_price("8,50 €/kg") == (8.5, "kg")
+
+
+@pytest.mark.unit
+def test_parse_scraped_price_per_litre():
+    """A /l suffix is normalized like any other unit."""
+    assert parse_scraped_price("€2,00/l") == (2.0, "l")
+
+
+@pytest.mark.unit
+def test_parse_scraped_price_bare_pack_price():
+    """No suffix means a bare pack price with no reference unit."""
+    assert parse_scraped_price("€1,89") == (1.89, None)
+
+
+@pytest.mark.unit
+def test_parse_scraped_price_unparseable():
+    """Junk text yields no value."""
+    assert parse_scraped_price("N/A") == (None, None)

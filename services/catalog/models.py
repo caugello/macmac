@@ -26,6 +26,11 @@ class CatalogItem(BaseModel, Base):
 
     # Enhanced fields from LLM extraction
     price = Column(Float)
+    # Ground-truth price per reference unit (e.g. 8.50 with unit "kg") scraped
+    # from the vendor's per-unit price element. Authoritative for variable-weight
+    # goods (meat/fish sold au poids) where there is no fixed pack price.
+    unit_price = Column(Float)
+    unit_price_unit = Column(String)
     currency = Column(String, default="EUR")
     category = Column(String)
     # none_as_null: persist a missing value as SQL NULL, not JSON 'null', so the

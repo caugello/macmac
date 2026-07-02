@@ -26,7 +26,8 @@ from services.shared.lib.catalog_taxonomy import (
 from services.shared.lib.messaging_bus import MessagingBus
 from services.shared.lib.svg_sanitizer import sanitize_nutriscore_svg
 from services.shared.lib.url_validator import validate_url
-from services.shared.schemas.catalog import CatalogItemCreate
+from services.shared.schemas.catalog import CatalogItemCreate, unit_price_conflicts
+from services.shared.schemas.generic import UnitEnum
 
 
 @dataclass
@@ -34,6 +35,8 @@ class CrawlResult:
     html_content: str | None = None
     final_url: str | None = None
     extracted_price: float | None = None
+    unit_price: float | None = None
+    unit_price_unit: str | None = None
     info_link_url: str | None = None
     nutriscore: str | None = None
     nutriscore_svg: str | None = None
@@ -295,6 +298,31 @@ def normalize_unit(unit: str | None) -> str | None:
     return unit_map.get(unit_lower)
 
 
+def parse_scraped_price(text: str) -> tuple[float | None, str | None]:
+    """Parse a scraped price string into ``(value, per_unit)``.
+
+    ``per_unit`` is the normalized unit when the text carries a ``/kg``-style
+    suffix (e.g. ``"8,50 €/kg"`` -> ``(8.5, "kg")``), signalling a per-unit
+    price rather than a pack price. Returns ``(None, None)`` when unparseable.
+    """
+    cleaned = (
+        text.strip()
+        .replace("\n", "")
+        .replace("\r", "")
+        .replace("€", "")
+        .replace(" ", "")
+        .replace(",", ".")
+    )
+    suffix_match = re.search(r"/([a-zµ]+)$", cleaned)
+    per_unit = normalize_unit(suffix_match.group(1)) if suffix_match else None
+    cleaned = re.sub(r"/[a-zµ]+$", "", cleaned)
+    try:
+        return float(cleaned), per_unit
+    except ValueError:
+        logger.warning(f"Could not parse price: {cleaned!r}")
+        return None, None
+
+
 def extract_quantity_from_url(url: str) -> tuple[float | None, str | None]:
     """
     Extract quantity and unit from product URL.
@@ -512,6 +540,8 @@ async def _crawl_product_page_once(url: str) -> CrawlResult:
         await page.wait_for_timeout(1500)
 
         extracted_price = None
+        extracted_unit_price = None
+        extracted_unit_price_unit = None
         try:
             await page.wait_for_selector(
                 'span.price-per-unit, [class*="price"]', timeout=3000, state="visible"
@@ -519,23 +549,17 @@ async def _crawl_product_page_once(url: str) -> CrawlResult:
 
             price_element = await page.query_selector("span.price-per-unit")
             if price_element:
-                price_text = await price_element.inner_text()
-                price_text = (
-                    price_text.strip()
-                    .replace("\n", "")
-                    .replace("\r", "")
-                    .replace("€", "")
-                    .replace(" ", "")
-                    .replace(",", ".")
-                )
-
-                price_text = re.sub(r"/[a-z]+$", "", price_text)
-
-                try:
-                    extracted_price = float(price_text)
-                    logger.debug(f"Extracted price: EUR {extracted_price:.2f}")
-                except ValueError:
-                    logger.warning(f"Could not parse price: {repr(price_text)}")
+                value, per_unit = parse_scraped_price(await price_element.inner_text())
+                if per_unit is not None:
+                    # A "/kg"-style suffix means this is a per-unit price, not the
+                    # pack price. Keep it as ground-truth unit price instead of
+                    # mislabelling it as the item price (variable-weight goods).
+                    extracted_unit_price = value
+                    extracted_unit_price_unit = per_unit
+                    logger.debug(f"Extracted unit price: EUR {value}/{per_unit}")
+                elif value is not None:
+                    extracted_price = value
+                    logger.debug(f"Extracted price: EUR {value:.2f}")
         except Exception as e:
             logger.warning(f"Could not extract price: {e}")
 
@@ -621,6 +645,8 @@ async def _crawl_product_page_once(url: str) -> CrawlResult:
             html_content=html,
             final_url=final_url,
             extracted_price=extracted_price,
+            unit_price=extracted_unit_price,
+            unit_price_unit=extracted_unit_price_unit,
             info_link_url=info_link_url,
             nutriscore=nutriscore,
             nutriscore_svg=nutriscore_svg,
@@ -975,7 +1001,8 @@ Extract structured product information and return a JSON object with these field
 
 EXTRACTION RULES:
 1. PRICE: If "PRE-EXTRACTED DATA" section shows a price, USE THAT VALUE - it was extracted directly from the DOM.
-   Otherwise, look for price elements in HTML (often in spans/divs with 'price' class). Belgian sites show prices like "€1,89" or "1.89€"
+   Otherwise, look for price elements in HTML (often in spans/divs with 'price' class). Belgian sites show prices like "€1,89" or "1.89€".
+   Use the PACK price (what the customer pays), NOT a per-unit reference price like "€8,50/kg" or "€2,00/l". Variable-weight goods (fresh meat/fish/cheese sold au poids) often show only a €/kg price and no fixed pack price - in that case set price to null.
 2. NUTRITION:
    - If you see "=== NUTRITION TABLE (EXTRACTED) ===" at the top, use that data first - it's the clean nutrition table
    - The table is under "Valeurs nutritionelles" (French) or "Voedingswaarde" (Dutch) header
@@ -986,7 +1013,8 @@ EXTRACTION RULES:
 3. BRAND: Extract from product name or look for brand mentions
 4. CANONICAL NAME: Remove brand, quantity, promotional words (BIO, PROMO, NEW, etc.)
 5. CATEGORY: Choose the BEST FIT category from the list above - be specific but not overly narrow
-6. QUANTITY: Look for weight/volume info (e.g., "375g", "1L", "12 stuks"). Use URL data if not in HTML
+6. QUANTITY: Look for weight/volume info (e.g., "375g", "1L", "12 stuks"). Use URL data if not in HTML.
+   Do NOT invent a weight. Variable-weight goods (sold au poids / per kg) have no fixed net quantity - set net_quantity_value to null unless a fixed pack weight is explicitly stated.
 7. IS_FOOD: false only for cleaning products, pet food, diapers, cosmetics, etc.
 
 FEW-SHOT EXAMPLES:
@@ -1235,7 +1263,29 @@ async def enrich_catalog_item(
     net_quantity_value = extracted_data.get("net_quantity_value") or url_qty
     net_quantity_unit = extracted_data.get("net_quantity_unit") or url_unit
 
+    # The per-unit price element is scraped as ground truth; only a bare price
+    # (no /kg suffix) is a legitimate pack-price fallback.
     price = extracted_data.get("price") or crawl.extracted_price
+    unit_price = crawl.unit_price
+    unit_price_unit = crawl.unit_price_unit
+
+    # When the LLM's price/quantity grossly contradicts the scraped €/unit, it
+    # misread a per-unit figure as the pack price and invented a weight
+    # (variable-weight goods). Drop the untrustworthy pack price/quantity and
+    # keep the ground-truth unit price.
+    try:
+        quantity_enum = UnitEnum(net_quantity_unit) if net_quantity_unit else None
+    except ValueError:
+        quantity_enum = None
+    if unit_price_conflicts(price, net_quantity_value, quantity_enum, unit_price, unit_price_unit):
+        logger.warning(
+            f"Dropping pack price/quantity for '{raw_name}': price {price} @ "
+            f"{net_quantity_value}{net_quantity_unit} contradicts {unit_price}/{unit_price_unit}"
+        )
+        price = None
+        net_quantity_value = None
+        net_quantity_unit = None
+
     currency = extracted_data.get("currency", "EUR")
     nutrition = extracted_data.get("nutrition")
 
@@ -1272,6 +1322,8 @@ async def enrich_catalog_item(
         net_quantity_unit=net_quantity_unit,
         is_food=is_food,
         price=price,
+        unit_price=unit_price,
+        unit_price_unit=unit_price_unit,
         currency=currency,
         category=category,
         nutrition=nutrition,
