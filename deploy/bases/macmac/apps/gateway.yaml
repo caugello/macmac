@@ -25,7 +25,7 @@ spec:
             name: macmac-config
       containers:
         - name: gateway
-          image: quay.io/caugello/macmac-gateway:v0.2.10
+          image: quay.io/caugello/macmac-gateway:v0.2.12
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
