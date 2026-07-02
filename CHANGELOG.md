@@ -5,6 +5,12 @@ All notable changes to MacMac are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.12] - 2026-07-02
+
+### Fixed
+
+- **Catalog:** Persist the scraped per-unit price (e.g. €/kg) as ground truth for variable-weight goods sold by weight, so items priced per kilo are no longer stored as a fixed pack price paired with a hallucinated weight. A cross-check drops contradictory model-extracted price and quantity when they conflict with the scraped unit price (#482, #483)
+
 ## [0.2.11] - 2026-07-01
 
 ### Added
