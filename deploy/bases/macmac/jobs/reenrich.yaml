@@ -29,7 +29,7 @@ spec:
                 name: macmac-config
           containers:
             - name: reenrich
-              image: quay.io/caugello/macmac-enricher:v0.2.12
+              image: quay.io/caugello/macmac-catalog:v0.2.12
               imagePullPolicy: Always
               volumeMounts:
                 - name: cfg
